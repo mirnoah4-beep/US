@@ -55,18 +55,24 @@ class AppState extends ChangeNotifier {
   }
 
   int get batteryPercent {
-    int score = 68;
+    int score = 72;
     final dateNight = moments.firstWhere((m) => m.id == 'date_night');
-    if (dateNight.daysAgo <= 7) score += 10;
     if (dateNight.daysAgo == 0) score += 5;
     return score.clamp(0, 100);
   }
 
+  String get batteryStatusLine {
+    final pct = batteryPercent;
+    if (pct >= 80) return 'You\'re doing great! 💚';
+    if (pct >= 65) return 'You\'re doing well! 💛';
+    return 'Time to reconnect. 🤍';
+  }
+
   String get batteryMessage {
     final pct = batteryPercent;
-    if (pct >= 85) return 'Your connection is strong. Keep it up.';
-    if (pct >= 65) return 'You may need a little more quality time soon.';
-    return 'It\'s been a while. Time to reconnect.';
+    if (pct >= 80) return 'Your connection is strong. Keep it up.';
+    if (pct >= 65) return 'Recharge with small moments together.';
+    return 'It\'s been a while. Plan something soon.';
   }
 
   MomentItem get lastDateMoment =>

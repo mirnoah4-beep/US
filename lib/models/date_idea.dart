@@ -51,6 +51,14 @@ List<DateIdea> buildInitialIdeas() {
       icon: Icons.directions_walk_rounded,
     ),
     DateIdea(
+      id: 'bowling_cafe',
+      title: 'Bowling or café',
+      duration: '1 hour',
+      categoryLabel: '1 hour out',
+      category: IdeaCategory.oneHourOut,
+      icon: Icons.sports_rounded,
+    ),
+    DateIdea(
       id: 'cook_together',
       title: 'Cook together after bedtime',
       duration: '30 min',
@@ -67,14 +75,6 @@ List<DateIdea> buildInitialIdeas() {
       category: IdeaCategory.babysitterNight,
       icon: Icons.nightlife_rounded,
       parentModeOnly: true,
-    ),
-    DateIdea(
-      id: 'couple_quiz',
-      title: 'Couple quiz',
-      duration: '10 min',
-      categoryLabel: '10 min',
-      category: IdeaCategory.tenMin,
-      icon: Icons.lightbulb_rounded,
     ),
   ];
 }

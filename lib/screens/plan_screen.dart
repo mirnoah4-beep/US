@@ -17,42 +17,11 @@ class PlanScreen extends StatelessWidget {
             const SizedBox(height: 24),
             _buildHeader(),
             const SizedBox(height: 20),
-            _buildApprovalNote(),
-            const SizedBox(height: 24),
-            _buildSectionLabel('This week'),
-            const SizedBox(height: 12),
-            _PlanProgressCard(
-              label: 'Home date',
-              current: state.weeklyDates,
-              goal: AppState.weeklyDateGoal,
-              icon: Icons.home_rounded,
-            ),
-            const SizedBox(height: 10),
-            _PlanProgressCard(
-              label: 'Walk together',
-              current: state.weeklyWalks,
-              goal: AppState.weeklyWalkGoal,
-              icon: Icons.directions_walk_rounded,
-            ),
-            const SizedBox(height: 10),
-            _PlanProgressCard(
-              label: 'Phone-free talk',
-              current: state.weeklyPhoneFreeTalks,
-              goal: AppState.weeklyPhoneFreeTalkGoal,
-              icon: Icons.chat_bubble_outline_rounded,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel('This month'),
-            const SizedBox(height: 12),
-            _PlanProgressCard(
-              label: 'Date night',
-              current: state.monthlyDates,
-              goal: AppState.monthlyDateGoal,
-              icon: Icons.favorite_rounded,
-              isMonthly: true,
-            ),
-            const SizedBox(height: 24),
+            _buildPlanCard(context, state),
+            const SizedBox(height: 16),
             _buildCoupleGameCard(context),
+            const SizedBox(height: 16),
+            _buildWeeklyReminderCard(),
             const SizedBox(height: 40),
           ],
         ),
@@ -65,7 +34,7 @@ class PlanScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Plan',
+          'This week',
           style: TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 28,
@@ -82,35 +51,78 @@ class PlanScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildApprovalNote() {
+  Widget _buildPlanCard(BuildContext context, AppState state) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.cardBeige,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: const [
-          Icon(Icons.handshake_outlined, color: AppTheme.textSecondary, size: 20),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Both partners can approve a plan before it becomes active.',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.4),
-            ),
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSectionLabel(String label) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: AppTheme.textPrimary,
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Our plan this week',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGreenLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Active',
+                  style: TextStyle(
+                    color: AppTheme.accentGreen,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Both partners can approve a plan before it becomes active.',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 18),
+          _PlanProgressRow(
+            label: '1 home date',
+            current: state.weeklyDates,
+            goal: AppState.weeklyDateGoal,
+            icon: Icons.home_rounded,
+          ),
+          const SizedBox(height: 14),
+          _PlanProgressRow(
+            label: '1 walk',
+            current: state.weeklyWalks,
+            goal: AppState.weeklyWalkGoal,
+            icon: Icons.directions_walk_rounded,
+          ),
+          const SizedBox(height: 14),
+          _PlanProgressRow(
+            label: '1 phone-free talk',
+            current: state.weeklyPhoneFreeTalks,
+            goal: AppState.weeklyPhoneFreeTalkGoal,
+            icon: Icons.chat_bubble_outline_rounded,
+          ),
+        ],
       ),
     );
   }
@@ -126,41 +138,105 @@ class PlanScreen extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFD4C8DE), width: 1),
       ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(18),
+      child: Row(
         children: [
-          const Row(
-            children: [
-              Icon(Icons.emoji_events_rounded, color: Color(0xFF8B6E9E), size: 24),
-              SizedBox(width: 10),
-              Text(
-                'Couple game',
-                style: TextStyle(color: Color(0xFF8B6E9E), fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-            ],
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEE6F5),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.emoji_events_rounded, color: Color(0xFF8B6E9E), size: 24),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Who knows whom best?',
-            style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Couple game',
+                  style: TextStyle(color: Color(0xFF8B6E9E), fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Who knows whom best?',
+                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'A fun way to reconnect and learn something new about each other.',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14, height: 1.4),
-          ),
-          const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () => _showGameSheet(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF8B6E9E),
               foregroundColor: AppTheme.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Start'),
+            child: const Text('Start', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklyReminderCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBeige,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.warningAmberLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.notifications_none_rounded, color: AppTheme.warningAmber, size: 22),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Weekly reminder',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Sunday evening — plan your week together.',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '10 min, before the week starts.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -177,19 +253,17 @@ class PlanScreen extends StatelessWidget {
   }
 }
 
-class _PlanProgressCard extends StatelessWidget {
+class _PlanProgressRow extends StatelessWidget {
   final String label;
   final int current;
   final int goal;
   final IconData icon;
-  final bool isMonthly;
 
-  const _PlanProgressCard({
+  const _PlanProgressRow({
     required this.label,
     required this.current,
     required this.goal,
     required this.icon,
-    this.isMonthly = false,
   });
 
   bool get _isComplete => current >= goal;
@@ -197,73 +271,63 @@ class _PlanProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: _isComplete ? AppTheme.accentGreenLight : AppTheme.cardBeige,
+            borderRadius: BorderRadius.circular(10),
           ),
-        ],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: _isComplete ? AppTheme.accentGreenLight : AppTheme.cardBeige,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(
-              icon,
-              color: _isComplete ? AppTheme.accentGreen : AppTheme.textSecondary,
-              size: 22,
-            ),
+          child: Icon(
+            _isComplete ? Icons.check_rounded : icon,
+            color: _isComplete ? AppTheme.accentGreen : AppTheme.textSecondary,
+            size: 18,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Text(
-                      '$current/$goal ${isMonthly ? 'this month' : 'this week'}',
-                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: _progress,
-                    backgroundColor: AppTheme.divider,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _isComplete ? AppTheme.accentGreen : AppTheme.accentRose,
-                    ),
-                    minHeight: 6,
                   ),
+                  Text(
+                    '$current/$goal',
+                    style: TextStyle(
+                      color: _isComplete ? AppTheme.accentGreen : AppTheme.textMuted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: _progress,
+                  backgroundColor: AppTheme.divider,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _isComplete ? AppTheme.accentGreen : AppTheme.accentRose,
+                  ),
+                  minHeight: 5,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -315,10 +379,7 @@ class _GameSheetState extends State<_GameSheet> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
+            decoration: BoxDecoration(color: AppTheme.white, borderRadius: BorderRadius.circular(20)),
             child: Text(
               _questions[_index],
               style: const TextStyle(color: AppTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w500, height: 1.5),
@@ -327,14 +388,15 @@ class _GameSheetState extends State<_GameSheet> {
           const SizedBox(height: 20),
           Row(
             children: [
-              if (_index > 0)
+              if (_index > 0) ...[
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => setState(() => _index--),
                     child: const Text('Back'),
                   ),
                 ),
-              if (_index > 0) const SizedBox(width: 10),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {

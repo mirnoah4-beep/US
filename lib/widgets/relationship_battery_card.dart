@@ -3,11 +3,13 @@ import '../theme/app_theme.dart';
 
 class RelationshipBatteryCard extends StatelessWidget {
   final int percent;
+  final String statusLine;
   final String message;
 
   const RelationshipBatteryCard({
     super.key,
     required this.percent,
+    required this.statusLine,
     required this.message,
   });
 
@@ -31,20 +33,20 @@ class RelationshipBatteryCard extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Our connection',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
+              const Text(
+                'Relationship battery',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -63,7 +65,7 @@ class RelationshipBatteryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
@@ -75,12 +77,22 @@ class RelationshipBatteryCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
+            statusLine,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
             message,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  height: 1.5,
-                ),
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
         ],
       ),
