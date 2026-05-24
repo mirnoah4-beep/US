@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/relationship_battery_card.dart';
-import '../widgets/goal_card.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -11,266 +11,198 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
           children: [
-            const SizedBox(height: 24),
-            _buildHeader(context),
-            const SizedBox(height: 20),
+            _buildTopBar(context),
+            const SizedBox(height: 26),
+            const Text(
+              'Hi, you two! 👋',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+                height: 1.15,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Small moments create strong bonds.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 22),
             RelationshipBatteryCard(
               percent: state.batteryPercent,
               statusLine: state.batteryStatusLine,
               message: state.batteryMessage,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             if (state.hasChildren) ...[
-              _buildAloneTimeCard(),
-              const SizedBox(height: 12),
-              _buildKidsBedtimeCard(),
-              const SizedBox(height: 12),
+              _buildMiniDateCard(context),
+              const SizedBox(height: 14),
             ],
-            _buildGoalRow(state),
-            const SizedBox(height: 12),
-            _buildSuggestionCard(context),
-            const SizedBox(height: 12),
             _buildInspirationCard(),
-            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildTopBar(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentRose,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'US',
-                        style: TextStyle(
-                          color: AppTheme.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Hi, you two! 👋',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Small moments create strong bonds.',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-              ),
-            ],
+        const Expanded(
+          child: Text(
+            'US',
+            style: TextStyle(
+              color: AppTheme.accentRose,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
           ),
         ),
         GestureDetector(
           onTap: () => _openSettings(context),
           child: Container(
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: AppTheme.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.textPrimary.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: const Icon(Icons.settings_outlined, color: AppTheme.textSecondary, size: 20),
+            child: const Icon(
+              Icons.notifications_none_rounded,
+              color: AppTheme.textSecondary,
+              size: 22,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAloneTimeCard() {
+  Widget _buildMiniDateCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.accentRoseLight,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: const [
-          Icon(Icons.hourglass_bottom_rounded, color: AppTheme.accentRose, size: 20),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'You haven\'t had alone time in 12 days.',
-              style: TextStyle(
-                color: AppTheme.accentRose,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildKidsBedtimeCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEE6F5),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: const [
-          Text('🌙', style: TextStyle(fontSize: 18)),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'The kids will be asleep soon',
-              style: TextStyle(
-                color: Color(0xFF7B5EA7),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-            ),
-          ),
-          Text(
-            'Plan something',
-            style: TextStyle(
-              color: Color(0xFF7B5EA7),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGoalRow(AppState state) {
-    return Row(
-      children: [
-        Expanded(
-          child: GoalCard(
-            label: 'This week',
-            current: state.weeklyDates,
-            total: AppState.weeklyDateGoal,
-            sublabel: 'dates',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: GoalCard(
-            label: 'This month',
-            current: state.monthlyDates,
-            total: AppState.monthlyDateGoal,
-            sublabel: 'dates',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: LastDateCard(daysAgo: state.lastDateMoment.daysAgo),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSuggestionCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.accentRose.withValues(alpha: 0.07),
-            AppTheme.accentRoseLight.withValues(alpha: 0.45),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFFFFE4D6),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.accentRoseLight, width: 1),
+        border: Border.all(
+          color: AppTheme.accentRose.withValues(alpha: 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.accentRose.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: AppTheme.accentRose.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              color: AppTheme.accentRose.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(999),
             ),
             child: const Text(
               'Suggestion for tonight',
               style: TextStyle(
                 color: AppTheme.accentRose,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           const Text(
             'Mini-date tonight',
             style: TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
+              fontSize: 25,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.35,
+              height: 1.12,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           const Text(
             'cards + tea, 20 min',
             style: TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 14,
-              height: 1.4,
+              fontSize: 16,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _showSnackbar(context, 'Suggestion sent!'),
-                  child: const Text('Send suggestion'),
+          const SizedBox(height: 6),
+          const Text(
+            'A little break. Just the two of you.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () => _showSnack(context, 'Suggestion sent!'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentRose,
+                foregroundColor: AppTheme.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _showSnackbar(context, 'You\'re in! 🎉'),
-                  child: const Text('I\'m in'),
+              child: const Text(
+                'Send suggestion',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton(
+              onPressed: () => _showSnack(context, 'You’re in!'),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: AppTheme.white.withValues(alpha: 0.72),
+                foregroundColor: AppTheme.textPrimary,
+                side: BorderSide(
+                  color: AppTheme.accentRose.withValues(alpha: 0.16),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
                 ),
               ),
-            ],
+              child: const Text(
+                'I\'m in',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
           ),
         ],
       ),
@@ -283,21 +215,13 @@ class HomeScreen extends StatelessWidget {
         color: AppTheme.cardBeige,
         borderRadius: BorderRadius.circular(20),
       ),
-      padding: const EdgeInsets.all(18),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppTheme.accentGreenLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.format_quote_rounded, color: AppTheme.accentGreen, size: 22),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
+          Icon(Icons.format_quote_rounded, color: AppTheme.accentGreen, size: 30),
+          SizedBox(width: 14),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -305,18 +229,18 @@ class HomeScreen extends StatelessWidget {
                   'Today\'s inspiration',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 5),
+                SizedBox(height: 6),
                 Text(
                   '"A great relationship is about two things: finding the similarities and respecting the differences."',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    height: 1.5,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -327,7 +251,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _showSnackbar(BuildContext context, String message) {
+  void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -342,7 +266,6 @@ class HomeScreen extends StatelessWidget {
     final state = context.read<AppState>();
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _SettingsSheet(state: state),
     );
@@ -351,6 +274,7 @@ class HomeScreen extends StatelessWidget {
 
 class _SettingsSheet extends StatefulWidget {
   final AppState state;
+
   const _SettingsSheet({required this.state});
 
   @override
@@ -373,27 +297,31 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         color: AppTheme.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppTheme.divider,
+              borderRadius: BorderRadius.circular(99),
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Settings',
-            style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Couple setup',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
               color: AppTheme.white,
@@ -410,10 +338,14 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     children: [
                       Text(
                         'We have children',
-                        style: TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
-                        'Show parent-specific ideas and moments',
+                        'Show parent-specific cards',
                         style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
                       ),
                     ],
@@ -421,17 +353,16 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 ),
                 Switch(
                   value: _hasChildren,
-                  onChanged: (val) {
-                    setState(() => _hasChildren = val);
-                    widget.state.setHasChildren(val);
-                  },
                   activeThumbColor: AppTheme.accentRose,
                   activeTrackColor: AppTheme.accentRoseLight,
+                  onChanged: (value) {
+                    setState(() => _hasChildren = value);
+                    widget.state.setHasChildren(value);
+                  },
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
         ],
       ),
     );
