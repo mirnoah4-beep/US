@@ -16,7 +16,7 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 120),
           children: [
             _buildTopBar(context),
             const SizedBox(height: 26),
@@ -123,7 +123,7 @@ class HomeScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
             child: const Text(
-              'Suggestion for tonight',
+              'Tonight’s idea',
               style: TextStyle(
                 color: AppTheme.accentRose,
                 fontSize: 14,
