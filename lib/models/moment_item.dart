@@ -78,7 +78,7 @@ List<MomentItem> buildInitialMoments() {
     MomentItem(id: 'date_night', title: 'Date night', icon: Icons.favorite_rounded, daysAgo: 11),
     MomentItem(id: 'home_date', title: 'Home date', icon: Icons.home_rounded, daysAgo: 5),
     MomentItem(id: 'went_out', title: 'Went out together', icon: Icons.directions_walk_rounded, daysAgo: 18),
-    MomentItem(id: 'game', title: 'Played games together', icon: Icons.sports_esports_rounded, daysAgo: 24),
+    MomentItem(id: 'game', title: 'Game night', icon: Icons.sports_esports_rounded, daysAgo: 24),
     MomentItem(id: 'walk', title: 'Took a walk', icon: Icons.nature_rounded, daysAgo: 9),
     MomentItem(id: 'no_kids', title: 'Time without kids', icon: Icons.child_friendly_rounded, daysAgo: 31, parentModeOnly: true),
     MomentItem(id: 'phone_free', title: 'Phone-free talk', icon: Icons.chat_bubble_outline_rounded, daysAgo: 6),
