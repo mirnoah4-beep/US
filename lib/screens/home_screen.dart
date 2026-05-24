@@ -46,10 +46,8 @@ class HomeScreen extends StatelessWidget {
               message: state.batteryMessage,
             ),
             const SizedBox(height: 14),
-            if (state.hasChildren) ...[
-              _buildMiniDateCard(context),
-              const SizedBox(height: 14),
-            ],
+            _buildMiniDateCard(context),
+            const SizedBox(height: 14),
             _buildInspirationCard(),
           ],
         ),
@@ -235,7 +233,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  '"A great relationship is about two things: finding the similarities and respecting the differences."',
+                  'A small compliment can brighten the day.',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 15,
