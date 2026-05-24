@@ -17,44 +17,45 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 118),
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 112),
           children: [
             _buildTopBar(context),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             Text(
               _timeGreeting(),
               style: const TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.7,
-                height: 1.08,
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -1.0,
+                height: 1.05,
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 7),
             Text(
               _dateLine(),
               style: const TextStyle(
                 color: AppTheme.textSecondary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                height: 1.1,
               ),
             ),
-            const SizedBox(height: 18),
-            _buildQuoteCard(),
-            const SizedBox(height: 14),
+            const SizedBox(height: 22),
+            _buildReminderCard(),
+            const SizedBox(height: 16),
             RelationshipBatteryCard(
               percent: state.batteryPercent,
               statusLine: state.batteryStatusLine,
               message: 'Recharge with small moments tonight.',
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             _sectionTitle('Tonight’s idea'),
-            const SizedBox(height: 8),
-            _buildMiniDateCard(context),
-            const SizedBox(height: 20),
+            const SizedBox(height: 9),
+            _buildTonightIdeaCard(context),
+            const SizedBox(height: 22),
             _sectionTitle('This week'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 9),
             _buildWeekGrid(state),
           ],
         ),
@@ -70,9 +71,10 @@ class HomeScreen extends StatelessWidget {
             'US',
             style: TextStyle(
               color: AppTheme.accentRose,
-              fontSize: 30,
+              fontSize: 32,
               fontWeight: FontWeight.w500,
-              letterSpacing: -1.4,
+              letterSpacing: -1.6,
+              height: 1,
               fontFamily: 'Georgia',
             ),
           ),
@@ -80,23 +82,23 @@ class HomeScreen extends StatelessWidget {
         GestureDetector(
           onTap: () => _openSettings(context),
           child: Container(
-            width: 42,
-            height: 42,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: AppTheme.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(999),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.textPrimary.withValues(alpha: 0.05),
-                  blurRadius: 14,
+                  color: AppTheme.textPrimary.withValues(alpha: 0.065),
+                  blurRadius: 16,
                   offset: const Offset(0, 5),
                 ),
               ],
             ),
             child: const Icon(
-              Icons.settings_rounded,
+              Icons.settings_outlined,
               color: AppTheme.textPrimary,
-              size: 22,
+              size: 23,
             ),
           ),
         ),
@@ -104,13 +106,13 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuoteCard() {
+  Widget _buildReminderCard() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppTheme.white.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.accentRose.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.accentRose.withValues(alpha: 0.13)),
         boxShadow: [
           BoxShadow(
             color: AppTheme.textPrimary.withValues(alpha: 0.025),
@@ -123,27 +125,28 @@ class HomeScreen extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
-              color: AppTheme.accentRoseLight.withValues(alpha: 0.62),
-              borderRadius: BorderRadius.circular(15),
+              color: AppTheme.accentRoseLight.withValues(alpha: 0.58),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
               Icons.format_quote_rounded,
               color: AppTheme.accentRose,
-              size: 28,
+              size: 31,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           const Expanded(
             child: Text(
               'A small compliment can brighten the day for both of you.',
               style: TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
+                letterSpacing: -0.1,
               ),
             ),
           ),
@@ -157,23 +160,23 @@ class HomeScreen extends StatelessWidget {
       title,
       style: const TextStyle(
         color: AppTheme.textSecondary,
-        fontSize: 15,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.1,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.05,
       ),
     );
   }
 
-  Widget _buildMiniDateCard(BuildContext context) {
+  Widget _buildTonightIdeaCard(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEEE8),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.accentRose.withValues(alpha: 0.13)),
+        color: const Color(0xFFFFF0EA),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.accentRose.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.accentRose.withValues(alpha: 0.06),
+            color: AppTheme.accentRose.withValues(alpha: 0.055),
             blurRadius: 16,
             offset: const Offset(0, 5),
           ),
@@ -194,60 +197,85 @@ class HomeScreen extends StatelessWidget {
                       'Mini-date',
                       style: TextStyle(
                         color: AppTheme.accentRose,
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
+                        height: 1,
                       ),
                     ),
-                    SizedBox(height: 6),
+                    SizedBox(height: 9),
                     Text(
                       'Cards + tea',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
-                        fontSize: 26,
+                        fontSize: 28,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -0.6,
-                        height: 1.05,
+                        letterSpacing: -0.8,
+                        height: 1,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    SizedBox(height: 10),
                     Text(
                       '20 min · just you two',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        height: 1,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Container(
-                width: 78,
-                height: 66,
-                decoration: BoxDecoration(
-                  color: AppTheme.white.withValues(alpha: 0.48),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Stack(
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 92,
+                height: 78,
+                child: Stack(
+                  clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
                     Positioned(
-                      top: 12,
-                      right: 15,
-                      child: Icon(
-                        Icons.local_cafe_rounded,
-                        color: AppTheme.accentRose,
-                        size: 30,
+                      right: 2,
+                      top: 2,
+                      child: Container(
+                        width: 56,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentRoseLight.withValues(alpha: 0.48),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Icon(
+                          Icons.local_cafe_rounded,
+                          color: AppTheme.accentRose,
+                          size: 31,
+                        ),
                       ),
                     ),
                     Positioned(
-                      bottom: 12,
-                      left: 16,
-                      child: Icon(
-                        Icons.favorite_rounded,
-                        color: AppTheme.accentRose,
-                        size: 20,
+                      left: 2,
+                      bottom: 5,
+                      child: Transform.rotate(
+                        angle: -0.18,
+                        child: Container(
+                          width: 47,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppTheme.white.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.textPrimary.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.favorite_rounded,
+                            color: AppTheme.accentRose,
+                            size: 19,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -255,7 +283,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 19),
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -265,7 +293,7 @@ class HomeScreen extends StatelessWidget {
                 backgroundColor: AppTheme.accentRose,
                 foregroundColor: AppTheme.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
               ),
               child: const Text(
                 'Send idea',
@@ -280,10 +308,10 @@ class HomeScreen extends StatelessWidget {
             child: OutlinedButton(
               onPressed: () => _openCustomMessageSheet(context),
               style: OutlinedButton.styleFrom(
-                backgroundColor: AppTheme.white.withValues(alpha: 0.58),
+                backgroundColor: AppTheme.white.withValues(alpha: 0.55),
                 foregroundColor: AppTheme.accentRose,
-                side: BorderSide(color: AppTheme.accentRose.withValues(alpha: 0.16)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                side: BorderSide(color: AppTheme.accentRose.withValues(alpha: 0.18)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
               ),
               child: const Text(
                 'Write your own',
@@ -303,7 +331,7 @@ class HomeScreen extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 2.18,
+      childAspectRatio: 2.12,
       children: [
         _WeekTile(
           icon: Icons.home_rounded,
@@ -524,19 +552,19 @@ class _WeekTile extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 43,
+            height: 43,
             decoration: BoxDecoration(
               color: iconBg.withValues(alpha: 0.82),
               borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(icon, color: iconColor, size: 23),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -569,7 +597,7 @@ class _WeekTile extends StatelessWidget {
             ),
           ),
           if (complete) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: 7),
             Container(
               width: 22,
               height: 22,
