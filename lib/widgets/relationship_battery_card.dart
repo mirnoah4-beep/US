@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
 class RelationshipBatteryCard extends StatelessWidget {
@@ -16,150 +17,155 @@ class RelationshipBatteryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progress = percent.clamp(0, 100) / 100.0;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppTheme.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: AppTheme.accentRose.withValues(alpha: 0.08),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.05),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
+            color: AppTheme.textPrimary.withValues(alpha: 0.045),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 26),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       child: Column(
         children: [
+          const Row(
+            children: [
+              Text(
+                'Relationship battery',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              SizedBox(width: 6),
+              Icon(
+                Icons.info_outline_rounded,
+                color: AppTheme.textMuted,
+                size: 17,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           SizedBox(
-            width: 250,
-            height: 250,
+            width: 186,
+            height: 160,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 CustomPaint(
-                  size: const Size(250, 250),
-                  painter: _ConnectionRingPainter(percent / 100),
+                  size: const Size(186, 160),
+                  painter: _ConnectionRingPainter(progress),
                 ),
                 Positioned(
-                  top: 70,
-                  child: _buildCoupleAvatars(),
-                ),
-                Positioned(
-                  top: 48,
-                  child: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: AppTheme.white,
-                      borderRadius: BorderRadius.circular(99),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.textPrimary.withValues(alpha: 0.08),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                  top: 43,
+                  child: SizedBox(
+                    width: 132,
+                    height: 66,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          left: 4,
+                          child: _AvatarBubble(
+                            initial: 'A',
+                            background: AppTheme.accentRoseLight,
+                            foreground: AppTheme.accentRose,
+                          ),
+                        ),
+                        Positioned(
+                          right: 4,
+                          child: _AvatarBubble(
+                            initial: 'S',
+                            background: AppTheme.accentGreenLight,
+                            foreground: AppTheme.accentGreen,
+                          ),
                         ),
                       ],
-                    ),
-                    child: const Icon(
-                      Icons.favorite_rounded,
-                      color: AppTheme.accentRose,
-                      size: 26,
                     ),
                   ),
                 ),
                 Positioned(
-                  bottom: 38,
+                  bottom: 8,
                   child: Text(
                     '$percent%',
                     style: const TextStyle(
                       color: AppTheme.accentRose,
-                      fontSize: 38,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.2,
+                      fontSize: 29,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.8,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             statusLine,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              height: 1.15,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              height: 1.12,
               letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 16,
-              height: 1.35,
+              fontSize: 14,
+              height: 1.25,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildCoupleAvatars() {
-    return SizedBox(
-      width: 178,
-      height: 86,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            left: 18,
-            child: _avatar(
-              initial: 'A',
-              background: AppTheme.accentRoseLight,
-              foreground: AppTheme.accentRose,
-            ),
-          ),
-          Positioned(
-            right: 18,
-            child: _avatar(
-              initial: 'S',
-              background: AppTheme.accentGreenLight,
-              foreground: AppTheme.accentGreen,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _AvatarBubble extends StatelessWidget {
+  final String initial;
+  final Color background;
+  final Color foreground;
 
-  Widget _avatar({
-    required String initial,
-    required Color background,
-    required Color foreground,
-  }) {
+  const _AvatarBubble({
+    required this.initial,
+    required this.background,
+    required this.foreground,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 78,
-      height: 78,
+      width: 64,
+      height: 64,
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(99),
+        shape: BoxShape.circle,
         border: Border.all(color: AppTheme.white, width: 4),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.10),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: AppTheme.textPrimary.withValues(alpha: 0.055),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -168,7 +174,7 @@ class RelationshipBatteryCard extends StatelessWidget {
           initial,
           style: TextStyle(
             color: foreground,
-            fontSize: 28,
+            fontSize: 25,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -180,13 +186,17 @@ class RelationshipBatteryCard extends StatelessWidget {
 class _ConnectionRingPainter extends CustomPainter {
   final double progress;
 
-  _ConnectionRingPainter(this.progress);
+  const _ConnectionRingPainter(this.progress);
 
   @override
   void paint(Canvas canvas, Size size) {
-    const strokeWidth = 16.0;
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (math.min(size.width, size.height) - strokeWidth) / 2;
+    const strokeWidth = 8.5;
+    final center = Offset(size.width / 2, size.width / 2);
+    final radius = (size.width - strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    const startAngle = math.pi * 0.82;
+    const totalSweep = math.pi * 1.36;
 
     final bgPaint = Paint()
       ..color = AppTheme.accentRoseLight
@@ -200,10 +210,8 @@ class _ConnectionRingPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    canvas.drawArc(rect, math.pi * 0.78, math.pi * 1.44, false, bgPaint);
-    canvas.drawArc(rect, math.pi * 0.78, math.pi * 1.44 * progress, false, progressPaint);
+    canvas.drawArc(rect, startAngle, totalSweep, false, bgPaint);
+    canvas.drawArc(rect, startAngle, totalSweep * progress, false, progressPaint);
   }
 
   @override
