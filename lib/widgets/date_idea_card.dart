@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/date_idea.dart';
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
 class DateIdeaCard extends StatefulWidget {
@@ -23,13 +25,11 @@ class _DateIdeaCardState extends State<DateIdeaCard>
     with TickerProviderStateMixin {
   bool _sent = false;
 
-  // Heart animations
   late AnimationController _heartController;
   late Animation<double> _heartScale;
 
   late AnimationController _burstController;
 
-  // Send button animations
   late AnimationController _sendController;
   late Animation<double> _sendScale;
   late Animation<Color?> _sendBg;
@@ -148,6 +148,7 @@ class _DateIdeaCardState extends State<DateIdeaCard>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.white,
@@ -182,7 +183,7 @@ class _DateIdeaCardState extends State<DateIdeaCard>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.idea.title,
+                  s.ideaTitle(widget.idea.id),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -199,12 +200,12 @@ class _DateIdeaCardState extends State<DateIdeaCard>
                   runSpacing: 6,
                   children: [
                     _Tag(
-                      label: widget.idea.duration,
+                      label: s.ideaDuration(widget.idea.id),
                       bg: AppTheme.cardBeige,
                       color: AppTheme.textSecondary,
                     ),
                     _Tag(
-                      label: widget.idea.categoryLabel,
+                      label: s.ideaCategoryLabel(widget.idea.category),
                       bg: AppTheme.accentRoseLight,
                       color: AppTheme.accentRose,
                     ),
@@ -217,7 +218,6 @@ class _DateIdeaCardState extends State<DateIdeaCard>
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Heart with burst overlay
               SizedBox(
                 width: 48,
                 height: 48,
@@ -252,7 +252,6 @@ class _DateIdeaCardState extends State<DateIdeaCard>
                 ),
               ),
               const SizedBox(height: 8),
-              // Animated send button
               AnimatedBuilder(
                 animation: _sendController,
                 builder: (context, _) {
@@ -284,7 +283,7 @@ class _DateIdeaCardState extends State<DateIdeaCard>
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                _sent ? 'Sent to S!' : 'Send',
+                                _sent ? s.ideaSentLabel : s.ideaSendLabel,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 13,

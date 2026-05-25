@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
 class RelationshipBatteryCard extends StatelessWidget {
@@ -14,20 +16,6 @@ class RelationshipBatteryCard extends StatelessWidget {
     required this.message,
   });
 
-  String _moodString(int pct) {
-    if (pct >= 90) return 'On fire!';
-    if (pct >= 70) return 'Cozy mode';
-    if (pct >= 50) return 'Could use a spark';
-    if (pct >= 30) return 'Need a recharge';
-    return 'Low battery';
-  }
-
-  String _pillLabel(int pct) {
-    if (pct >= 80) return 'Great';
-    if (pct >= 65) return 'Good';
-    return 'Low';
-  }
-
   Color _pillColor(int pct) {
     if (pct >= 65) return AppTheme.accentGreen;
     return AppTheme.warningAmber;
@@ -40,10 +28,11 @@ class RelationshipBatteryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     final pct = percent.clamp(0, 100);
     final progress = pct / 100.0;
-    final mood = _moodString(pct);
-    final pillLabel = _pillLabel(pct);
+    final mood = s.batteryMood(pct);
+    final pillLabel = s.batteryPillLabel(pct);
     final pillColor = _pillColor(pct);
     final pillBg = _pillBg(pct);
     final reduceMotion = MediaQuery.of(context).disableAnimations;
@@ -69,9 +58,9 @@ class RelationshipBatteryCard extends StatelessWidget {
             children: [
               const Icon(Icons.favorite_border, color: AppTheme.accentRose, size: 15),
               const SizedBox(width: 6),
-              const Text(
-                'Relationship battery',
-                style: TextStyle(
+              Text(
+                s.batteryTitle,
+                style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
 class LogMomentOption {
@@ -78,17 +80,18 @@ class _LogMomentSheetState extends State<LogMomentSheet>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-      child: _logged ? _buildSuccess(context) : _buildPicker(),
+      child: _logged ? _buildSuccess(context, s) : _buildPicker(s),
     );
   }
 
-  Widget _buildSuccess(BuildContext context) {
+  Widget _buildSuccess(BuildContext context, s) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -104,26 +107,25 @@ class _LogMomentSheetState extends State<LogMomentSheet>
           child: const Icon(Icons.check_rounded, color: AppTheme.accentGreen, size: 32),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Logged!',
-          style: TextStyle(
+        Text(
+          s.logSuccess,
+          style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Nice. Small moments keep love strong.',
+        Text(
+          s.logSuccessMsg,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 15,
             height: 1.5,
           ),
         ),
         const SizedBox(height: 16),
-        // Rising heart
         SizedBox(
           height: 100,
           child: Stack(
@@ -155,7 +157,7 @@ class _LogMomentSheetState extends State<LogMomentSheet>
     );
   }
 
-  Widget _buildPicker() {
+  Widget _buildPicker(s) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,21 +173,21 @@ class _LogMomentSheetState extends State<LogMomentSheet>
           ),
         ),
         const SizedBox(height: 20),
-        const Text(
-          'We did something!',
-          style: TextStyle(
+        Text(
+          s.logTitle,
+          style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'What did you do together?',
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+        Text(
+          s.logSubtitle,
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
         const SizedBox(height: 20),
-        ..._visibleOptions.map((opt) => _buildOption(opt)),
+        ..._visibleOptions.map((opt) => _buildOption(opt, s)),
         const SizedBox(height: 16),
         AnimatedBuilder(
           animation: _confirmController,
@@ -212,7 +214,7 @@ class _LogMomentSheetState extends State<LogMomentSheet>
                     foregroundColor:
                         _selected != null ? AppTheme.white : AppTheme.textMuted,
                   ),
-                  child: const Text('Log it!'),
+                  child: Text(s.logButton),
                 ),
               ),
             );
@@ -222,7 +224,7 @@ class _LogMomentSheetState extends State<LogMomentSheet>
     );
   }
 
-  Widget _buildOption(LogMomentOption opt) {
+  Widget _buildOption(LogMomentOption opt, s) {
     final isSelected = _selected == opt.id;
     return GestureDetector(
       onTap: () => setState(() => _selected = opt.id),
@@ -247,7 +249,7 @@ class _LogMomentSheetState extends State<LogMomentSheet>
             ),
             const SizedBox(width: 14),
             Text(
-              opt.label,
+              s.logOptionLabel(opt.id),
               style: TextStyle(
                 color: isSelected ? AppTheme.accentRose : AppTheme.textPrimary,
                 fontSize: 15,

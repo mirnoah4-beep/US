@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../models/app_state.dart';
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/relationship_battery_card.dart';
 import 'resolve_together_screen.dart';
@@ -14,6 +15,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final s = context.watch<LanguageProvider>().s;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -24,7 +26,7 @@ class HomeScreen extends StatelessWidget {
             _buildTopBar(context),
             const SizedBox(height: 18),
             Text(
-              _timeGreeting(),
+              _timeGreeting(s),
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 26,
@@ -44,35 +46,35 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            _buildInspirationCard(),
+            _buildInspirationCard(s),
             const SizedBox(height: 14),
             RelationshipBatteryCard(
               percent: state.batteryPercent,
-              statusLine: state.batteryStatusLine,
-              message: state.batteryMessage,
+              statusLine: s.batteryStatus(state.batteryPercent),
+              message: s.batteryMsg(state.batteryPercent),
             ),
             const SizedBox(height: 22),
-            _sectionLabel('Tonight\'s idea'),
+            _sectionLabel(s.homeTonightSection),
             const SizedBox(height: 10),
-            const _TonightCard(),
+            _TonightCard(s: s),
             const SizedBox(height: 22),
-            _sectionLabel('This week'),
+            _sectionLabel(s.homeThisWeekSection),
             const SizedBox(height: 10),
-            _buildThisWeekGrid(state),
+            _buildThisWeekGrid(state, s),
             const SizedBox(height: 22),
-            _buildResolveCard(context),
+            _buildResolveCard(context, s),
           ],
         ),
       ),
     );
   }
 
-  String _timeGreeting() {
+  String _timeGreeting(s) {
     final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) return 'Good morning, you two! 👋';
-    if (hour >= 12 && hour < 17) return 'Good afternoon, you two! 👋';
-    if (hour >= 17 && hour < 22) return 'Good evening, you two! 👋';
-    return 'Still awake, you two? 🌙';
+    if (hour >= 5 && hour < 12) return s.greetingMorning;
+    if (hour >= 12 && hour < 17) return s.greetingAfternoon;
+    if (hour >= 17 && hour < 22) return s.greetingEvening;
+    return s.greetingNight;
   }
 
   String _formattedDate() {
@@ -131,7 +133,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInspirationCard() {
+  Widget _buildInspirationCard(s) {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.white,
@@ -162,10 +164,10 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Text(
-              'A small compliment can brighten the day.',
-              style: TextStyle(
+              s.homeInspirationQuote,
+              style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -178,7 +180,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildThisWeekGrid(AppState state) {
+  Widget _buildThisWeekGrid(AppState state, s) {
     final walkDone = state.weeklyWalks >= AppState.weeklyWalkGoal;
     final dateDone = state.weeklyDates >= AppState.weeklyDateGoal;
     final phoneDone = state.weeklyPhoneFreeTalks >= AppState.weeklyPhoneFreeTalkGoal;
@@ -191,8 +193,8 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                 child: _WeekCard(
                   icon: Icons.directions_walk,
-                  title: 'Walk together',
-                  subtitle: walkDone ? 'Done this week' : '0 of 1 this week',
+                  title: s.homeWalkTogether,
+                  subtitle: walkDone ? s.homeDoneThisWeek : s.homeWeeklyGoal,
                   done: walkDone,
                 ),
               ),
@@ -200,8 +202,8 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                 child: _WeekCard(
                   icon: Icons.favorite_border,
-                  title: 'Date night',
-                  subtitle: dateDone ? 'Done this week' : '0 of 1 this week',
+                  title: s.homeDateNight,
+                  subtitle: dateDone ? s.homeDoneThisWeek : s.homeWeeklyGoal,
                   done: dateDone,
                 ),
               ),
@@ -215,8 +217,8 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                 child: _WeekCard(
                   icon: Icons.chat_bubble_outline_rounded,
-                  title: 'Phone-free talk',
-                  subtitle: phoneDone ? 'Done this week' : '0 of 1 this week',
+                  title: s.homePhoneFreeTalk,
+                  subtitle: phoneDone ? s.homeDoneThisWeek : s.homeWeeklyGoal,
                   done: phoneDone,
                 ),
               ),
@@ -224,8 +226,8 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                 child: _WeekCard(
                   icon: Icons.star_outline_rounded,
-                  title: 'Send a note',
-                  subtitle: '0 of 1 this week',
+                  title: s.homeSendNote,
+                  subtitle: s.homeWeeklyGoal,
                   done: false,
                 ),
               ),
@@ -236,7 +238,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildResolveCard(BuildContext context) {
+  Widget _buildResolveCard(BuildContext context, s) {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const ResolveTogetherScreen()),
@@ -270,22 +272,22 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Ikke helt enig?',
-                    style: TextStyle(
+                    s.homeResolveTitle,
+                    style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'La Tom hjelpe dere å finne midten',
-                    style: TextStyle(
+                    s.homeResolveSubtitle,
+                    style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
@@ -315,7 +317,8 @@ class HomeScreen extends StatelessWidget {
 // ─── Tonight card with waiting state ────────────────────────────────────────
 
 class _TonightCard extends StatefulWidget {
-  const _TonightCard();
+  final dynamic s;
+  const _TonightCard({required this.s});
 
   @override
   State<_TonightCard> createState() => _TonightCardState();
@@ -368,6 +371,7 @@ class _TonightCardState extends State<_TonightCard>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFFFE8E0),
@@ -381,11 +385,11 @@ class _TonightCardState extends State<_TonightCard>
         ],
       ),
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: _waiting ? _buildWaiting() : _buildIdle(context),
+      child: _waiting ? _buildWaiting(s) : _buildIdle(context, s),
     );
   }
 
-  Widget _buildIdle(BuildContext context) {
+  Widget _buildIdle(BuildContext context, s) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -403,9 +407,9 @@ class _TonightCardState extends State<_TonightCard>
                       color: AppTheme.accentRose.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(99),
                     ),
-                    child: const Text(
-                      'Mini-date',
-                      style: TextStyle(
+                    child: Text(
+                      s.homeTonightTag,
+                      style: const TextStyle(
                         color: AppTheme.accentRose,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -414,9 +418,9 @@ class _TonightCardState extends State<_TonightCard>
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Cards + tea',
-                    style: TextStyle(
+                  Text(
+                    s.homeTonightTitle,
+                    style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -426,9 +430,9 @@ class _TonightCardState extends State<_TonightCard>
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    '20 min · just you two',
-                    style: TextStyle(
+                  Text(
+                    s.homeTonightSubtitle,
+                    style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -456,9 +460,9 @@ class _TonightCardState extends State<_TonightCard>
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text(
-              'Send idea',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            child: Text(
+              s.homeSendIdea,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -467,7 +471,7 @@ class _TonightCardState extends State<_TonightCard>
           width: double.infinity,
           height: 44,
           child: OutlinedButton(
-            onPressed: () => _openCustomMessageSheet(context),
+            onPressed: () => _openCustomMessageSheet(context, s),
             style: OutlinedButton.styleFrom(
               backgroundColor: AppTheme.white.withValues(alpha: 0.60),
               foregroundColor: AppTheme.textPrimary,
@@ -478,9 +482,9 @@ class _TonightCardState extends State<_TonightCard>
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text(
-              'Write your own',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            child: Text(
+              s.homeWriteOwn,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -488,7 +492,7 @@ class _TonightCardState extends State<_TonightCard>
     );
   }
 
-  Widget _buildWaiting() {
+  Widget _buildWaiting(s) {
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, _) {
@@ -510,9 +514,9 @@ class _TonightCardState extends State<_TonightCard>
                           color: AppTheme.accentRose.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(99),
                         ),
-                        child: const Text(
-                          'Mini-date',
-                          style: TextStyle(
+                        child: Text(
+                          s.homeTonightTag,
+                          style: const TextStyle(
                             color: AppTheme.accentRose,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -521,9 +525,9 @@ class _TonightCardState extends State<_TonightCard>
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Cards + tea',
-                        style: TextStyle(
+                      Text(
+                        s.homeTonightTitle,
+                        style: const TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -540,7 +544,6 @@ class _TonightCardState extends State<_TonightCard>
               ],
             ),
             const SizedBox(height: 16),
-            // Waiting state
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -561,7 +564,7 @@ class _TonightCardState extends State<_TonightCard>
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Fingers crossed... S is thinking$dots',
+                      s.homeWaiting(dots),
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 14,
@@ -574,7 +577,6 @@ class _TonightCardState extends State<_TonightCard>
               ),
             ),
             const SizedBox(height: 12),
-            // Three indicator dots
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -594,7 +596,7 @@ class _TonightCardState extends State<_TonightCard>
     );
   }
 
-  void _openCustomMessageSheet(BuildContext context) {
+  void _openCustomMessageSheet(BuildContext context, s) {
     final controller = TextEditingController(
       text: 'Want to take 20 minutes for us tonight?',
     );
@@ -633,9 +635,9 @@ class _TonightCardState extends State<_TonightCard>
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Text(
-                    'Write your own',
-                    style: TextStyle(
+                  Text(
+                    s.homeWriteOwnSheetTitle,
+                    style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -643,9 +645,9 @@ class _TonightCardState extends State<_TonightCard>
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Make it sound like you.',
-                    style: TextStyle(
+                  Text(
+                    s.homeWriteOwnSheetSubtitle,
+                    style: const TextStyle(
                         color: AppTheme.textSecondary, fontSize: 14),
                   ),
                   const SizedBox(height: 18),
@@ -657,7 +659,7 @@ class _TonightCardState extends State<_TonightCard>
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: AppTheme.white,
-                      hintText: 'Write your message...',
+                      hintText: s.homeWriteOwnHint,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(18),
                         borderSide: BorderSide.none,
@@ -674,7 +676,7 @@ class _TonightCardState extends State<_TonightCard>
                         Navigator.pop(sheetContext);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text('Sent to S!'),
+                            content: Text(s.homeSentToS),
                             behavior: SnackBarBehavior.floating,
                             backgroundColor: AppTheme.textPrimary,
                             shape: RoundedRectangleBorder(
@@ -690,9 +692,9 @@ class _TonightCardState extends State<_TonightCard>
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
-                        'Send to S',
-                        style: TextStyle(
+                      child: Text(
+                        s.homeSendToS,
+                        style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800),
                       ),
                     ),

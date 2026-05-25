@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'models/app_state.dart';
+import 'models/language_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/last_time_screen.dart';
 import 'screens/ideas_screen.dart';
@@ -8,9 +9,13 @@ import 'screens/plan_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppState(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppState()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
+      ],
       child: const UsApp(),
     ),
   );
@@ -49,6 +54,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -81,28 +87,28 @@ class _MainShellState extends State<MainShell> {
             elevation: 0,
             enableFeedback: false,
             type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.access_time_outlined),
-              activeIcon: Icon(Icons.access_time_rounded),
-              label: 'Last Time',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.lightbulb_outline_rounded),
-              activeIcon: Icon(Icons.lightbulb_rounded),
-              label: 'Ideas',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_outlined),
-              activeIcon: Icon(Icons.calendar_today_rounded),
-              label: 'Plan',
-            ),
-          ],
+            items: [
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.home_outlined),
+                activeIcon: const Icon(Icons.home_rounded),
+                label: s.navHome,
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.access_time_outlined),
+                activeIcon: const Icon(Icons.access_time_rounded),
+                label: s.navLastTime,
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.lightbulb_outline_rounded),
+                activeIcon: const Icon(Icons.lightbulb_rounded),
+                label: s.navIdeas,
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.calendar_today_outlined),
+                activeIcon: const Icon(Icons.calendar_today_rounded),
+                label: s.navPlan,
+              ),
+            ],
           ),
         ),
       ),

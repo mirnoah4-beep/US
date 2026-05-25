@@ -3,7 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
 enum _PartnerState { none, invited, connected }
@@ -22,8 +24,6 @@ const _kAvatarColors = [
   _AvatarColor(Color(0xFFFBEAF0), Color(0xFF993556)), // pink
   _AvatarColor(Color(0xFFEEEDFE), Color(0xFF534AB7)), // purple
 ];
-
-const _kColorLabels = ['Coral', 'Green', 'Amber', 'Teal', 'Pink', 'Purple'];
 
 class _Milestone {
   final int years;
@@ -108,18 +108,17 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
       _savedName = _nameCtrl.text.trim();
       _nameChanged = false;
     });
-    // Firestore: /users/{userId}/name = _savedName
   }
 
   void _sendInvite() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     final rand = Random.secure();
-    final code = List.generate(6, (_) => chars[rand.nextInt(36)]).join();
+    final code =
+        List.generate(6, (_) => chars[rand.nextInt(36)]).join();
     setState(() {
       _inviteCode = code;
       _partnerState = _PartnerState.invited;
     });
-    // Firestore: create /invites/{code}
     _openShareSheet(code);
   }
 
@@ -128,42 +127,42 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _ShareSheet(link: 'https://us-app.com/invite/$code'),
+      builder: (_) =>
+          _ShareSheet(link: 'https://us-app.com/invite/$code'),
     );
   }
 
   void _cancelInvite() {
-    // Firestore: delete /invites/{_inviteCode}
     setState(() {
       _inviteCode = '';
       _partnerState = _PartnerState.none;
     });
   }
 
-  // Long-press State B card to simulate partner accepting (dev only)
   void _simulatePartnerAccepted() {
     setState(() {
-      _partnerName = 'Alex';       // would come from Firestore in production
-      _partnerColorIdx = 1;        // would come from Firestore in production
+      _partnerName = 'Alex';
+      _partnerColorIdx = 1;
       _togetherSince = DateTime.now();
       _partnerState = _PartnerState.connected;
       _showSuccess = true;
     });
-    // Firestore: create /couples/{id}, delete /invites/{code}
     _successCtrl.forward(from: 0).then((_) {
       if (mounted) setState(() => _showSuccess = false);
     });
   }
 
   Future<void> _confirmRemovePartner() async {
+    final s = context.read<LanguageProvider>().s;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Remove $_partnerName as your partner?',
+          s.coupleRemoveTitle(_partnerName),
           style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
@@ -171,29 +170,31 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
             letterSpacing: -0.3,
           ),
         ),
-        content: const Text(
-          'This will disconnect both accounts.',
-          style: TextStyle(fontSize: 14, color: Color(0xFF8C7B72)),
+        content: Text(
+          s.coupleRemoveContent,
+          style: const TextStyle(
+              fontSize: 14, color: Color(0xFF8C7B72)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF8C7B72))),
+            child: Text(s.coupleRemoveCancel,
+                style:
+                    const TextStyle(color: Color(0xFF8C7B72))),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Remove',
-              style: TextStyle(
-                  color: Color(0xFFA32D2D), fontWeight: FontWeight.w600),
+            child: Text(
+              s.coupleRemoveConfirm,
+              style: const TextStyle(
+                  color: Color(0xFFA32D2D),
+                  fontWeight: FontWeight.w600),
             ),
           ),
         ],
       ),
     );
     if (ok == true && mounted) {
-      // Firestore: delete couple doc, reset both users
       setState(() {
         _togetherSince = null;
         _partnerState = _PartnerState.none;
@@ -221,7 +222,6 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
     );
     if (date != null && mounted) {
       setState(() => _togetherSince = date);
-      // Firestore: /couples/{coupleId}/togetherSince = date
     }
   }
 
@@ -246,6 +246,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -254,20 +255,20 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
             ListView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 60),
               children: [
-                _buildTopBar(),
+                _buildTopBar(s),
                 const SizedBox(height: 28),
-                _sectionLabel('Your profile'),
+                _sectionLabel(s.coupleYourProfile),
                 const SizedBox(height: 8),
-                _buildProfileCard(),
+                _buildProfileCard(s),
                 const SizedBox(height: 24),
-                _sectionLabel('Your partner'),
+                _sectionLabel(s.coupleYourPartner),
                 const SizedBox(height: 8),
-                _buildPartnerCard(),
+                _buildPartnerCard(s),
                 if (_partnerState == _PartnerState.connected) ...[
                   const SizedBox(height: 24),
-                  _sectionLabel('Together since'),
+                  _sectionLabel(s.coupleTogetherSince),
                   const SizedBox(height: 8),
-                  _buildTogetherSinceCard(),
+                  _buildTogetherSinceCard(s),
                 ],
               ],
             ),
@@ -278,7 +279,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(s) {
     return Row(
       children: [
         GestureDetector(
@@ -289,7 +290,8 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFE0D9D0), width: 0.5),
+              border: Border.all(
+                  color: const Color(0xFFE0D9D0), width: 0.5),
             ),
             child: const Center(
               child: Icon(Icons.arrow_back_ios_new,
@@ -298,9 +300,9 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
           ),
         ),
         const SizedBox(width: 14),
-        const Text(
-          'Couple setup',
-          style: TextStyle(
+        Text(
+          s.coupleSetupTitle,
+          style: const TextStyle(
             color: Color(0xFF2C2420),
             fontSize: 22,
             fontWeight: FontWeight.w500,
@@ -342,7 +344,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
 
   // ── Profile Card ──────────────────────────────────────────────────────
 
-  Widget _buildProfileCard() {
+  Widget _buildProfileCard(s) {
     final color = _kAvatarColors[_colorIdx];
     final raw = _nameCtrl.text.trim();
     final initial = raw.isNotEmpty ? raw[0].toUpperCase() : '?';
@@ -356,8 +358,8 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
             child: Container(
               width: 56,
               height: 56,
-              decoration:
-                  BoxDecoration(color: color.bg, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: color.bg, shape: BoxShape.circle),
               child: Center(
                 child: Text(
                   initial,
@@ -393,9 +395,10 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                   },
                 ),
                 const SizedBox(height: 3),
-                const Text(
-                  'Tap name to edit',
-                  style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9)),
+                Text(
+                  s.coupleTapToEdit,
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFFB4B2A9)),
                 ),
                 if (_nameChanged) ...[
                   const SizedBox(height: 10),
@@ -405,15 +408,17 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                       onPressed: _saveName,
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFFC1544A),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Save',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600),
+                      child: Text(
+                        s.coupleSave,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -442,18 +447,18 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
 
   // ── Partner Card ──────────────────────────────────────────────────────
 
-  Widget _buildPartnerCard() {
+  Widget _buildPartnerCard(s) {
     switch (_partnerState) {
       case _PartnerState.none:
-        return _buildPartnerNone();
+        return _buildPartnerNone(s);
       case _PartnerState.invited:
-        return _buildPartnerInvited();
+        return _buildPartnerInvited(s);
       case _PartnerState.connected:
-        return _buildPartnerConnected();
+        return _buildPartnerConnected(s);
     }
   }
 
-  Widget _buildPartnerNone() {
+  Widget _buildPartnerNone(s) {
     return _card(
       child: Column(
         children: [
@@ -463,14 +468,16 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                 color: Color(0xFFB4B2A9), size: 24),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'No partner connected yet',
-            style: TextStyle(fontSize: 14, color: Color(0xFF888888)),
+          Text(
+            s.coupleNoPartner,
+            style: const TextStyle(
+                fontSize: 14, color: Color(0xFF888888)),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Invite them to join you on Us',
-            style: TextStyle(fontSize: 13, color: Color(0xFFB4B2A9)),
+          Text(
+            s.coupleInviteSubtitle,
+            style: const TextStyle(
+                fontSize: 13, color: Color(0xFFB4B2A9)),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -483,9 +490,10 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text(
-                'Invite your partner',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              child: Text(
+                s.coupleInviteButton,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -494,7 +502,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
     );
   }
 
-  Widget _buildPartnerInvited() {
+  Widget _buildPartnerInvited(s) {
     return GestureDetector(
       onLongPress: _simulatePartnerAccepted,
       child: _card(
@@ -510,18 +518,19 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                   color: Color(0xFF854F0B), size: 28),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Invite sent!',
-              style: TextStyle(
+            Text(
+              s.coupleInviteSent,
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
                 color: Color(0xFF633806),
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Waiting for them to join...',
-              style: TextStyle(fontSize: 13, color: Color(0xFF854F0B)),
+            Text(
+              s.coupleWaiting,
+              style: const TextStyle(
+                  fontSize: 13, color: Color(0xFF854F0B)),
             ),
             const SizedBox(height: 12),
             _buildAnimatedDots(),
@@ -531,24 +540,25 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFF854F0B),
                 minimumSize: Size.zero,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Resend invite',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              child: Text(s.coupleResendInvite,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500)),
             ),
             TextButton(
               onPressed: _cancelInvite,
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFFB4B2A9),
                 minimumSize: Size.zero,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Cancel invite',
-                  style: TextStyle(fontSize: 14)),
+              child: Text(s.coupleCancelInvite,
+                  style: const TextStyle(fontSize: 14)),
             ),
           ],
         ),
@@ -569,9 +579,15 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                 opacity: 0.5 + t * 0.5,
                 color: const Color(0xFFC1544A)),
             const SizedBox(width: 5),
-            _dot(scale: 1.0, opacity: 0.45, color: const Color(0xFF854F0B)),
+            _dot(
+                scale: 1.0,
+                opacity: 0.45,
+                color: const Color(0xFF854F0B)),
             const SizedBox(width: 5),
-            _dot(scale: 1.0, opacity: 0.45, color: const Color(0xFF854F0B)),
+            _dot(
+                scale: 1.0,
+                opacity: 0.45,
+                color: const Color(0xFF854F0B)),
           ],
         );
       },
@@ -589,13 +605,14 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
         child: Container(
           width: 6,
           height: 6,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          decoration:
+              BoxDecoration(color: color, shape: BoxShape.circle),
         ),
       ),
     );
   }
 
-  Widget _buildPartnerConnected() {
+  Widget _buildPartnerConnected(s) {
     final color = _kAvatarColors[_partnerColorIdx];
     final initial =
         _partnerName.isNotEmpty ? _partnerName[0].toUpperCase() : 'P';
@@ -606,7 +623,8 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
           Container(
             width: 56,
             height: 56,
-            decoration: BoxDecoration(color: color.bg, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                color: color.bg, shape: BoxShape.circle),
             child: Center(
               child: Text(
                 initial,
@@ -629,14 +647,15 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
           ),
           const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: const Color(0xFFEAF3DE),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
-              'Connected',
-              style: TextStyle(
+            child: Text(
+              s.coupleConnected,
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: Color(0xFF3B6D11),
@@ -649,11 +668,12 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFA32D2D),
               minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 6),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('Remove partner',
-                style: TextStyle(fontSize: 13)),
+            child: Text(s.coupleRemovePartner,
+                style: const TextStyle(fontSize: 13)),
           ),
         ],
       ),
@@ -662,13 +682,14 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
 
   // ── Together Since Card ───────────────────────────────────────────────
 
-  Widget _buildTogetherSinceCard() {
+  Widget _buildTogetherSinceCard(s) {
     final since = _togetherSince;
     final days = since != null
         ? max(0, DateTime.now().difference(since).inDays)
         : 0;
-    final dateLabel =
-        since != null ? DateFormat('MMMM yyyy').format(since) : 'Set a date';
+    final dateLabel = since != null
+        ? DateFormat('MMMM yyyy').format(since)
+        : s.coupleSetDatePlaceholder;
     final milestone = _upcomingMilestone();
 
     return _card(
@@ -698,7 +719,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$days days together',
+                      s.coupleDaysTogether(days),
                       style: const TextStyle(
                           fontSize: 13, color: Color(0xFF888888)),
                     ),
@@ -709,7 +730,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
           ),
           if (milestone != null) ...[
             const SizedBox(height: 12),
-            _buildMilestoneBanner(milestone),
+            _buildMilestoneBanner(milestone, s),
           ],
           const SizedBox(height: 14),
           TextButton(
@@ -720,26 +741,28 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
               padding: EdgeInsets.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('Change date',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            child: Text(s.coupleChangeDate,
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w500)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMilestoneBanner(_Milestone m) {
+  Widget _buildMilestoneBanner(_Milestone m, s) {
     final label = DateFormat('MMMM d').format(m.date);
-    final yearsLabel = m.years == 1 ? '1 year' : '${m.years} years';
+    final yearsLabel = s.coupleYearsLabel(m.years);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFFAEEDA),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        'Coming up: $yearsLabel on $label',
+        s.coupleUpcoming(yearsLabel, label),
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w500,
@@ -801,7 +824,8 @@ class _DashedCircle extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomPaint(
       painter: const _DashedCirclePainter(),
-      child: SizedBox(width: size, height: size, child: Center(child: child)),
+      child: SizedBox(
+          width: size, height: size, child: Center(child: child)),
     );
   }
 }
@@ -850,6 +874,8 @@ class _ColorPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final colorLabels = s.coupleColorLabels;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -861,9 +887,9 @@ class _ColorPickerSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Choose your color',
-            style: TextStyle(
+          Text(
+            s.coupleChooseColor,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Color(0xFF2C2420),
@@ -887,21 +913,25 @@ class _ColorPickerSheet extends StatelessWidget {
                         color: c.bg,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: selected ? c.fg : Colors.transparent,
+                          color: selected
+                              ? c.fg
+                              : Colors.transparent,
                           width: 2.5,
                         ),
                       ),
                       child: selected
-                          ? Icon(Icons.check_rounded, color: c.fg, size: 20)
+                          ? Icon(Icons.check_rounded,
+                              color: c.fg, size: 20)
                           : null,
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _kColorLabels[i],
+                      colorLabels[i],
                       style: TextStyle(
                         fontSize: 11,
-                        color:
-                            selected ? c.fg : const Color(0xFFB4B2A9),
+                        color: selected
+                            ? c.fg
+                            : const Color(0xFFB4B2A9),
                         fontWeight: selected
                             ? FontWeight.w600
                             : FontWeight.w400,
@@ -925,6 +955,7 @@ class _ShareSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -936,28 +967,29 @@ class _ShareSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Invite your partner',
-            style: TextStyle(
+          Text(
+            s.coupleInviteSheetTitle,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Color(0xFF2C2420),
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Share this link with your partner to connect on Us.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF8C7B72)),
+          Text(
+            s.coupleInviteSheetSubtitle,
+            style: const TextStyle(
+                fontSize: 13, color: Color(0xFF8C7B72)),
           ),
           const SizedBox(height: 16),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: AppTheme.background,
               borderRadius: BorderRadius.circular(12),
-              border:
-                  Border.all(color: const Color(0xFFE0D9D0), width: 0.5),
+              border: Border.all(
+                  color: const Color(0xFFE0D9D0), width: 0.5),
             ),
             child: Row(
               children: [
@@ -974,16 +1006,16 @@ class _ShareSheet extends StatelessWidget {
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: link));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Link copied!'),
-                        duration: Duration(seconds: 1),
+                      SnackBar(
+                        content: Text(s.coupleLinkCopied),
+                        duration: const Duration(seconds: 1),
                       ),
                     );
                     Navigator.pop(context);
                   },
-                  child: const Text(
-                    'Copy',
-                    style: TextStyle(
+                  child: Text(
+                    s.coupleCopy,
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFFC1544A),
@@ -997,19 +1029,20 @@ class _ShareSheet extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              // In production: Share.share('Join me on Us — $link')
               onPressed: () => Navigator.pop(context),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFC1544A),
-                padding: const EdgeInsets.symmetric(vertical: 13),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              icon: const Icon(Icons.share_rounded, size: 18),
-              label: const Text(
-                'Share link',
-                style:
-                    TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              icon:
+                  const Icon(Icons.share_rounded, size: 18),
+              label: Text(
+                s.coupleShareLink,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w600),
               ),
             ),
           ),

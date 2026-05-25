@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_state.dart';
+import '../models/language_provider.dart';
 import '../models/moment_item.dart';
 import '../theme/app_theme.dart';
 import '../widgets/activity_sheet.dart';
@@ -14,7 +15,6 @@ class LastTimeScreen extends StatelessWidget {
   List<MomentItem> _sortedMoments(List<MomentItem> moments) {
     final items = [...moments];
     items.sort((a, b) {
-      // positive first: green=0, amber=1, red=2
       int pa = switch (a.status) {
         MomentStatus.good => 0,
         MomentStatus.needsAttention => 1,
@@ -34,6 +34,7 @@ class LastTimeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final s = context.watch<LanguageProvider>().s;
     final moments = _sortedMoments(state.visibleMoments);
 
     return Scaffold(
@@ -49,9 +50,9 @@ class LastTimeScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  _buildHeader(),
+                  _buildHeader(s),
                   const SizedBox(height: 18),
-                  _buildLegend(),
+                  _buildLegend(s),
                   const SizedBox(height: 14),
                   _StatsBar(state: state),
                   const SizedBox(height: 20),
@@ -61,7 +62,8 @@ class LastTimeScreen extends StatelessWidget {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
@@ -73,7 +75,8 @@ class LastTimeScreen extends StatelessWidget {
                     return HeatCard(
                       key: ValueKey(item.id),
                       item: item,
-                      onTap: () => _openActivitySheet(context, item, state),
+                      onTap: () =>
+                          _openActivitySheet(context, item, state),
                     );
                   },
                   childCount: moments.length,
@@ -86,13 +89,13 @@ class LastTimeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
-    return const Column(
+  Widget _buildHeader(s) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Last time',
-          style: TextStyle(
+          s.lastTimeTitle,
+          style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 34,
             fontWeight: FontWeight.w800,
@@ -101,10 +104,10 @@ class LastTimeScreen extends StatelessWidget {
             height: 1.1,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
-          'When did you last do this together?',
-          style: TextStyle(
+          s.lastTimeSubtitle,
+          style: const TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 16,
             height: 1.3,
@@ -114,19 +117,23 @@ class LastTimeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLegend() {
+  Widget _buildLegend(s) {
     return Row(
       children: [
-        _legendChip(AppTheme.heatGreenText, AppTheme.heatGreenBg, AppTheme.heatGreenBorder, '0–7 days'),
+        _legendChip(AppTheme.heatGreenText, AppTheme.heatGreenBg,
+            AppTheme.heatGreenBorder, s.lastTime07),
         const SizedBox(width: 8),
-        _legendChip(AppTheme.heatAmberText, AppTheme.heatAmberBg, AppTheme.heatAmberBorder, '8–14 days'),
+        _legendChip(AppTheme.heatAmberText, AppTheme.heatAmberBg,
+            AppTheme.heatAmberBorder, s.lastTime814),
         const SizedBox(width: 8),
-        _legendChip(AppTheme.heatRedText, AppTheme.heatRedBg, AppTheme.heatRedBorder, '15+ days'),
+        _legendChip(AppTheme.heatRedText, AppTheme.heatRedBg,
+            AppTheme.heatRedBorder, s.lastTime15),
       ],
     );
   }
 
-  Widget _legendChip(Color text, Color bg, Color border, String label) {
+  Widget _legendChip(
+      Color text, Color bg, Color border, String label) {
     return Expanded(
       child: Container(
         height: 34,
@@ -141,7 +148,8 @@ class LastTimeScreen extends StatelessWidget {
             Container(
               width: 7,
               height: 7,
-              decoration: BoxDecoration(color: text, shape: BoxShape.circle),
+              decoration:
+                  BoxDecoration(color: text, shape: BoxShape.circle),
             ),
             const SizedBox(width: 6),
             Text(
@@ -158,7 +166,8 @@ class LastTimeScreen extends StatelessWidget {
     );
   }
 
-  void _openActivitySheet(BuildContext context, MomentItem item, AppState state) {
+  void _openActivitySheet(
+      BuildContext context, MomentItem item, AppState state) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -189,11 +198,9 @@ class _StatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     final count = state.momentCountThisMonth;
     final streak = state.streakWeeks;
-    final streakText = streak == 1
-        ? '1 week in a row'
-        : '$streak weeks in a row';
 
     return Container(
       width: double.infinity,
@@ -201,14 +208,16 @@ class _StatsBar extends StatelessWidget {
         color: AppTheme.cardBeige,
         borderRadius: BorderRadius.circular(14),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.bar_chart, color: AppTheme.textSecondary, size: 24),
+          const Icon(Icons.bar_chart,
+              color: AppTheme.textSecondary, size: 24),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$count moment${count == 1 ? '' : 's'} this month  ·  $streakText',
+              '${s.lastTimeStat(count)}  ·  ${s.lastTimeStreak(streak)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -230,6 +239,7 @@ class _LogFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -239,14 +249,15 @@ class _LogFab extends StatelessWidget {
           color: AppTheme.accentRose,
           borderRadius: BorderRadius.circular(26),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add_rounded, color: AppTheme.white, size: 22),
-            SizedBox(width: 8),
+            const Icon(Icons.add_rounded,
+                color: AppTheme.white, size: 22),
+            const SizedBox(width: 8),
             Text(
-              'We did something!',
-              style: TextStyle(
+              s.lastTimeLogButton,
+              style: const TextStyle(
                 color: AppTheme.white,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

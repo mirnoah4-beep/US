@@ -3,26 +3,33 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 import '../config/secrets.dart';
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
 // Logged-in user + partner — replace with real auth data when available
 const _p1Name = 'Noah';
 const _p2Name = 'Alex';
 
-const _kSystemPrompt =
-    'You are Tom, a warm, super positive and always happy couples mediator. '
-    'You have a big heart and genuinely care about both partners. You never take '
-    'sides — ever. You always validate both partners\' feelings equally and make '
-    'both feel heard and respected. You give creative, practical and uplifting '
-    'ideas to solve their problems. You help them see things from completely '
-    'different perspectives they may not have considered. You are never negative, '
-    'never judgmental, and always find something positive in what both partners '
-    'say. Your tone is like a wise, warm friend — not a therapist or a robot. '
-    'Keep responses short, warm, and constructive. Always end with an uplifting '
-    'and hopeful message about their relationship. Respond in the same language '
-    'the partners used.';
+String _buildSystemPrompt(bool isNorwegian) {
+  const base =
+      'You are Tom, a warm, super positive and always happy couples mediator. '
+      'You have a big heart and genuinely care about both partners. You never take '
+      'sides — ever. You always validate both partners\'s feelings equally and make '
+      'both feel heard and respected. You give creative, practical and uplifting '
+      'ideas to solve their problems. You help them see things from completely '
+      'different perspectives they may not have considered. You are never negative, '
+      'never judgmental, and always find something positive in what both partners '
+      'say. Your tone is like a wise, warm friend — not a therapist or a robot. '
+      'Keep responses short, warm, and constructive. Always end with an uplifting '
+      'and hopeful message about their relationship. ';
+  if (isNorwegian) {
+    return '${base}Always respond in Norwegian (Bokmål).';
+  }
+  return '${base}Always respond in English.';
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -49,7 +56,8 @@ class ResolveTogetherScreen extends StatefulWidget {
   const ResolveTogetherScreen({super.key});
 
   @override
-  State<ResolveTogetherScreen> createState() => _ResolveTogetherScreenState();
+  State<ResolveTogetherScreen> createState() =>
+      _ResolveTogetherScreenState();
 }
 
 class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
@@ -81,7 +89,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
     _notifSlide = Tween<Offset>(
       begin: const Offset(0, -1.6),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _notifCtrl, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _notifCtrl, curve: Curves.easeOutCubic));
 
     _runP1Intro();
   }
@@ -101,14 +110,9 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
     setState(() => _tomTyping = true);
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
+    final s = context.read<LanguageProvider>().s;
     setState(() => _tomTyping = false);
-    _push(_Msg(
-      isAi: true,
-      text: 'Hei $_p1Name! Jeg er her for å hjelpe dere å finne midten — '
-          'og jeg tar ikke sider. Informasjonen dere deler her blir ikke lagret '
-          'og slettes automatisk når dere forlater samtalen. 🤝 '
-          'Hva føler du er urettferdig?',
-    ));
+    _push(_Msg(isAi: true, text: s.resolveP1Intro(_p1Name)));
   }
 
   Future<void> _sendP1() async {
@@ -123,12 +127,9 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
     });
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
+    final s = context.read<LanguageProvider>().s;
     setState(() => _tomTyping = false);
-    _push(_Msg(
-      isAi: true,
-      text: 'Takk $_p1Name, jeg hørte deg. '
-          'Jeg sender dette videre til $_p2Name nå — de får beskjed om å komme inn.',
-    ));
+    _push(_Msg(isAi: true, text: s.resolveP1Ack(_p1Name, _p2Name)));
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     setState(() {
@@ -141,6 +142,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
   Future<void> _p2Join() async {
     await _notifCtrl.reverse();
     if (!mounted) return;
+    final s = context.read<LanguageProvider>().s;
     setState(() {
       _showNotif = false;
       _phase = _Phase.p2Intro;
@@ -151,26 +153,25 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
     if (!mounted) return;
     setState(() => _tomTyping = false);
     _push(_Msg(
-      isAi: true,
-      text: 'Hei $_p2Name! $_p1Name har delt noe med meg. '
-          'Jeg har lyttet til dem — nå vil jeg høre din side. Hva føler du?',
-    ));
+        isAi: true, text: s.resolveP2Intro(_p1Name, _p2Name)));
     setState(() => _phase = _Phase.p2Turn);
   }
 
   Future<void> _sendP2() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
+    final isNorwegian = context.read<LanguageProvider>().isNorwegian;
     _inputCtrl.clear();
     _push(_Msg(isAi: false, text: text, sender: _p2Name));
     setState(() {
       _phase = _Phase.thinking;
       _tomTyping = true;
     });
-    await _callApi(_p1Msg, text);
+    await _callApi(_p1Msg, text, isNorwegian);
   }
 
-  Future<void> _callApi(String p1, String p2) async {
+  Future<void> _callApi(
+      String p1, String p2, bool isNorwegian) async {
     try {
       final res = await http.post(
         Uri.parse('https://api.openai.com/v1/chat/completions'),
@@ -182,18 +183,24 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
           'model': 'gpt-4o-mini',
           'max_tokens': 400,
           'messages': [
-            {'role': 'system', 'content': _kSystemPrompt},
+            {
+              'role': 'system',
+              'content': _buildSystemPrompt(isNorwegian)
+            },
             {
               'role': 'user',
-              'content': '$_p1Name sier: "$p1"\n\n$_p2Name sier: "$p2"',
+              'content':
+                  '$_p1Name sier: "$p1"\n\n$_p2Name sier: "$p2"',
             },
           ],
         }),
       );
       if (!mounted) return;
+      final s = context.read<LanguageProvider>().s;
       final reply = res.statusCode == 200
-          ? (jsonDecode(res.body)['choices'][0]['message']['content'] as String)
-          : 'Noe gikk galt. Prøv igjen om litt.';
+          ? (jsonDecode(res.body)['choices'][0]['message']
+                  ['content'] as String)
+          : s.resolveError;
       setState(() {
         _tomTyping = false;
         _msgs.add(_Msg(isAi: true, text: reply));
@@ -201,9 +208,10 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
       });
     } catch (_) {
       if (!mounted) return;
+      final s = context.read<LanguageProvider>().s;
       setState(() {
         _tomTyping = false;
-        _msgs.add(_Msg(isAi: true, text: 'Kunne ikke koble til. Sjekk internett.'));
+        _msgs.add(_Msg(isAi: true, text: s.resolveConnectError));
         _phase = _Phase.done;
       });
     }
@@ -238,9 +246,9 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
   bool get _inputEnabled =>
       _phase == _Phase.p1Turn || _phase == _Phase.p2Turn;
 
-  String get _hint {
-    if (_phase == _Phase.p1Turn) return '$_p1Name, skriv her…';
-    if (_phase == _Phase.p2Turn) return '$_p2Name, skriv her…';
+  String _hintText(s) {
+    if (_phase == _Phase.p1Turn) return s.resolveHint(_p1Name);
+    if (_phase == _Phase.p2Turn) return s.resolveHint(_p2Name);
     return '';
   }
 
@@ -248,13 +256,17 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
-            const Divider(height: 1, thickness: 0.5, color: Color(0xFFE0D9D0)),
+            _buildHeader(context, s),
+            const Divider(
+                height: 1,
+                thickness: 0.5,
+                color: Color(0xFFE0D9D0)),
             Expanded(
               child: Stack(
                 children: [
@@ -266,13 +278,13 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                       right: 0,
                       child: SlideTransition(
                         position: _notifSlide,
-                        child: _buildNotifBanner(),
+                        child: _buildNotifBanner(s),
                       ),
                     ),
                 ],
               ),
             ),
-            _buildInputBar(),
+            _buildInputBar(s),
           ],
         ),
       ),
@@ -281,7 +293,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
 
   // ── Header ────────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, s) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
@@ -294,7 +306,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
               decoration: BoxDecoration(
                 color: AppTheme.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE0D9D0), width: 0.5),
+                border: Border.all(
+                    color: const Color(0xFFE0D9D0), width: 0.5),
               ),
               child: const Center(
                 child: Icon(
@@ -319,20 +332,23 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFFAECE7),
               borderRadius: BorderRadius.circular(99),
-              border: Border.all(color: const Color(0xFFF5C4B3), width: 0.5),
+              border: Border.all(
+                  color: const Color(0xFFF5C4B3), width: 0.5),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.balance_outlined, color: Color(0xFF993C1D), size: 13),
-                SizedBox(width: 5),
+                const Icon(Icons.balance_outlined,
+                    color: Color(0xFF993C1D), size: 13),
+                const SizedBox(width: 5),
                 Text(
-                  'Tom · Nøytral',
-                  style: TextStyle(
+                  s.resolveNeutralPill,
+                  style: const TextStyle(
                     color: Color(0xFF993C1D),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -408,7 +424,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.textPrimary.withValues(alpha: 0.04),
+                        color: AppTheme.textPrimary
+                            .withValues(alpha: 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -510,7 +527,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
           ),
           const SizedBox(height: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: AppTheme.white,
               borderRadius: const BorderRadius.only(
@@ -521,7 +539,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.textPrimary.withValues(alpha: 0.04),
+                  color:
+                      AppTheme.textPrimary.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -567,7 +586,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
 
   // ── In-app notification banner ─────────────────────────────────────────────────
 
-  Widget _buildNotifBanner() {
+  Widget _buildNotifBanner(s) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Container(
@@ -575,7 +594,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
         decoration: BoxDecoration(
           color: const Color(0xFFFFF8F0),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFFAC775), width: 0.8),
+          border:
+              Border.all(color: const Color(0xFFFAC775), width: 0.8),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -594,7 +614,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                 shape: BoxShape.circle,
               ),
               child: const Center(
-                child: Text('🤝', style: TextStyle(fontSize: 20)),
+                child: Text('🤝',
+                    style: TextStyle(fontSize: 20)),
               ),
             ),
             const SizedBox(width: 12),
@@ -603,16 +624,16 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$_p1Name vil løse noe sammen med deg.',
+                    s.resolveNotifTitle(_p1Name),
                     style: const TextStyle(
                       color: Color(0xFF2C2420),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Text(
-                    'Tom venter 🤝',
-                    style: TextStyle(
+                  Text(
+                    s.resolveNotifSub,
+                    style: const TextStyle(
                       color: Color(0xFF854F0B),
                       fontSize: 12,
                     ),
@@ -624,15 +645,15 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
             GestureDetector(
               onTap: _p2Join,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: AppTheme.accentRose,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text(
-                  'Kom inn',
-                  style: TextStyle(
+                child: Text(
+                  s.resolveJoinButton,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -648,13 +669,14 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
 
   // ── Input bar ─────────────────────────────────────────────────────────────────
 
-  Widget _buildInputBar() {
+  Widget _buildInputBar(s) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: const BoxDecoration(
         color: AppTheme.white,
         border: Border(
-          top: BorderSide(color: Color(0xFFE0D9D0), width: 0.5),
+          top:
+              BorderSide(color: Color(0xFFE0D9D0), width: 0.5),
         ),
       ),
       child: Row(
@@ -664,7 +686,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
               decoration: BoxDecoration(
                 color: AppTheme.background,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE0D9D0), width: 0.5),
+                border: Border.all(
+                    color: const Color(0xFFE0D9D0), width: 0.5),
               ),
               child: TextField(
                 controller: _inputCtrl,
@@ -675,9 +698,10 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                   color: AppTheme.textPrimary,
                   fontSize: 15,
                 ),
-                textCapitalization: TextCapitalization.sentences,
+                textCapitalization:
+                    TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: _hint,
+                  hintText: _hintText(s),
                   hintStyle: const TextStyle(
                     color: AppTheme.textMuted,
                     fontSize: 15,
@@ -707,8 +731,9 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
               ),
               child: Icon(
                 Icons.arrow_upward_rounded,
-                color:
-                    _inputEnabled ? AppTheme.white : const Color(0xFFB4B2A9),
+                color: _inputEnabled
+                    ? AppTheme.white
+                    : const Color(0xFFB4B2A9),
                 size: 22,
               ),
             ),

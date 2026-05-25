@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/language_provider.dart';
 import '../models/moment_item.dart';
 import '../theme/app_theme.dart';
 import 'confetti_overlay.dart';
@@ -19,7 +21,6 @@ class _ActivitySheetState extends State<ActivitySheet>
   bool _logged = false;
   bool _confettiActive = false;
 
-  // Send idea button animations
   late AnimationController _sendController;
   late Animation<double> _sendScale;
   late Animation<Color?> _sendBg;
@@ -70,9 +71,7 @@ class _ActivitySheetState extends State<ActivitySheet>
 
   void _sendIdea() {
     if (_ideaSent) return;
-    setState(() {
-      _ideaSent = true;
-    });
+    setState(() { _ideaSent = true; });
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     if (!reduceMotion) _sendController.forward(from: 0);
   }
@@ -90,6 +89,7 @@ class _ActivitySheetState extends State<ActivitySheet>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return ConfettiBurst(
       active: _confettiActive,
       child: Container(
@@ -103,12 +103,12 @@ class _ActivitySheetState extends State<ActivitySheet>
           24,
           MediaQuery.of(context).viewInsets.bottom + 36,
         ),
-        child: _logged ? _buildSuccess(context) : _buildContent(),
+        child: _logged ? _buildSuccess(context, s) : _buildContent(s),
       ),
     );
   }
 
-  Widget _buildSuccess(BuildContext context) {
+  Widget _buildSuccess(BuildContext context, s) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -125,19 +125,19 @@ class _ActivitySheetState extends State<ActivitySheet>
               color: AppTheme.heatGreenText, size: 32),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Logged!',
-          style: TextStyle(
+        Text(
+          s.activitySuccess,
+          style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Small moments keep love strong.',
+        Text(
+          s.activitySuccessMsg,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 15,
             height: 1.5,
@@ -177,7 +177,7 @@ class _ActivitySheetState extends State<ActivitySheet>
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(s) {
     final item = widget.item;
     final hasIdea = item.ideaSuggestion != null;
 
@@ -217,7 +217,7 @@ class _ActivitySheetState extends State<ActivitySheet>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.title,
+                    s.momentTitle(item.id),
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 20,
@@ -229,7 +229,7 @@ class _ActivitySheetState extends State<ActivitySheet>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    item.daysAgoLabel,
+                    s.daysAgoLabel(item.daysAgo),
                     style: TextStyle(
                       color: item.heatTextColor,
                       fontSize: 14,
@@ -282,7 +282,7 @@ class _ActivitySheetState extends State<ActivitySheet>
                         size: 18,
                       ),
                       label: Text(
-                        _ideaSent ? 'Sent to S!' : 'Send to S',
+                        _ideaSent ? s.activitySentToS : s.activitySendToS,
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w700),
                       ),
@@ -309,9 +309,9 @@ class _ActivitySheetState extends State<ActivitySheet>
           child: OutlinedButton.icon(
             onPressed: _logMoment,
             icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-            label: const Text(
-              'We did this!',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            label: Text(
+              s.activityWeDidThis,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppTheme.textPrimary,
@@ -333,6 +333,7 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     final isGood = item.isAllGood;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
@@ -352,7 +353,7 @@ class _StatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            isGood ? 'All good' : 'Time for this again?',
+            isGood ? s.activityAllGood : s.activityTimeAgain,
             style: TextStyle(
               color: item.heatTextColor,
               fontSize: 12,
@@ -371,7 +372,12 @@ class _IdeaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final idea = item.ideaSuggestion!;
+    final s = context.watch<LanguageProvider>().s;
+    final suggestionText = s.momentSuggestionText(item.id) ?? item.ideaSuggestion!.text;
+    final suggestionDuration = s.momentSuggestionDuration(item.id).isNotEmpty
+        ? s.momentSuggestionDuration(item.id)
+        : item.ideaSuggestion!.duration;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       width: double.infinity,
@@ -390,7 +396,7 @@ class _IdeaCard extends StatelessWidget {
                   size: 14, color: item.heatTextColor),
               const SizedBox(width: 6),
               Text(
-                'Idea for you',
+                s.activityIdeaLabel,
                 style: TextStyle(
                   color: item.heatTextColor,
                   fontSize: 11,
@@ -402,7 +408,7 @@ class _IdeaCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            idea.text,
+            suggestionText,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 14,
@@ -418,7 +424,7 @@ class _IdeaCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              idea.duration,
+              suggestionDuration,
               style: TextStyle(
                 color: item.heatTextColor,
                 fontSize: 12,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../models/date_idea.dart';
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/date_idea_card.dart';
 
@@ -15,25 +16,39 @@ class IdeasScreen extends StatefulWidget {
 class _IdeasScreenState extends State<IdeasScreen> {
   IdeaCategory? _selectedCategory;
 
-  static const _chips = [
-    (label: '10 min', category: IdeaCategory.tenMin),
-    (label: '30 min at home', category: IdeaCategory.thirtyAtHome),
-    (label: '1 hour out', category: IdeaCategory.oneHourOut),
-    (label: 'Babysitter night', category: IdeaCategory.babysitterNight),
-    (label: 'Parent mode', category: IdeaCategory.parentMode),
+  static const _chipCategories = [
+    IdeaCategory.tenMin,
+    IdeaCategory.thirtyAtHome,
+    IdeaCategory.oneHourOut,
+    IdeaCategory.babysitterNight,
+    IdeaCategory.parentMode,
   ];
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final s = context.watch<LanguageProvider>().s;
     final allIdeas = state.visibleIdeas;
     final filtered = _selectedCategory == null
         ? allIdeas
         : allIdeas.where((i) => i.category == _selectedCategory).toList();
 
-    final chips = state.hasChildren
-        ? _chips
-        : _chips.where((c) => c.category != IdeaCategory.babysitterNight && c.category != IdeaCategory.parentMode).toList();
+    final chipLabels = [
+      s.ideasChip10min,
+      s.ideasChip30home,
+      s.ideasChip1hour,
+      s.ideasChipBabysitter,
+      s.ideasChipParent,
+    ];
+
+    final allChips = _chipCategories.asMap().entries.toList();
+    final visibleChips = state.hasChildren
+        ? allChips
+        : allChips
+            .where((e) =>
+                e.value != IdeaCategory.babysitterNight &&
+                e.value != IdeaCategory.parentMode)
+            .toList();
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -46,9 +61,9 @@ class _IdeasScreenState extends State<IdeasScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Date ideas',
-                      style: TextStyle(
+                    Text(
+                      s.ideasTitle,
+                      style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 34,
                         fontWeight: FontWeight.w800,
@@ -56,9 +71,10 @@ class _IdeasScreenState extends State<IdeasScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Small ideas, big connection.',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 15),
+                    Text(
+                      s.ideasSubtitle,
+                      style: const TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 15),
                     ),
                     const SizedBox(height: 20),
                     SizedBox(
@@ -67,18 +83,23 @@ class _IdeasScreenState extends State<IdeasScreen> {
                         scrollDirection: Axis.horizontal,
                         children: [
                           _FilterChip(
-                            label: 'All',
+                            label: s.ideasAll,
                             selected: _selectedCategory == null,
-                            onTap: () => setState(() => _selectedCategory = null),
+                            onTap: () =>
+                                setState(() => _selectedCategory = null),
                           ),
                           const SizedBox(width: 8),
-                          ...chips.map((c) => Padding(
+                          ...visibleChips.map((entry) => Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: _FilterChip(
-                                  label: c.label,
-                                  selected: _selectedCategory == c.category,
-                                  onTap: () => setState(() => _selectedCategory =
-                                      _selectedCategory == c.category ? null : c.category),
+                                  label: chipLabels[entry.key],
+                                  selected:
+                                      _selectedCategory == entry.value,
+                                  onTap: () => setState(() =>
+                                      _selectedCategory =
+                                          _selectedCategory == entry.value
+                                              ? null
+                                              : entry.value),
                                 ),
                               )),
                         ],
@@ -90,11 +111,12 @@ class _IdeasScreenState extends State<IdeasScreen> {
               ),
             ),
             if (filtered.isEmpty)
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 child: Center(
                   child: Text(
-                    'No ideas in this category.',
-                    style: TextStyle(color: AppTheme.textMuted, fontSize: 15),
+                    s.ideasEmpty,
+                    style: const TextStyle(
+                        color: AppTheme.textMuted, fontSize: 15),
                   ),
                 ),
               )
@@ -125,12 +147,14 @@ class _IdeasScreenState extends State<IdeasScreen> {
   }
 
   void _showSuggested(BuildContext context) {
+    final s = context.read<LanguageProvider>().s;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Suggestion sent to your partner!'),
+        content: Text(s.ideasSuggestionSent),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppTheme.textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -141,7 +165,8 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
+  const _FilterChip(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +174,8 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? AppTheme.accentRose : AppTheme.white,
           borderRadius: BorderRadius.circular(20),
@@ -161,9 +187,12 @@ class _FilterChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? AppTheme.white : AppTheme.textSecondary,
+            color: selected
+                ? AppTheme.white
+                : AppTheme.textSecondary,
             fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            fontWeight:
+                selected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
       ),

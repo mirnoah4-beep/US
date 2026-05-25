@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/language_provider.dart';
 import '../models/moment_item.dart';
 import '../theme/app_theme.dart';
 
@@ -10,6 +12,7 @@ class HeatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -28,7 +31,7 @@ class HeatCard extends StatelessWidget {
             Icon(item.icon, color: item.heatTextColor, size: 24),
             const SizedBox(height: 8),
             Text(
-              item.title,
+              s.momentTitle(item.id),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -40,7 +43,7 @@ class HeatCard extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              item.daysAgoLabel,
+              s.daysAgoLabel(item.daysAgo),
               style: TextStyle(
                 color: item.heatTextColor,
                 fontSize: 11,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 import 'couple_setup_screen.dart';
 
@@ -16,30 +18,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
           children: [
-            _buildHeader(context),
+            _buildHeader(context, s),
             const SizedBox(height: 24),
-            _buildCoupleCard(),
+            _buildCoupleCard(s),
             const SizedBox(height: 12),
-            _buildSubscriptionBanner(),
+            _buildSubscriptionBanner(s),
             const SizedBox(height: 24),
-            _buildSection1(),
+            _buildSection1(s),
             const SizedBox(height: 12),
-            _buildSection2(),
+            _buildSection2(context, s),
             const SizedBox(height: 12),
-            _buildSection3(),
+            _buildSection3(s),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, s) {
     return Row(
       children: [
         GestureDetector(
@@ -50,7 +53,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFE0D9D0), width: 0.5),
+              border:
+                  Border.all(color: const Color(0xFFE0D9D0), width: 0.5),
             ),
             child: const Center(
               child: Icon(
@@ -62,9 +66,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         const SizedBox(width: 14),
-        const Text(
-          'Settings',
-          style: TextStyle(
+        Text(
+          s.settingsTitle,
+          style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 30,
             fontWeight: FontWeight.w900,
@@ -75,9 +79,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildCoupleCard() {
+  Widget _buildCoupleCard(s) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(20),
@@ -134,11 +139,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Noah & Partner',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
@@ -147,8 +152,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 Text(
-                  'Together since 2020',
-                  style: TextStyle(
+                  s.settingsTogether,
+                  style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12,
                   ),
@@ -159,13 +164,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () {},
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 4),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text(
-              'Edit',
-              style: TextStyle(
+            child: Text(
+              s.settingsEdit,
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFFC1544A),
@@ -177,9 +183,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSubscriptionBanner() {
+  Widget _buildSubscriptionBanner(s) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFFF9E8E1),
         borderRadius: BorderRadius.circular(20),
@@ -200,21 +207,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Upgrade to Premium',
-                  style: TextStyle(
+                  s.settingsUpgrade,
+                  style: const TextStyle(
                     color: Color(0xFF7A2D12),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
-                  'Unlock all features for your relationship',
-                  style: TextStyle(
+                  s.settingsUnlock,
+                  style: const TextStyle(
                     color: Color(0xFF993C1D),
                     fontSize: 12,
                   ),
@@ -232,18 +239,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSection1() {
+  Widget _buildSection1(s) {
     return _SettingsCard(
       children: [
         _NavRow(
           iconData: Icons.favorite_border,
           iconColor: const Color(0xFFC1544A),
           iconBg: const Color(0xFFFAECE7),
-          title: 'Couple setup',
-          subtitle: 'Partner profile and shared preferences',
+          title: s.settingsCoupleSetup,
+          subtitle: s.settingsCoupleSetupSub,
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CoupleSetupScreen()),
+            MaterialPageRoute(
+                builder: (_) => const CoupleSetupScreen()),
           ),
         ),
         const _RowDivider(),
@@ -251,82 +259,208 @@ class _SettingsScreenState extends State<SettingsScreen> {
           iconData: Icons.child_care,
           iconColor: const Color(0xFF854F0B),
           iconBg: const Color(0xFFFAEEDA),
-          title: 'Parent mode',
-          subtitle: 'Child-friendly ideas and reminders',
+          title: s.settingsParentMode,
+          subtitle: s.settingsParentModeSub,
           value: _parentMode,
           onChanged: (v) => setState(() => _parentMode = v),
         ),
         const _RowDivider(),
-        const _NavRow(
+        _NavRow(
           iconData: Icons.notifications_none,
-          iconColor: Color(0xFFC1544A),
-          iconBg: Color(0xFFFAECE7),
-          title: 'Reminders',
-          subtitle: 'Gentle nudges for quality time',
+          iconColor: const Color(0xFFC1544A),
+          iconBg: const Color(0xFFFAECE7),
+          title: s.settingsReminders,
+          subtitle: s.settingsRemindersSub,
         ),
       ],
     );
   }
 
-  Widget _buildSection2() {
+  Widget _buildSection2(BuildContext context, s) {
     return _SettingsCard(
       children: [
         _ToggleRow(
           iconData: Icons.bedtime_outlined,
           iconColor: const Color(0xFF5F5E5A),
           iconBg: const Color(0xFFF1EFE8),
-          title: 'Quiet hours',
-          subtitle: 'Pause notifications during sleep',
+          title: s.settingsQuietHours,
+          subtitle: s.settingsQuietHoursSub,
           value: _quietHours,
           onChanged: (v) => setState(() => _quietHours = v),
         ),
         const _RowDivider(),
-        const _NavRow(
+        _NavRow(
           iconData: Icons.lock_outline,
-          iconColor: Color(0xFF5F5E5A),
-          iconBg: Color(0xFFF1EFE8),
-          title: 'Privacy',
-          subtitle: 'Control what is saved and shared',
+          iconColor: const Color(0xFF5F5E5A),
+          iconBg: const Color(0xFFF1EFE8),
+          title: s.settingsPrivacy,
+          subtitle: s.settingsPrivacySub,
         ),
         const _RowDivider(),
-        const _NavRow(
+        _NavRow(
           iconData: Icons.palette_outlined,
-          iconColor: Color(0xFF5F5E5A),
-          iconBg: Color(0xFFF1EFE8),
-          title: 'Appearance',
-          subtitle: 'Theme and display settings',
+          iconColor: const Color(0xFF5F5E5A),
+          iconBg: const Color(0xFFF1EFE8),
+          title: s.settingsAppearance,
+          subtitle: s.settingsAppearanceSub,
         ),
         const _RowDivider(),
-        const _NavRow(
+        _NavRow(
           iconData: Icons.language,
-          iconColor: Color(0xFF5F5E5A),
-          iconBg: Color(0xFFF1EFE8),
-          title: 'Language',
-          subtitle: 'App language and region',
+          iconColor: const Color(0xFF5F5E5A),
+          iconBg: const Color(0xFFF1EFE8),
+          title: s.settingsLanguage,
+          subtitle: s.settingsLanguageSub,
+          onTap: () => _showLanguagePicker(context),
         ),
       ],
     );
   }
 
-  Widget _buildSection3() {
+  Widget _buildSection3(s) {
     return _SettingsCard(
       children: [
-        const _NavRow(
+        _NavRow(
           iconData: Icons.logout,
-          iconColor: Color(0xFFA32D2D),
-          iconBg: Color(0xFFFCEBEB),
-          title: 'Sign out',
-          subtitle: 'Sign out of your account',
+          iconColor: const Color(0xFFA32D2D),
+          iconBg: const Color(0xFFFCEBEB),
+          title: s.settingsSignOut,
+          subtitle: s.settingsSignOutSub,
         ),
         const _RowDivider(),
-        const _NavRow(
+        _NavRow(
           iconData: Icons.workspace_premium_outlined,
-          iconColor: Color(0xFFC1544A),
+          iconColor: const Color(0xFFC1544A),
           iconBg: Colors.white,
-          title: 'Subscription',
-          subtitle: 'Manage your plan',
+          title: s.settingsSubscription,
+          subtitle: s.settingsSubscriptionSub,
         ),
       ],
+    );
+  }
+
+  void _showLanguagePicker(BuildContext context) {
+    final langProvider = context.read<LanguageProvider>();
+    final s = langProvider.s;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LanguagePickerSheet(
+        title: s.settingsLanguagePickerTitle,
+        isNorwegian: langProvider.isNorwegian,
+        onSelect: (isNo) => langProvider.setNorwegian(isNo),
+      ),
+    );
+  }
+}
+
+class _LanguagePickerSheet extends StatelessWidget {
+  final String title;
+  final bool isNorwegian;
+  final ValueChanged<bool> onSelect;
+
+  const _LanguagePickerSheet({
+    required this.title,
+    required this.isNorwegian,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2C2420),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _LangOption(
+            label: 'Norsk',
+            selected: isNorwegian,
+            onTap: () {
+              onSelect(true);
+              Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 10),
+          _LangOption(
+            label: 'English',
+            selected: !isNorwegian,
+            onTap: () {
+              onSelect(false);
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LangOption extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LangOption(
+      {required this.label,
+      required this.selected,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFFFAECE7)
+              : const Color(0xFFF8F6F2),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFFC1544A)
+                : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xFFC1544A)
+                    : AppTheme.textPrimary,
+                fontSize: 15,
+                fontWeight: selected
+                    ? FontWeight.w600
+                    : FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            if (selected)
+              const Icon(Icons.check_circle_rounded,
+                  color: Color(0xFFC1544A), size: 20),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -391,7 +525,8 @@ class _NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: Container(
         width: 34,
         height: 34,
@@ -411,7 +546,8 @@ class _NavRow extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        style: const TextStyle(
+            color: AppTheme.textSecondary, fontSize: 13),
       ),
       trailing: const Icon(
         Icons.chevron_right,
@@ -444,7 +580,8 @@ class _ToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: Container(
         width: 34,
         height: 34,
@@ -464,7 +601,8 @@ class _ToggleRow extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        style: const TextStyle(
+            color: AppTheme.textSecondary, fontSize: 13),
       ),
       trailing: Switch(
         value: value,
@@ -472,7 +610,8 @@ class _ToggleRow extends StatelessWidget {
         activeThumbColor: const Color(0xFFC1544A),
         inactiveThumbColor: Colors.white,
         inactiveTrackColor: const Color(0xFFE0D9D0),
-        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+        trackOutlineColor:
+            WidgetStateProperty.all(Colors.transparent),
       ),
     );
   }
