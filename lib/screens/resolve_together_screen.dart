@@ -7,16 +7,41 @@ import 'package:http/http.dart' as http;
 import '../config/secrets.dart';
 import '../theme/app_theme.dart';
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+// Logged-in user + partner — replace with real auth data when available
+const _p1Name = 'Noah';
+const _p2Name = 'Alex';
+
+const _kSystemPrompt =
+    'You are Tom Arne, a warm, super positive and always happy couples mediator. '
+    'You have a big heart and genuinely care about both partners. You never take '
+    'sides — ever. You always validate both partners\' feelings equally and make '
+    'both feel heard and respected. You give creative, practical and uplifting '
+    'ideas to solve their problems. You help them see things from completely '
+    'different perspectives they may not have considered. You are never negative, '
+    'never judgmental, and always find something positive in what both partners '
+    'say. Your tone is like a wise, warm friend — not a therapist or a robot. '
+    'Keep responses short, warm, and constructive. Always end with an uplifting '
+    'and hopeful message about their relationship. Respond in the same language '
+    'the partners used.';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 class _Msg {
   final String text;
   final bool isAi;
-  final String? senderName;
-  const _Msg({required this.text, required this.isAi, this.senderName});
+  final String? sender;
+  const _Msg({required this.text, required this.isAi, this.sender});
 }
 
-enum _Step { names, intro, p1Turn, thinking, p2Turn, done }
+enum _Phase {
+  p1Turn,   // Partner 1 typing
+  p1Done,   // Tom Arne responding to P1
+  notif,    // In-app notification showing
+  p2Intro,  // Tom Arne greeting P2
+  p2Turn,   // Partner 2 typing
+  thinking, // API call in progress
+  done,
+}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -28,20 +53,19 @@ class ResolveTogetherScreen extends StatefulWidget {
 }
 
 class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
 
-  final _n1Ctrl = TextEditingController();
-  final _n2Ctrl = TextEditingController();
+  final List<_Msg> _msgs = [];
+  _Phase _phase = _Phase.p1Turn;
+  String _p1Msg = '';
+  bool _tomTyping = false;
+  bool _showNotif = false;
+
   final _inputCtrl = TextEditingController();
   final _scroll = ScrollController();
-
-  String _name1 = 'Partner 1';
-  String _name2 = 'Partner 2';
-  final List<_Msg> _msgs = [];
-  _Step _step = _Step.names;
-  String _p1Msg = '';
-
   late final AnimationController _dotCtrl;
+  late final AnimationController _notifCtrl;
+  late final Animation<Offset> _notifSlide;
 
   @override
   void initState() {
@@ -50,55 +74,41 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat();
+    _notifCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _notifSlide = Tween<Offset>(
+      begin: const Offset(0, -1.6),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _notifCtrl, curve: Curves.easeOutCubic));
+
+    _runP1Intro();
   }
 
   @override
   void dispose() {
-    _n1Ctrl.dispose();
-    _n2Ctrl.dispose();
     _inputCtrl.dispose();
     _scroll.dispose();
     _dotCtrl.dispose();
+    _notifCtrl.dispose();
     super.dispose();
   }
 
-  // ── Logic ─────────────────────────────────────────────────────────────────────
+  // ── Flow ──────────────────────────────────────────────────────────────────────
 
-  void _startChat() {
-    FocusScope.of(context).unfocus();
-    _name1 = _n1Ctrl.text.trim().isEmpty ? 'Partner 1' : _n1Ctrl.text.trim();
-    _name2 = _n2Ctrl.text.trim().isEmpty ? 'Partner 2' : _n2Ctrl.text.trim();
-    setState(() => _step = _Step.intro);
-    _runIntro();
-  }
-
-  Future<void> _runIntro() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+  Future<void> _runP1Intro() async {
+    setState(() => _tomTyping = true);
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
+    setState(() => _tomTyping = false);
     _push(_Msg(
       isAi: true,
-      text: 'Hei dere! Jeg er her for å hjelpe — og jeg tar ikke sider. '
-          'Jeg lytter likt til begge. Informasjonen dere deler her blir ikke '
-          'lagret — alt slettes automatisk når dere forlater denne samtalen. 🤝',
+      text: 'Hei $_p1Name! Jeg er her for å hjelpe dere å finne midten — '
+          'og jeg tar ikke sider. Informasjonen dere deler her blir ikke lagret '
+          'og slettes automatisk når dere forlater samtalen. 🤝 '
+          'Hva føler du er urettferdig?',
     ));
-    await Future.delayed(const Duration(milliseconds: 1100));
-    if (!mounted) return;
-    setState(() {
-      _msgs.add(_Msg(
-        isAi: true,
-        text: '$_name1, la oss starte med deg. Hva føler du er urettferdig?',
-      ));
-      _step = _Step.p1Turn;
-    });
-    _scrollDown();
-  }
-
-  void _send() {
-    if (_step == _Step.p1Turn) {
-      _sendP1();
-    } else if (_step == _Step.p2Turn) {
-      _sendP2();
-    }
   }
 
   Future<void> _sendP1() async {
@@ -106,27 +116,57 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
     if (text.isEmpty) return;
     _p1Msg = text;
     _inputCtrl.clear();
-    _push(_Msg(isAi: false, text: text, senderName: _name1));
-    setState(() => _step = _Step.thinking);
-    await Future.delayed(const Duration(milliseconds: 1300));
+    _push(_Msg(isAi: false, text: text, sender: _p1Name));
+    setState(() {
+      _phase = _Phase.p1Done;
+      _tomTyping = true;
+    });
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+    setState(() => _tomTyping = false);
+    _push(_Msg(
+      isAi: true,
+      text: 'Takk $_p1Name, jeg hørte deg. '
+          'Jeg sender dette videre til $_p2Name nå — de får beskjed om å komme inn.',
+    ));
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     setState(() {
-      _msgs.add(_Msg(
-        isAi: true,
-        text: 'Takk $_name1, det hørte jeg. '
-            'Nå er det din tur. $_name2, hva føler du?',
-      ));
-      _step = _Step.p2Turn;
+      _phase = _Phase.notif;
+      _showNotif = true;
+    });
+    _notifCtrl.forward();
+  }
+
+  Future<void> _p2Join() async {
+    await _notifCtrl.reverse();
+    if (!mounted) return;
+    setState(() {
+      _showNotif = false;
+      _phase = _Phase.p2Intro;
+      _tomTyping = true;
     });
     _scrollDown();
+    await Future.delayed(const Duration(milliseconds: 1000));
+    if (!mounted) return;
+    setState(() => _tomTyping = false);
+    _push(_Msg(
+      isAi: true,
+      text: 'Hei $_p2Name! $_p1Name har delt noe med meg. '
+          'Jeg har lyttet til dem — nå vil jeg høre din side. Hva føler du?',
+    ));
+    setState(() => _phase = _Phase.p2Turn);
   }
 
   Future<void> _sendP2() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
     _inputCtrl.clear();
-    _push(_Msg(isAi: false, text: text, senderName: _name2));
-    setState(() => _step = _Step.thinking);
+    _push(_Msg(isAi: false, text: text, sender: _p2Name));
+    setState(() {
+      _phase = _Phase.thinking;
+      _tomTyping = true;
+    });
     await _callApi(_p1Msg, text);
   }
 
@@ -140,20 +180,12 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
         },
         body: jsonEncode({
           'model': 'gpt-4o-mini',
-          'max_tokens': 350,
+          'max_tokens': 400,
           'messages': [
-            {
-              'role': 'system',
-              'content':
-                  'You are a neutral couples mediator. You never take sides. '
-                  'You always validate both partners\' feelings equally and '
-                  'suggest a kind, practical compromise. Keep your response '
-                  'warm, short, and constructive. Respond in the same language '
-                  'the partners used.',
-            },
+            {'role': 'system', 'content': _kSystemPrompt},
             {
               'role': 'user',
-              'content': '$_name1 sier: "$p1"\n\n$_name2 sier: "$p2"',
+              'content': '$_p1Name sier: "$p1"\n\n$_p2Name sier: "$p2"',
             },
           ],
         }),
@@ -161,16 +193,18 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
       if (!mounted) return;
       final reply = res.statusCode == 200
           ? (jsonDecode(res.body)['choices'][0]['message']['content'] as String)
-          : 'Noe gikk galt. Prøv igjen.';
+          : 'Noe gikk galt. Prøv igjen om litt.';
       setState(() {
+        _tomTyping = false;
         _msgs.add(_Msg(isAi: true, text: reply));
-        _step = _Step.done;
+        _phase = _Phase.done;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        _tomTyping = false;
         _msgs.add(_Msg(isAi: true, text: 'Kunne ikke koble til. Sjekk internett.'));
-        _step = _Step.done;
+        _phase = _Phase.done;
       });
     }
     _scrollDown();
@@ -193,11 +227,20 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
     });
   }
 
-  bool get _inputEnabled => _step == _Step.p1Turn || _step == _Step.p2Turn;
+  void _send() {
+    if (_phase == _Phase.p1Turn) {
+      _sendP1();
+    } else if (_phase == _Phase.p2Turn) {
+      _sendP2();
+    }
+  }
+
+  bool get _inputEnabled =>
+      _phase == _Phase.p1Turn || _phase == _Phase.p2Turn;
 
   String get _hint {
-    if (_step == _Step.p1Turn) return '$_name1, skriv her…';
-    if (_step == _Step.p2Turn) return '$_name2, skriv her…';
+    if (_phase == _Phase.p1Turn) return '$_p1Name, skriv her…';
+    if (_phase == _Phase.p2Turn) return '$_p2Name, skriv her…';
     return '';
   }
 
@@ -213,11 +256,23 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
             _buildHeader(context),
             const Divider(height: 1, thickness: 0.5, color: Color(0xFFE0D9D0)),
             Expanded(
-              child: _step == _Step.names
-                  ? _buildNamesView()
-                  : _buildChatView(),
+              child: Stack(
+                children: [
+                  _buildChatView(),
+                  if (_showNotif)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: SlideTransition(
+                        position: _notifSlide,
+                        child: _buildNotifBanner(),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            if (_step != _Step.names) _buildInputBar(),
+            _buildInputBar(),
           ],
         ),
       ),
@@ -276,7 +331,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                 Icon(Icons.balance_outlined, color: Color(0xFF993C1D), size: 13),
                 SizedBox(width: 5),
                 Text(
-                  'Nøytral AI',
+                  'Tom Arne · Nøytral',
                   style: TextStyle(
                     color: Color(0xFF993C1D),
                     fontSize: 12,
@@ -291,94 +346,21 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
     );
   }
 
-  // ── Names view ────────────────────────────────────────────────────────────────
-
-  Widget _buildNamesView() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      children: [
-        const Text(
-          'Hvem er dere?',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'AI-megleren henvender seg til dere personlig.',
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-        ),
-        const SizedBox(height: 24),
-        _nameField(_n1Ctrl, 'Partner 1 sitt navn'),
-        const SizedBox(height: 12),
-        _nameField(_n2Ctrl, 'Partner 2 sitt navn'),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: FilledButton(
-            onPressed: _startChat,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.accentRose,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: const Text(
-              'Start samtalen',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _nameField(TextEditingController ctrl, String hint) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0D9D0), width: 0.5),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      child: TextField(
-        controller: ctrl,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
-        textCapitalization: TextCapitalization.words,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 15),
-          border: InputBorder.none,
-        ),
-        onSubmitted: (_) => _startChat(),
-      ),
-    );
-  }
-
-  // ── Chat view ─────────────────────────────────────────────────────────────────
+  // ── Chat ──────────────────────────────────────────────────────────────────────
 
   Widget _buildChatView() {
     return ListView.builder(
       controller: _scroll,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-      itemCount: _msgs.length + (_step == _Step.thinking ? 1 : 0),
+      itemCount: _msgs.length + (_tomTyping ? 1 : 0),
       itemBuilder: (_, i) {
         if (i == _msgs.length) return _typingBubble();
-        return _bubble(_msgs[i]);
+        final msg = _msgs[i];
+        return msg.isAi
+            ? _aiBubble(msg.text)
+            : _userBubble(msg.text, msg.sender ?? '');
       },
     );
-  }
-
-  Widget _bubble(_Msg msg) {
-    return msg.isAi ? _aiBubble(msg.text) : _userBubble(msg.text, msg.senderName ?? '');
   }
 
   Widget _aiBubble(String text) {
@@ -401,7 +383,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'AI-megler',
+                      'Tom Arne',
                       style: TextStyle(
                         color: AppTheme.accentRose,
                         fontSize: 11,
@@ -510,10 +492,14 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
           const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.auto_awesome_rounded, color: AppTheme.accentRose, size: 12),
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: AppTheme.accentRose,
+                size: 12,
+              ),
               SizedBox(width: 4),
               Text(
-                'AI-megler',
+                'Tom Arne',
                 style: TextStyle(
                   color: AppTheme.accentRose,
                   fontSize: 11,
@@ -571,9 +557,90 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
       child: Container(
         width: 7,
         height: 7,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppTheme.textMuted,
           shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+
+  // ── In-app notification banner ─────────────────────────────────────────────────
+
+  Widget _buildNotifBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8F0),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFFAC775), width: 0.8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFAEEDA),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text('🤝', style: TextStyle(fontSize: 20)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$_p1Name vil løse noe sammen med deg.',
+                    style: const TextStyle(
+                      color: Color(0xFF2C2420),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Text(
+                    'Tom Arne venter 🤝',
+                    style: TextStyle(
+                      color: Color(0xFF854F0B),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: _p2Join,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentRose,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Kom inn',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -640,7 +707,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
               ),
               child: Icon(
                 Icons.arrow_upward_rounded,
-                color: _inputEnabled ? AppTheme.white : const Color(0xFFB4B2A9),
+                color:
+                    _inputEnabled ? AppTheme.white : const Color(0xFFB4B2A9),
                 size: 22,
               ),
             ),
