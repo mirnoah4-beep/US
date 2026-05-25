@@ -162,7 +162,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {},
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CoupleSetupScreen()),
+            ),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 4),
