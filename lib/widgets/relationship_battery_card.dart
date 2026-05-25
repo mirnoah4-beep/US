@@ -14,124 +14,134 @@ class RelationshipBatteryCard extends StatelessWidget {
     required this.message,
   });
 
+  String _moodString(int pct) {
+    if (pct >= 90) return 'On fire!';
+    if (pct >= 70) return 'Cozy mode';
+    if (pct >= 50) return 'Could use a spark';
+    if (pct >= 30) return 'Need a recharge';
+    return 'Low battery';
+  }
+
+  String _pillLabel(int pct) {
+    if (pct >= 80) return 'Great';
+    if (pct >= 65) return 'Good';
+    return 'Low';
+  }
+
+  Color _pillColor(int pct) {
+    if (pct >= 65) return AppTheme.accentGreen;
+    return AppTheme.warningAmber;
+  }
+
+  Color _pillBg(int pct) {
+    if (pct >= 65) return AppTheme.accentGreenLight;
+    return AppTheme.warningAmberLight;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final progress = percent.clamp(0, 100) / 100.0;
+    final pct = percent.clamp(0, 100);
+    final progress = pct / 100.0;
+    final mood = _moodString(pct);
+    final pillLabel = _pillLabel(pct);
+    final pillColor = _pillColor(pct);
+    final pillBg = _pillBg(pct);
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppTheme.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.divider.withValues(alpha: 0.75)),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.045),
-            blurRadius: 16,
-            offset: const Offset(0, 5),
+            color: AppTheme.textPrimary.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
-                Icons.favorite_border_rounded,
-                color: AppTheme.accentRose,
-                size: 19,
-              ),
-              SizedBox(width: 8),
-              Text(
+              const Icon(Icons.favorite_border, color: AppTheme.accentRose, size: 15),
+              const SizedBox(width: 6),
+              const Text(
                 'Relationship battery',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.1,
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(
-                width: 86,
-                height: 48,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      left: 0,
-                      child: _AvatarBubble(
-                        label: 'A',
-                        background: AppTheme.accentRoseLight,
-                        foreground: AppTheme.accentRose,
-                      ),
-                    ),
-                    Positioned(
-                      left: 38,
-                      child: _AvatarBubble(
-                        label: 'S',
-                        background: AppTheme.accentGreenLight,
-                        foreground: AppTheme.accentGreen,
-                      ),
-                    ),
-                  ],
+              const _OverlappingAvatars(),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  mood,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Georgia',
+                    letterSpacing: -0.4,
+                    height: 1.1,
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                '$percent%',
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1.1,
-                  height: 1,
-                ),
-              ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentGreenLight.withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(999),
+                  color: pillBg,
+                  borderRadius: BorderRadius.circular(99),
                 ),
-                child: const Text(
-                  'Good',
+                child: Text(
+                  pillLabel,
                   style: TextStyle(
-                    color: AppTheme.accentGreen,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                    color: pillColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 15),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 7,
-              backgroundColor: AppTheme.divider,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accentRose),
+          const SizedBox(height: 14),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: progress),
+            duration:
+                reduceMotion ? Duration.zero : const Duration(milliseconds: 600),
+            curve: Curves.easeOut,
+            builder: (context, value, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: value,
+                minHeight: 5,
+                backgroundColor: AppTheme.accentRoseLight,
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppTheme.accentRose),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
-            message.isEmpty ? 'Recharge with small moments tonight.' : message,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            message,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
+              height: 1.3,
               fontWeight: FontWeight.w500,
-              height: 1.25,
             ),
           ),
         ],
@@ -140,35 +150,81 @@ class RelationshipBatteryCard extends StatelessWidget {
   }
 }
 
-class _AvatarBubble extends StatelessWidget {
+class _OverlappingAvatars extends StatelessWidget {
+  const _OverlappingAvatars();
+
+  @override
+  Widget build(BuildContext context) {
+    const diameter = 48.0;
+    const overlap = 14.0;
+    const totalWidth = diameter * 2 - overlap;
+
+    return SizedBox(
+      width: totalWidth,
+      height: diameter,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            child: _Avatar(
+              label: 'A',
+              background: const Color(0xFFEBD2D2),
+              foreground: AppTheme.accentRose,
+              diameter: diameter,
+            ),
+          ),
+          Positioned(
+            left: diameter - overlap,
+            child: _Avatar(
+              label: 'S',
+              background: const Color(0xFFD8E9DA),
+              foreground: AppTheme.accentGreen,
+              diameter: diameter,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
   final String label;
   final Color background;
   final Color foreground;
+  final double diameter;
 
-  const _AvatarBubble({
+  const _Avatar({
     required this.label,
     required this.background,
     required this.foreground,
+    required this.diameter,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 48,
+      width: diameter,
+      height: diameter,
       decoration: BoxDecoration(
         color: background,
         shape: BoxShape.circle,
-        border: Border.all(color: AppTheme.white, width: 3),
+        border: Border.all(color: AppTheme.white, width: 2.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Center(
         child: Text(
           label,
           style: TextStyle(
             color: foreground,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            height: 1,
+            fontSize: diameter * 0.42,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

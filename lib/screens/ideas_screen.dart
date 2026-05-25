@@ -36,6 +36,7 @@ class _IdeasScreenState extends State<IdeasScreen> {
         : _chips.where((c) => c.category != IdeaCategory.babysitterNight && c.category != IdeaCategory.parentMode).toList();
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -49,8 +50,8 @@ class _IdeasScreenState extends State<IdeasScreen> {
                       'Date ideas',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -99,24 +100,21 @@ class _IdeasScreenState extends State<IdeasScreen> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                sliver: SliverGrid(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final idea = filtered[index];
-                      return DateIdeaCard(
-                        idea: idea,
-                        onFavorite: () => state.toggleFavorite(idea.id),
-                        onSuggest: () => _showSuggested(context),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: DateIdeaCard(
+                          idea: idea,
+                          onFavorite: () => state.toggleFavorite(idea.id),
+                          onSuggest: () => _showSuggested(context),
+                        ),
                       );
                     },
                     childCount: filtered.length,
-                  ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.78,
                   ),
                 ),
               ),

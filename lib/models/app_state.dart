@@ -77,4 +77,23 @@ class AppState extends ChangeNotifier {
 
   MomentItem get lastDateMoment =>
       moments.firstWhere((m) => m.id == 'date_night');
+
+  int get momentCountThisMonth =>
+      moments.where((m) => m.daysAgo <= 30).length;
+
+  // Number of consecutive weeks (starting from current) with at least one activity logged
+  int get streakWeeks {
+    int streak = 0;
+    for (int week = 0; week < 12; week++) {
+      final minDay = week * 7;
+      final maxDay = minDay + 6;
+      final hasActivity = moments.any((m) => m.daysAgo >= minDay && m.daysAgo <= maxDay);
+      if (hasActivity) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
 }

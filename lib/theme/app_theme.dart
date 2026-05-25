@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color background = Color(0xFFF7F3EE);
-  static const Color cardBeige = Color(0xFFF0E9DF);
-  static const Color accentRose = Color(0xFFB85C5C);
-  static const Color accentRoseLight = Color(0xFFE8CECE);
-  static const Color accentGreen = Color(0xFF7BAE8A);
+  static const Color background = Color(0xFFFAF7F4);
+  static const Color cardBeige = Color(0xFFF0ECE6);
+  static const Color accentRose = Color(0xFFC1544A);
+  static const Color accentRoseLight = Color(0xFFEDD4D0);
+  static const Color accentGreen = Color(0xFF4A7C59);
   static const Color accentGreenLight = Color(0xFFD4EAD9);
   static const Color textPrimary = Color(0xFF2C2420);
   static const Color textSecondary = Color(0xFF8C7B72);
@@ -14,6 +14,17 @@ class AppTheme {
   static const Color white = Color(0xFFFFFFFF);
   static const Color warningAmber = Color(0xFFD4935A);
   static const Color warningAmberLight = Color(0xFFF5E4D0);
+
+  // Heat grid colors — single source of truth for all three tiers
+  static const Color heatGreenBg = Color(0xFFEAF3DE);
+  static const Color heatGreenBorder = Color(0xFFC0DD97);
+  static const Color heatGreenText = Color(0xFF3B6D11);
+  static const Color heatAmberBg = Color(0xFFFAEEDA);
+  static const Color heatAmberBorder = Color(0xFFFAC775);
+  static const Color heatAmberText = Color(0xFF633806);
+  static const Color heatRedBg = Color(0xFFFAECE7);
+  static const Color heatRedBorder = Color(0xFFF5C4B3);
+  static const Color heatRedText = Color(0xFF712B13);
 
   static ThemeData get theme {
     return ThemeData(
