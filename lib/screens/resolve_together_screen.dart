@@ -12,7 +12,7 @@ const _p1Name = 'Noah';
 const _p2Name = 'Alex';
 
 const _kSystemPrompt =
-    'You are Tom Arne, a warm, super positive and always happy couples mediator. '
+    'You are Tom, a warm, super positive and always happy couples mediator. '
     'You have a big heart and genuinely care about both partners. You never take '
     'sides — ever. You always validate both partners\' feelings equally and make '
     'both feel heard and respected. You give creative, practical and uplifting '
@@ -35,9 +35,9 @@ class _Msg {
 
 enum _Phase {
   p1Turn,   // Partner 1 typing
-  p1Done,   // Tom Arne responding to P1
+  p1Done,   // Tom responding to P1
   notif,    // In-app notification showing
-  p2Intro,  // Tom Arne greeting P2
+  p2Intro,  // Tom greeting P2
   p2Turn,   // Partner 2 typing
   thinking, // API call in progress
   done,
@@ -331,7 +331,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                 Icon(Icons.balance_outlined, color: Color(0xFF993C1D), size: 13),
                 SizedBox(width: 5),
                 Text(
-                  'Tom Arne · Nøytral',
+                  'Tom · Nøytral',
                   style: TextStyle(
                     color: Color(0xFF993C1D),
                     fontSize: 12,
@@ -383,7 +383,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'Tom Arne',
+                      'Tom',
                       style: TextStyle(
                         color: AppTheme.accentRose,
                         fontSize: 11,
@@ -499,7 +499,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
               ),
               SizedBox(width: 4),
               Text(
-                'Tom Arne',
+                'Tom',
                 style: TextStyle(
                   color: AppTheme.accentRose,
                   fontSize: 11,
@@ -611,7 +611,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                     ),
                   ),
                   const Text(
-                    'Tom Arne venter 🤝',
+                    'Tom venter 🤝',
                     style: TextStyle(
                       color: Color(0xFF854F0B),
                       fontSize: 12,

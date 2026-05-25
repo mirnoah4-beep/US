@@ -284,7 +284,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'La Tom Arne hjelpe dere å finne midten',
+                    'La Tom hjelpe dere å finne midten',
                     style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 13,
