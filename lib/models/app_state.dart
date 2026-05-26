@@ -1,11 +1,71 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'moment_item.dart';
 import 'date_idea.dart';
 
 class AppState extends ChangeNotifier {
   bool hasChildren = false;
+  String? userAvatarPath;
+
+  // Tab navigation + highlight
+  int? pendingTabIndex;
+  String? highlightMomentId;
+
+  void requestTabNavigation(int tabIndex, {String? highlightId}) {
+    pendingTabIndex = tabIndex;
+    highlightMomentId = highlightId;
+    notifyListeners();
+  }
+
+  void consumeTabNavigation() {
+    pendingTabIndex = null;
+    notifyListeners();
+  }
+
+  void clearHighlight() {
+    highlightMomentId = null;
+    notifyListeners();
+  }
+
+  AppState() {
+    _loadFromPrefs();
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    // TODO: replace with Firestore when backend ready
+    hasChildren = prefs.getBool('parentMode') ?? false;
+    userAvatarPath = prefs.getString('userAvatarPath');
+    displayName = prefs.getString('userName') ?? 'Noah';
+    notifyListeners();
+  }
+
+  Future<void> setDisplayName(String name) async {
+    displayName = name;
+    notifyListeners();
+    // TODO: replace with Firestore when backend ready
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userName', name);
+  }
+
+  void updateDisplayName(String name) {
+    if (displayName == name) return;
+    displayName = name;
+    notifyListeners();
+  }
+
+  Future<void> setUserAvatarPath(String path) async {
+    userAvatarPath = path;
+    notifyListeners();
+    // TODO: replace with Firestore when backend ready
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userAvatarPath', path);
+  }
   // TODO: replace with real couple ID from Firebase Auth
   String get coupleId => 'couple_001';
+  String get userId => 'user_001';
+  String displayName = 'Noah';
+  String get partnerName => 'Sarah';
   String subscriptionTier = 'premium';
   List<MomentItem> moments = buildInitialMoments();
   List<DateIdea> ideas = buildInitialIdeas();

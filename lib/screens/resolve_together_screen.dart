@@ -15,7 +15,7 @@ const _p2Name = 'Alex';
 
 String _buildSystemPrompt(bool isNorwegian) {
   const base =
-      'You are Tom, a warm, super positive and always happy couples mediator. '
+      'You are a warm, super positive and always happy couples mediator. '
       'You have a big heart and genuinely care about both partners. You never take '
       'sides — ever. You always validate both partners\'s feelings equally and make '
       'both feel heard and respected. You give creative, practical and uplifting '
@@ -399,7 +399,7 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'Tom',
+                      'AI',
                       style: TextStyle(
                         color: AppTheme.accentRose,
                         fontSize: 11,

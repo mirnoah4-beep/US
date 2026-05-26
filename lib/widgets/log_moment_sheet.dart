@@ -3,37 +3,28 @@ import 'package:provider/provider.dart';
 import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
-class LogMomentOption {
+class _Option {
   final String id;
-  final String label;
   final IconData icon;
-  final bool parentModeOnly;
-
-  const LogMomentOption({
-    required this.id,
-    required this.label,
-    required this.icon,
-    this.parentModeOnly = false,
-  });
+  const _Option({required this.id, required this.icon});
 }
 
 const _options = [
-  LogMomentOption(id: 'date_night', label: 'Date night', icon: Icons.favorite_rounded),
-  LogMomentOption(id: 'home_date', label: 'Home date', icon: Icons.home_rounded),
-  LogMomentOption(id: 'walk', label: 'Walk together', icon: Icons.directions_walk_rounded),
-  LogMomentOption(id: 'game', label: 'Game together', icon: Icons.sports_esports_rounded),
-  LogMomentOption(id: 'phone_free', label: 'Phone-free talk', icon: Icons.chat_bubble_outline_rounded),
-  LogMomentOption(id: 'no_kids', label: 'Time without kids', icon: Icons.child_friendly_rounded, parentModeOnly: true),
-  LogMomentOption(id: 'custom', label: 'Custom moment', icon: Icons.add_circle_outline_rounded),
+  _Option(id: 'went_out',   icon: Icons.directions_walk_outlined),
+  _Option(id: 'home_date',  icon: Icons.home_outlined),
+  _Option(id: 'game',       icon: Icons.sports_esports_outlined),
+  _Option(id: 'date_night', icon: Icons.favorite_border),
+  _Option(id: 'phone_free', icon: Icons.chat_bubble_outline),
+  _Option(id: 'custom',     icon: Icons.add_circle_outline),
 ];
 
 class LogMomentSheet extends StatefulWidget {
-  final bool hasChildren;
+  final String? preSelected;
   final Function(String momentId) onLog;
 
   const LogMomentSheet({
     super.key,
-    required this.hasChildren,
+    this.preSelected,
     required this.onLog,
   });
 
@@ -41,39 +32,31 @@ class LogMomentSheet extends StatefulWidget {
   State<LogMomentSheet> createState() => _LogMomentSheetState();
 }
 
-class _LogMomentSheetState extends State<LogMomentSheet>
-    with SingleTickerProviderStateMixin {
+class _LogMomentSheetState extends State<LogMomentSheet> {
   String? _selected;
+  final _customController = TextEditingController();
   bool _logged = false;
-  late AnimationController _confirmController;
 
   @override
   void initState() {
     super.initState();
-    _confirmController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
+    if (widget.preSelected != null) {
+      final match = _options.where((o) => o.id == widget.preSelected).firstOrNull;
+      if (match != null) _selected = match.id;
+    }
   }
 
   @override
   void dispose() {
-    _confirmController.dispose();
+    _customController.dispose();
     super.dispose();
-  }
-
-  List<LogMomentOption> get _visibleOptions {
-    if (widget.hasChildren) return _options;
-    return _options.where((o) => !o.parentModeOnly).toList();
   }
 
   void _handleLog() {
     if (_selected == null) return;
     widget.onLog(_selected!);
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    if (!reduceMotion) _confirmController.forward();
     setState(() => _logged = true);
-    Future.delayed(const Duration(milliseconds: 1600), () {
+    Future.delayed(const Duration(milliseconds: 1400), () {
       if (mounted) Navigator.pop(context);
     });
   }
@@ -81,78 +64,52 @@ class _LogMomentSheetState extends State<LogMomentSheet>
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Container(
       decoration: const BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        color: Color(0xFFFAF7F4),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-      child: _logged ? _buildSuccess(context, s) : _buildPicker(s),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 32 + bottomInset),
+      child: _logged ? _buildSuccess(s) : _buildPicker(s),
     );
   }
 
-  Widget _buildSuccess(BuildContext context, s) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
+  Widget _buildSuccess(s) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 24),
+        const SizedBox(height: 40),
         Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
+          width: 60,
+          height: 60,
+          decoration: const BoxDecoration(
             color: AppTheme.accentGreenLight,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_rounded, color: AppTheme.accentGreen, size: 32),
+          child: const Icon(Icons.check_rounded, color: AppTheme.accentGreen, size: 30),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         Text(
           s.logSuccess,
           style: const TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           s.logSuccessMsg,
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 15,
-            height: 1.5,
+            fontSize: 14,
+            height: 1.4,
           ),
         ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 100,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 600),
-                curve: Curves.easeOut,
-                builder: (context, t, _) => Transform.translate(
-                  offset: Offset(0, -t * 80),
-                  child: Opacity(
-                    opacity: t < 0.65 ? 1.0 : ((1.0 - t) / 0.35).clamp(0.0, 1.0),
-                    child: Icon(
-                      Icons.favorite_rounded,
-                      color: const Color(0xFFC1544A),
-                      size: 60.0 + t * 60.0,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const SizedBox(height: 32),
       ],
     );
   }
@@ -164,79 +121,130 @@ class _LogMomentSheetState extends State<LogMomentSheet>
       children: [
         Center(
           child: Container(
-            width: 40,
+            width: 36,
             height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: AppTheme.divider,
+              color: const Color(0xFFD3D1C7),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
         ),
-        const SizedBox(height: 20),
         Text(
           s.logTitle,
           style: const TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           s.logSubtitle,
-          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+          ),
         ),
-        const SizedBox(height: 20),
-        ..._visibleOptions.map((opt) => _buildOption(opt, s)),
         const SizedBox(height: 16),
-        AnimatedBuilder(
-          animation: _confirmController,
-          builder: (context, _) {
-            final scale = _selected != null
-                ? TweenSequence([
-                    TweenSequenceItem(
-                        tween: Tween(begin: 1.0, end: 0.96), weight: 30),
-                    TweenSequenceItem(
-                        tween: Tween(begin: 0.96, end: 1.03), weight: 40),
-                    TweenSequenceItem(
-                        tween: Tween(begin: 1.03, end: 1.0), weight: 30),
-                  ]).transform(_confirmController.value)
-                : 1.0;
-            return Transform.scale(
-              scale: scale,
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _selected != null ? _handleLog : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _selected != null ? AppTheme.accentRose : AppTheme.divider,
-                    foregroundColor:
-                        _selected != null ? AppTheme.white : AppTheme.textMuted,
-                  ),
-                  child: Text(s.logButton),
-                ),
+        _buildGrid(s),
+        if (_selected == 'custom') ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: _customController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: s.logCustomHint,
+              hintStyle: const TextStyle(color: Color(0xFFB4B2A9), fontSize: 14),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.all(13),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE0D9D0)),
               ),
-            );
-          },
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE0D9D0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFC1544A)),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: _selected != null ? _handleLog : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: _selected != null
+                  ? const Color(0xFFC1544A)
+                  : const Color(0xFFE0D9D0),
+              foregroundColor: _selected != null
+                  ? Colors.white
+                  : const Color(0xFFB4B2A9),
+              textStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: Text(s.logButton),
+          ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              s.logCancel,
+              style: const TextStyle(
+                color: Color(0xFFB4B2A9),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildOption(LogMomentOption opt, s) {
+  Widget _buildGrid(s) {
+    final rows = <Widget>[];
+    for (int i = 0; i < _options.length; i += 2) {
+      if (i > 0) rows.add(const SizedBox(height: 10));
+      final right = i + 1 < _options.length ? _options[i + 1] : null;
+      rows.add(Row(
+        children: [
+          Expanded(child: _chip(_options[i], s)),
+          const SizedBox(width: 10),
+          Expanded(child: right != null ? _chip(right, s) : const SizedBox()),
+        ],
+      ));
+    }
+    return Column(children: rows);
+  }
+
+  Widget _chip(_Option opt, s) {
     final isSelected = _selected == opt.id;
     return GestureDetector(
       onTap: () => setState(() => _selected = opt.id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.accentRoseLight : AppTheme.white,
-          borderRadius: BorderRadius.circular(16),
+          color: isSelected ? const Color(0xFFFAECE7) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppTheme.accentRose : Colors.transparent,
+            color: isSelected ? const Color(0xFFC1544A) : const Color(0xFFE0D9D0),
             width: 1.5,
           ),
         ),
@@ -244,22 +252,22 @@ class _LogMomentSheetState extends State<LogMomentSheet>
           children: [
             Icon(
               opt.icon,
-              color: isSelected ? AppTheme.accentRose : AppTheme.textSecondary,
-              size: 22,
+              color: isSelected ? const Color(0xFFC1544A) : const Color(0xFF888888),
+              size: 18,
             ),
-            const SizedBox(width: 14),
-            Text(
-              s.logOptionLabel(opt.id),
-              style: TextStyle(
-                color: isSelected ? AppTheme.accentRose : AppTheme.textPrimary,
-                fontSize: 15,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                s.logOptionLabel(opt.id),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? const Color(0xFF4A1B0C)
+                      : const Color(0xFF2C2420),
+                ),
               ),
             ),
-            const Spacer(),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded,
-                  color: AppTheme.accentRose, size: 20),
           ],
         ),
       ),

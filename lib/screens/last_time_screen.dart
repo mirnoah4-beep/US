@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_state.dart';
+import '../l10n/strings.dart';
 import '../models/language_provider.dart';
 import '../models/moment_item.dart';
 import '../theme/app_theme.dart';
-import '../widgets/activity_sheet.dart';
 import '../widgets/heat_card.dart';
 import '../widgets/log_moment_sheet.dart';
 
-class LastTimeScreen extends StatelessWidget {
+class LastTimeScreen extends StatefulWidget {
   const LastTimeScreen({super.key});
+
+  @override
+  State<LastTimeScreen> createState() => _LastTimeScreenState();
+}
+
+class _LastTimeScreenState extends State<LastTimeScreen> {
+  final Map<String, GlobalKey> _cardKeys = {};
+  String? _lastHighlight;
+
+  GlobalKey _keyFor(String id) =>
+      _cardKeys.putIfAbsent(id, () => GlobalKey());
 
   List<MomentItem> _sortedMoments(List<MomentItem> moments) {
     final items = [...moments];
@@ -36,81 +47,84 @@ class LastTimeScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final s = context.watch<LanguageProvider>().s;
     final moments = _sortedMoments(state.visibleMoments);
+    final highlightId = state.highlightMomentId;
+
+    if (highlightId != null && highlightId != _lastHighlight) {
+      _lastHighlight = highlightId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final key = _cardKeys[highlightId];
+        final cardCtx = key?.currentContext;
+        if (cardCtx != null) {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            if (!mounted) return;
+            Scrollable.ensureVisible(
+              // ignore: use_build_context_synchronously
+              cardCtx,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              alignment: 0.3,
+            );
+          });
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      floatingActionButton: _LogFab(
-        onTap: () => _openLogSheet(context, state),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _buildHeader(s),
-                  const SizedBox(height: 18),
-                  _buildLegend(s),
-                  const SizedBox(height: 14),
-                  _StatsBar(state: state),
-                  const SizedBox(height: 20),
-                ]),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final left = index * 2;
-                    final right = left + 1;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(minHeight: 110),
-                                child: HeatCard(
-                                  key: ValueKey(moments[left].id),
-                                  item: moments[left],
-                                  onTap: () => _openActivitySheet(context, moments[left], state),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: right < moments.length
-                                  ? ConstrainedBox(
-                                      constraints: const BoxConstraints(minHeight: 110),
-                                      child: HeatCard(
-                                        key: ValueKey(moments[right].id),
-                                        item: moments[right],
-                                        onTap: () => _openActivitySheet(context, moments[right], state),
-                                      ),
-                                    )
-                                  : const SizedBox(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  childCount: (moments.length / 2).ceil(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 80),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(s),
+                    const SizedBox(height: 14),
+                    _StatsBar(state: state),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildGrid(moments, state, highlightId),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: () => _openLogSheet(context, state),
+            icon: const Icon(Icons.add),
+            label: Text(s.lastTimeLogButton),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFC1544A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              textStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(s) {
+  Widget _buildHeader(AppStrings s) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -118,95 +132,79 @@ class LastTimeScreen extends StatelessWidget {
           s.lastTimeTitle,
           style: const TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 34,
-            fontWeight: FontWeight.w800,
-            fontFamily: 'Georgia',
-            letterSpacing: -0.8,
-            height: 1.1,
+            fontSize: 26,
+            fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           s.lastTimeSubtitle,
           style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 16,
-            height: 1.3,
+            color: Color(0xFF888888),
+            fontSize: 13,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLegend(s) {
-    return Row(
-      children: [
-        _legendChip(AppTheme.heatGreenText, AppTheme.heatGreenBg,
-            AppTheme.heatGreenBorder, s.lastTime07),
-        const SizedBox(width: 8),
-        _legendChip(AppTheme.heatAmberText, AppTheme.heatAmberBg,
-            AppTheme.heatAmberBorder, s.lastTime814),
-        const SizedBox(width: 8),
-        _legendChip(AppTheme.heatRedText, AppTheme.heatRedBg,
-            AppTheme.heatRedBorder, s.lastTime15),
-      ],
-    );
-  }
-
-  Widget _legendChip(
-      Color text, Color bg, Color border, String label) {
-    return Expanded(
-      child: Container(
-        height: 34,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: border, width: 1),
-        ),
+  Widget _buildGrid(List<MomentItem> moments, AppState state, String? highlightId) {
+    final rows = <Widget>[];
+    for (int i = 0; i < moments.length; i += 2) {
+      if (i > 0) rows.add(const SizedBox(height: 10));
+      final right = i + 1 < moments.length ? moments[i + 1] : null;
+      rows.add(IntrinsicHeight(
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 7,
-              height: 7,
-              decoration:
-                  BoxDecoration(color: text, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: text,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+            Expanded(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 110),
+                child: HeatCard(
+                  key: _keyFor(moments[i].id),
+                  item: moments[i],
+                  onTap: () => _openLogSheet(context, state, preSelected: moments[i].id),
+                  isHighlighted: highlightId == moments[i].id,
+                  onHighlightDone: () {
+                    _lastHighlight = null;
+                    state.clearHighlight();
+                  },
+                ),
               ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: right != null
+                  ? ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 110),
+                      child: HeatCard(
+                        key: _keyFor(right.id),
+                        item: right,
+                        onTap: () => _openLogSheet(context, state, preSelected: right.id),
+                        isHighlighted: highlightId == right.id,
+                        onHighlightDone: () {
+                          _lastHighlight = null;
+                          state.clearHighlight();
+                        },
+                      ),
+                    )
+                  : const SizedBox(),
             ),
           ],
         ),
-      ),
-    );
+      ));
+    }
+    return Column(children: rows);
   }
 
-  void _openActivitySheet(
-      BuildContext context, MomentItem item, AppState state) {
+  void _openLogSheet(BuildContext context, AppState state, {String? preSelected}) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: false,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ActivitySheet(
-        item: item,
-        onLog: () => state.logMoment(item.id),
-      ),
-    );
-  }
-
-  void _openLogSheet(BuildContext context, AppState state) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => LogMomentSheet(
-        hasChildren: state.hasChildren,
+      builder: (ctx) => LogMomentSheet(
+        preSelected: preSelected,
         onLog: (id) => state.logMoment(id),
       ),
     );
@@ -226,21 +224,19 @@ class _StatsBar extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.cardBeige,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE0D9D0), width: 1),
       ),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.bar_chart,
-              color: AppTheme.textSecondary, size: 24),
+          const Icon(Icons.bar_chart_outlined,
+              color: Color(0xFFC1544A), size: 22),
           const SizedBox(width: 10),
-          Expanded(
+          Flexible(
             child: Text(
               '${s.lastTimeStat(count)}  ·  ${s.lastTimeStreak(streak)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 13,
@@ -249,43 +245,6 @@ class _StatsBar extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LogFab extends StatelessWidget {
-  final VoidCallback onTap;
-  const _LogFab({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.watch<LanguageProvider>().s;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        decoration: BoxDecoration(
-          color: AppTheme.accentRose,
-          borderRadius: BorderRadius.circular(26),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.add_rounded,
-                color: AppTheme.white, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              s.lastTimeLogButton,
-              style: const TextStyle(
-                color: AppTheme.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

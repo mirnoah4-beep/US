@@ -10,6 +10,7 @@ class WeeklyIdea {
   final Color tagTextColor;
   final IconData icon;
   final String description;
+  final Color buttonColor;
 
   const WeeklyIdea({
     required this.title,
@@ -20,6 +21,7 @@ class WeeklyIdea {
     required this.tagTextColor,
     required this.icon,
     required this.description,
+    this.buttonColor = const Color(0xFFC1544A),
   });
 
   factory WeeklyIdea.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class WeeklyIdea {
       tagTextColor: _hexColor(json['tagTextColor'] as String? ?? '#712B13'),
       icon: _iconFromName(json['iconName'] as String? ?? 'star_outline'),
       description: json['description'] as String? ?? '',
+      buttonColor: _hexColor(json['buttonColor'] as String? ?? '#C1544A'),
     );
   }
 

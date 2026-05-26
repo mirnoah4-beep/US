@@ -73,6 +73,15 @@ export async function generateForCouple(coupleId: string): Promise<void> {
 
 // ─── Context gathering ───────────────────────────────────────────────────────
 
+interface LifestyleData {
+  weekdayTime: string;
+  weekendTime: string;
+  preference: string;
+  parentMode: boolean;
+  bedtimeWeekday?: string;
+  bedtimeWeekend?: string;
+}
+
 interface CoupleContext {
   name1: string;
   name2: string;
@@ -83,6 +92,7 @@ interface CoupleContext {
   season: string;
   lastTimeSummary: string;
   recentIdeas: string;
+  lifestyle: LifestyleData | null;
 }
 
 async function buildContext(
@@ -122,6 +132,14 @@ async function buildContext(
     ? recentTitles.join(', ')
     : 'Ingen nylige ideer.';
 
+  // Lifestyle preferences
+  const lifestyleSnap = await firestore
+    .collection('couples').doc(coupleId)
+    .collection('lifestyle').doc('data').get();
+  const lifestyle: LifestyleData | null = lifestyleSnap.exists
+    ? (lifestyleSnap.data() as LifestyleData)
+    : null;
+
   return {
     name1,
     name2,
@@ -132,15 +150,46 @@ async function buildContext(
     season,
     lastTimeSummary,
     recentIdeas,
+    lifestyle,
   };
 }
 
 // ─── OpenAI ──────────────────────────────────────────────────────────────────
 
+function buildLifestyleContext(lifestyle: LifestyleData | null): string {
+  if (!lifestyle) return '';
+  const weekdayMap: Record<string, string> = {
+    under30: 'under 30 minutter',
+    '30to60': '30–60 minutter',
+    '2plus': '2+ timer',
+  };
+  const weekendMap: Record<string, string> = {
+    little: 'litt tid (1–2 timer)',
+    halfday: 'halv dag',
+    fullday: 'hel dag',
+  };
+  const preferenceMap: Record<string, string> = {
+    home: 'hjemme',
+    out: 'ute',
+    both: 'begge deler (hjemme og ute)',
+  };
+  const lines = [
+    `Tilgjengelig tid hverdager: ${weekdayMap[lifestyle.weekdayTime] ?? lifestyle.weekdayTime}`,
+    `Tilgjengelig tid helger: ${weekendMap[lifestyle.weekendTime] ?? lifestyle.weekendTime}`,
+    `Preferanse: ${preferenceMap[lifestyle.preference] ?? lifestyle.preference}`,
+    `Foreldremodus: ${lifestyle.parentMode ? 'ja' : 'nei'}`,
+  ];
+  if (lifestyle.parentMode) {
+    if (lifestyle.bedtimeWeekday) lines.push(`Leggetid hverdager: ${lifestyle.bedtimeWeekday}`);
+    if (lifestyle.bedtimeWeekend) lines.push(`Leggetid helger: ${lifestyle.bedtimeWeekend}`);
+  }
+  return '\n' + lines.join('\n');
+}
+
 function buildPrompt(ctx: CoupleContext): string {
   return `You are a warm creative assistant helping a couple called ${ctx.name1} and ${ctx.name2} who live in ${ctx.city}.
 Together for ${ctx.duration}. Relationship battery: ${ctx.batteryLevel}% (${ctx.moodLabel}).
-Season: ${ctx.season}.
+Season: ${ctx.season}.${buildLifestyleContext(ctx.lifestyle)}
 
 Recent activities: ${ctx.lastTimeSummary}
 Ideas seen recently: ${ctx.recentIdeas}

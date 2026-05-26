@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/app_state.dart';
 import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -144,6 +147,15 @@ class _OverlappingAvatars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final avatarPath = appState.userAvatarPath;
+    final myInitial = appState.displayName.isNotEmpty
+        ? appState.displayName[0].toUpperCase()
+        : 'N';
+    final partnerInitial = appState.partnerName.isNotEmpty
+        ? appState.partnerName[0].toUpperCase()
+        : 'S';
+
     const diameter = 48.0;
     const overlap = 14.0;
     const totalWidth = diameter * 2 - overlap;
@@ -156,16 +168,17 @@ class _OverlappingAvatars extends StatelessWidget {
           Positioned(
             left: 0,
             child: _Avatar(
-              label: 'A',
+              label: myInitial,
               background: const Color(0xFFEBD2D2),
               foreground: AppTheme.accentRose,
               diameter: diameter,
+              imagePath: avatarPath,
             ),
           ),
           Positioned(
             left: diameter - overlap,
             child: _Avatar(
-              label: 'S',
+              label: partnerInitial,
               background: const Color(0xFFD8E9DA),
               foreground: AppTheme.accentGreen,
               diameter: diameter,
@@ -182,12 +195,14 @@ class _Avatar extends StatelessWidget {
   final Color background;
   final Color foreground;
   final double diameter;
+  final String? imagePath;
 
   const _Avatar({
     required this.label,
     required this.background,
     required this.foreground,
     required this.diameter,
+    this.imagePath,
   });
 
   @override
@@ -207,15 +222,24 @@ class _Avatar extends StatelessWidget {
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            color: foreground,
-            fontSize: diameter * 0.42,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
+      child: ClipOval(
+        child: imagePath != null
+            ? Image.file(
+                File(imagePath!),
+                fit: BoxFit.cover,
+                width: diameter,
+                height: diameter,
+              )
+            : Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: diameter * 0.42,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
       ),
     );
   }

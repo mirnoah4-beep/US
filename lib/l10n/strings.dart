@@ -31,8 +31,8 @@ class AppStrings {
   String get homeSendNote => isNorwegian ? 'Send en lapp' : 'Send a note';
   String get homeDoneThisWeek => isNorwegian ? 'Ferdig denne uken' : 'Done this week';
   String get homeWeeklyGoal => isNorwegian ? '0 av 1 denne uken' : '0 of 1 this week';
-  String get homeResolveTitle => isNorwegian ? 'Ikke helt enig?' : 'Not quite on the same page?';
-  String get homeResolveSubtitle => isNorwegian ? 'La Tom hjelpe dere å finne midten' : 'Let Tom help you find the middle ground';
+  String get homeResolveTitle => isNorwegian ? 'Hjelp oss' : 'Help us';
+  String get homeResolveSubtitle => isNorwegian ? 'Uenige om noe? Start en samtale' : 'Disagreeing? Start a conversation';
   String get homeWriteOwnSheetTitle => isNorwegian ? 'Skriv din egen' : 'Write your own';
   String get homeWriteOwnSheetSubtitle => isNorwegian ? 'La det høres ut som deg.' : 'Make it sound like you.';
   String get homeWriteOwnHint => isNorwegian ? 'Skriv meldingen din...' : 'Write your message...';
@@ -42,6 +42,25 @@ class AppStrings {
   String get homeAiPersonalized => isNorwegian ? 'AI-personalisert denne uken' : 'AI-personalised this week';
   String get homeWeeklyIdeasEmpty => isNorwegian ? 'Ingen ideer ennå — prøv igjen snart.' : 'No ideas yet — check back soon.';
   String get homeIdeaSendToPartner => isNorwegian ? 'Send idé til partner' : 'Send idea to partner';
+  String ideaSentTo(String name) => isNorwegian ? 'Sendt til $name!' : 'Sent to $name!';
+  String get ideaWaiting => isNorwegian ? 'Venter på svar' : 'Waiting for reply';
+  String get ideaAcceptedTitle => isNorwegian ? 'Partner sa ja! 🎉' : 'Partner said yes! 🎉';
+  String get ideaDeclinedTitle => isNorwegian ? 'Kanskje neste gang' : 'Maybe next time';
+  String ideaFromPartner(String name) => isNorwegian ? '$name sendte deg en idé' : '$name sent you an idea';
+  String get ideaReceiveAccept => isNorwegian ? 'Gjøre dette! 🎉' : "Let's do this! 🎉";
+  String get ideaReceiveDecline => isNorwegian ? 'Kanskje ikke' : 'Maybe not';
+  String get ideaCancel => isNorwegian ? 'Avbryt' : 'Cancel';
+  String get ideaWriteOwnTitle => isNorwegian ? 'Skriv din egen idé' : 'Write your own idea';
+  String get ideaWriteOwnHint => isNorwegian ? 'F.eks. Kveldstur til havnen...' : 'E.g. Evening walk to the harbour...';
+  String get ideaSendToPartnerShort => isNorwegian ? 'Send til partner' : 'Send to partner';
+  String get ideaWaitingLong => isNorwegian ? 'Venter på svar...' : 'Waiting for a response...';
+  String ideaPartnerSaidYes(String name) => isNorwegian ? '$name sa ja!' : '$name said yes!';
+  String get ideaTonightNice => isNorwegian ? 'I kveld blir det fint.' : 'Tonight is going to be nice.';
+  String get ideaAddedToPlan => isNorwegian ? 'Lagt til ukens plan' : "Added to this week's plan";
+  String ideaFromLabel(String name) => isNorwegian ? 'Fra $name' : 'From $name';
+  String get ideaAcceptButtonText => isNorwegian ? 'Ja, la oss gjøre det!' : "Yes, let's do it!";
+  String get ideaDeclineButtonText => isNorwegian ? 'Kanskje senere' : 'Maybe later';
+  String get ideaDoneAddedPlan => isNorwegian ? 'Ferdig! Lagt til ukens plan' : "Done! Added to this week's plan";
 
   // ── Last Time Screen ────────────────────────────────────────────────────
   String get lastTimeTitle => isNorwegian ? 'Sist gang' : 'Last time';
@@ -58,32 +77,32 @@ class AppStrings {
   String get lastTimeLogButton => isNorwegian ? 'Vi gjorde noe!' : 'We did something!';
 
   // ── Log Moment Sheet ────────────────────────────────────────────────────
-  String get logTitle => isNorwegian ? 'Vi gjorde noe!' : 'We did something!';
+  String get logTitle => isNorwegian ? 'Logg et øyeblikk' : 'Log a moment';
   String get logSubtitle => isNorwegian ? 'Hva gjorde dere sammen?' : 'What did you do together?';
   String get logSuccess => isNorwegian ? 'Logget!' : 'Logged!';
   String get logSuccessMsg => isNorwegian ? 'Flott. Små øyeblikk holder kjærligheten sterk.' : 'Nice. Small moments keep love strong.';
-  String get logButton => isNorwegian ? 'Logg det!' : 'Log it!';
+  String get logButton => isNorwegian ? 'Logg øyeblikket' : 'Log the moment';
+  String get logCustomHint => isNorwegian ? 'Beskriv hva dere gjorde...' : 'Describe what you did...';
+  String get logCancel => isNorwegian ? 'Avbryt' : 'Cancel';
   String logOptionLabel(String id) {
     if (isNorwegian) {
       const nb = {
-        'date_night': 'Datenatt',
+        'went_out': 'Gikk ut',
         'home_date': 'Hjemmedate',
-        'walk': 'Gå tur sammen',
-        'game': 'Spill sammen',
-        'phone_free': 'Telefonfri prat',
-        'no_kids': 'Tid uten barn',
-        'custom': 'Eget øyeblikk',
+        'game': 'Game night',
+        'date_night': 'Datenatt',
+        'phone_free': 'Telefonsfri',
+        'custom': 'Annet',
       };
       return nb[id] ?? id;
     }
     const en = {
-      'date_night': 'Date night',
+      'went_out': 'Went out',
       'home_date': 'Home date',
-      'walk': 'Walk together',
-      'game': 'Game together',
-      'phone_free': 'Phone-free talk',
-      'no_kids': 'Time without kids',
-      'custom': 'Custom moment',
+      'game': 'Game night',
+      'date_night': 'Date night',
+      'phone_free': 'Phone-free',
+      'custom': 'Other',
     };
     return en[id] ?? id;
   }
@@ -137,13 +156,18 @@ class AppStrings {
 
   // ── Ideas Screen ────────────────────────────────────────────────────────
   String get ideasTitle => isNorwegian ? 'Dateideer' : 'Date ideas';
-  String get ideasSubtitle => isNorwegian ? 'Små ideer, stor forbindelse.' : 'Small ideas, big connection.';
+  String get ideasSubtitle => isNorwegian ? 'Små idéer, stor tilkobling.' : 'Small ideas, big connection.';
   String get ideasAll => isNorwegian ? 'Alle' : 'All';
   String get ideasChip10min => '10 min';
   String get ideasChip30home => isNorwegian ? '30 min hjemme' : '30 min at home';
   String get ideasChip1hour => isNorwegian ? '1 time ute' : '1 hour out';
   String get ideasChipBabysitter => isNorwegian ? 'Babysitterkveld' : 'Babysitter night';
   String get ideasChipParent => isNorwegian ? 'Foreldremodus' : 'Parent mode';
+  String get ideasFilterAtHome => isNorwegian ? 'Hjemme' : 'At home';
+  String get ideasFilterOut => isNorwegian ? 'Ute sammen' : 'Out together';
+  String get ideasFilter1Hour => isNorwegian ? '1 time+' : '1 hour+';
+  String get ideasSaveLater => isNorwegian ? 'Lagre til senere' : 'Save for later';
+  String get ideasDismiss => isNorwegian ? 'Avbryt' : 'Dismiss';
   String get ideasEmpty => isNorwegian ? 'Ingen ideer i denne kategorien.' : 'No ideas in this category.';
   String get ideasSuggestionSent => isNorwegian ? 'Forslag sendt til partneren din!' : 'Suggestion sent to your partner!';
   String get ideaSendLabel => isNorwegian ? 'Send' : 'Send';
@@ -225,6 +249,7 @@ class AppStrings {
         'walk': 'Tok en tur',
         'no_kids': 'Tid uten barn',
         'phone_free': 'Telefonfri prat',
+        'send_note': 'Send en lapp',
       };
       return nb[id] ?? id;
     }
@@ -236,6 +261,7 @@ class AppStrings {
       'walk': 'Took a walk',
       'no_kids': 'Time without kids',
       'phone_free': 'Phone-free talk',
+      'send_note': 'Send a note',
     };
     return en[id] ?? id;
   }
@@ -276,6 +302,7 @@ class AppStrings {
         'walk': 'En kveldsrunde rundt kvartalet — telefoner i lomma, bare prat.',
         'no_kids': 'Be et familiemedlem passe barna noen timer denne helgen.',
         'phone_free': 'Sett dere ned med te i kveld — telefoner i et annet rom — og bare prat.',
+        'send_note': 'Skriv en kort lapp — legg den på puten eller send den som melding.',
       };
       return nb[momentId];
     }
@@ -287,6 +314,7 @@ class AppStrings {
       'walk': 'An evening loop around the block — phones in pockets, just talking.',
       'no_kids': 'Ask a family member to take the kids for a few hours this weekend.',
       'phone_free': 'Sit down with tea tonight — phones in another room — and just catch up.',
+      'send_note': 'Write a short note — leave it on their pillow or send it as a message.',
     };
     return en[momentId];
   }
@@ -301,6 +329,7 @@ class AppStrings {
         'walk': '20–30 min',
         'no_kids': '2–4 timer',
         'phone_free': '30 min',
+        'send_note': '5 min',
       };
       return nb[momentId] ?? '';
     }
@@ -312,6 +341,7 @@ class AppStrings {
       'walk': '20–30 min',
       'no_kids': '2–4 hours',
       'phone_free': '30 min',
+      'send_note': '5 min',
     };
     return en[momentId] ?? '';
   }
@@ -327,8 +357,45 @@ class AppStrings {
   String get activityTimeAgain => isNorwegian ? 'På tide igjen?' : 'Time for this again?';
 
   // ── Plan Screen ─────────────────────────────────────────────────────────
-  String get planTitle => isNorwegian ? 'Denne uken' : 'This week';
-  String get planSubtitle => isNorwegian ? 'Deres felles intensjoner.' : 'Your shared intentions.';
+  String get planTitle => isNorwegian ? 'Plan' : 'Plan';
+  String get planSubtitle => isNorwegian ? 'Planlegg noe dere to kan glede dere til.' : 'Plan something you two can look forward to.';
+  String get planChooseDate => isNorwegian ? 'Velg en dato' : 'Choose a date';
+  String get planDateButton => isNorwegian ? 'Planlegg en date' : 'Plan a date';
+  String get planUpcomingSection => isNorwegian ? 'Kommende' : 'Upcoming';
+  String get planConfirmedBadge => isNorwegian ? 'Avtalt' : 'Confirmed';
+  String get planPendingBadge => isNorwegian ? 'Venter' : 'Pending';
+  String get planSheetTitle => isNorwegian ? 'Planlegg en date' : 'Plan a date';
+  String get planSheetSub => isNorwegian ? 'Hva vil dere gjøre?' : 'What do you want to do?';
+  String get planSendProposal => isNorwegian ? 'Send forslag til partner' : 'Send proposal to partner';
+  String get planProposalSent => isNorwegian ? 'Forslag sendt til partner!' : 'Proposal sent to partner!';
+  String get planNoUpcomingTitle => isNorwegian ? 'Ingen planlagte dates ennå' : 'No upcoming dates yet';
+  String get planNoUpcomingSub => isNorwegian ? 'Trykk på en dato og planlegg noe' : 'Tap a date and plan something';
+  String get planCustomHint => isNorwegian ? 'Beskriv hva dere vil gjøre...' : 'Describe what you want to do...';
+  String get planCoupleGameSection => isNorwegian ? 'Par-spill' : 'Couple game';
+  String get planCoupleGameSub => isNorwegian ? '10 spørsmål · 5 min' : '10 questions · 5 min';
+  List<String> get planMonthNames => isNorwegian
+      ? ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember']
+      : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  List<String> get planMonthNamesShort => isNorwegian
+      ? ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des']
+      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  List<String> get planFullDayNames => isNorwegian
+      ? ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
+      : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  String planMonthYear(DateTime date) => '${planMonthNames[date.month - 1]} ${date.year}';
+  String planFormatDate(DateTime date) {
+    final day = planFullDayNames[date.weekday - 1];
+    final month = planMonthNamesShort[date.month - 1];
+    return isNorwegian ? '$day ${date.day}. $month' : '$day, ${date.day} $month';
+  }
+  String planActivityLabel(String id) {
+    if (isNorwegian) {
+      const nb = {'walk': 'Kveldtur', 'home_date': 'Hjemmedate', 'date_night': 'Datenatt', 'game': 'Game night', 'coffee': 'Kaffe ute', 'other': 'Annet'};
+      return nb[id] ?? id;
+    }
+    const en = {'walk': 'Evening walk', 'home_date': 'Home date', 'date_night': 'Date night', 'game': 'Game night', 'coffee': 'Coffee out', 'other': 'Other'};
+    return en[id] ?? id;
+  }
   String get planCardTitle => isNorwegian ? 'Planen vår denne uken' : 'Our plan this week';
   String get planActive => isNorwegian ? 'Aktiv' : 'Active';
   String get planCardSubtitle => isNorwegian
@@ -389,6 +456,52 @@ class AppStrings {
   String get settingsSubscription => isNorwegian ? 'Abonnement' : 'Subscription';
   String get settingsSubscriptionSub => isNorwegian ? 'Administrer planen din' : 'Manage your plan';
   String get settingsLanguagePickerTitle => isNorwegian ? 'Velg språk' : 'Choose language';
+  String get languageSub => isNorwegian ? 'Velg appens språk' : 'Choose app language';
+  String get settingsDittForhold => isNorwegian ? 'DITT FORHOLD' : 'YOUR RELATIONSHIP';
+  String get settingsLifestyleSub => isNorwegian ? 'Tilpass idéer til livet deres' : 'Adapt ideas to your life';
+
+  // ── Lifestyle Setup Screen ─────────────────────────────────────────────────
+  String get lifestyleTitle => isNorwegian ? 'Deres hverdag' : 'Your lifestyle';
+  String get lifestyleSkip => isNorwegian ? 'Hopp over' : 'Skip';
+  String get lifestyleNext => isNorwegian ? 'Neste' : 'Next';
+  String get lifestyleSave => isNorwegian ? 'Lagre og fullfør' : 'Save and finish';
+  String get lifestyleCancel => isNorwegian ? 'Avbryt' : 'Cancel';
+  String get lifestyleStep1Q => isNorwegian ? 'Hvor mye tid har dere på hverdager?' : 'How much time do you have on weekdays?';
+  String get lifestyleStep1Sub => isNorwegian ? 'Vi tilpasser idéenes lengde til hverdagen deres.' : 'We adapt the length of ideas to your everyday life.';
+  String get lifestyleUnder30 => isNorwegian ? 'Under 30 min' : 'Under 30 min';
+  String get lifestyleUnder30Sub => isNorwegian ? 'Kort og godt etter jobb' : 'Short and sweet after work';
+  String get lifestyle30to60 => isNorwegian ? '30–60 min' : '30–60 min';
+  String get lifestyle30to60Sub => isNorwegian ? 'Litt tid når kvelden roer seg' : 'A little time when the evening settles';
+  String get lifestyle2plus => isNorwegian ? '2+ timer' : '2+ hours';
+  String get lifestyle2plusSub => isNorwegian ? 'God tid når hverdagen tillater det' : 'Plenty of time when everyday life allows';
+  String get lifestyleStep2Q => isNorwegian ? 'Hva passer dere best?' : 'What suits you best?';
+  String get lifestyleStep2Sub => isNorwegian ? 'Hjemme, ute, eller begge deler?' : 'At home, out, or both?';
+  String get lifestyleHome => isNorwegian ? 'Hjemme' : 'At home';
+  String get lifestyleHomeSub => isNorwegian ? 'Koselig og enkelt' : 'Cosy and simple';
+  String get lifestyleOut => isNorwegian ? 'Ute' : 'Out';
+  String get lifestyleOutSub => isNorwegian ? 'Ute og eventyrlig' : 'Out and adventurous';
+  String get lifestyleBoth => isNorwegian ? 'Begge deler' : 'Both';
+  String get lifestyleBothSub => isNorwegian ? 'Vi liker variasjon' : 'We like variety';
+  String get lifestyleStep3Q => isNorwegian ? 'Er dere foreldre?' : 'Are you parents?';
+  String get lifestyleStep3Sub => isNorwegian ? 'Da tilpasser vi idéene til hverdagen med barn.' : 'We adapt ideas to life with children.';
+  String get lifestyleHaveKids => isNorwegian ? 'Vi har barn' : 'We have children';
+  String get lifestyleHaveKidsSub => isNorwegian ? 'Idéer tilpasses etter leggetid' : 'Ideas adapted to bedtime';
+  String get lifestyleBedtimeQ => isNorwegian ? 'Når legger barna seg?' : 'When do the children go to bed?';
+  String get lifestyleWeekdays => isNorwegian ? 'Hverdager' : 'Weekdays';
+  String get lifestyleWeekends => isNorwegian ? 'Helger' : 'Weekends';
+  String get lifestyleStep4Q => isNorwegian ? 'Helger — hvor mye tid har dere?' : 'Weekends — how much time do you have?';
+  String get lifestyleStep4Sub => isNorwegian ? 'Vi foreslår lengre dates når dere har tid til det.' : 'We suggest longer dates when you have the time.';
+  String get lifestyleLittle => isNorwegian ? 'Litt tid' : 'A little time';
+  String get lifestyleLittleSub => isNorwegian ? 'En time eller to' : 'An hour or two';
+  String get lifestyleHalfday => isNorwegian ? 'Halv dag' : 'Half a day';
+  String get lifestyleHalfdaySub => isNorwegian ? 'Tid til en skikkelig date' : 'Time for a proper date';
+  String get lifestyleFullday => isNorwegian ? 'Hel dag' : 'Full day';
+  String get lifestyleFulldaySub => isNorwegian ? 'Vi planlegger skikkelig' : 'We plan properly';
+  String get lifestyleDoneTitle => isNorwegian ? 'Alt er klart!' : 'All set!';
+  String get lifestyleDoneBody => isNorwegian
+      ? 'Vi bruker dette til å lage idéer som faktisk passer hverdagen deres. Du kan endre dette når som helst under innstillinger.'
+      : 'We use this to create ideas that actually fit your everyday life. You can change this at any time in settings.';
+  String get lifestyleBackToApp => isNorwegian ? 'Tilbake til appen' : 'Back to the app';
 
   // ── Couple Setup Screen ─────────────────────────────────────────────────
   String get coupleSetupTitle => isNorwegian ? 'Paroppset' : 'Couple setup';
@@ -402,6 +515,9 @@ class AppStrings {
   String get coupleInviteButton => isNorwegian ? 'Inviter partneren din' : 'Invite your partner';
   String get coupleInviteSent => isNorwegian ? 'Invitasjon sendt!' : 'Invite sent!';
   String get coupleWaiting => isNorwegian ? 'Venter på at de blir med...' : 'Waiting for them to join...';
+  String get coupleWaitingTitle => isNorwegian ? 'Venter på partneren din...' : 'Waiting for your partner...';
+  String get coupleWaitingSubtitle => isNorwegian ? 'Be dem sjekke telefonen — invitasjonen ligger der.' : 'Ask them to check their phone — the invite is there.';
+  String get couplePending => isNorwegian ? 'Venter' : 'Pending';
   String get coupleResendInvite => isNorwegian ? 'Send invitasjon på nytt' : 'Resend invite';
   String get coupleCancelInvite => isNorwegian ? 'Avbryt invitasjon' : 'Cancel invite';
   String get coupleConnected => isNorwegian ? 'Tilkoblet' : 'Connected';
@@ -431,7 +547,7 @@ class AppStrings {
       : (years == 1 ? '1 year' : '$years years');
 
   // ── Resolve Together Screen ─────────────────────────────────────────────
-  String get resolveNeutralPill => isNorwegian ? 'Tom · Nøytral' : 'Tom · Neutral';
+  String get resolveNeutralPill => isNorwegian ? 'AI · Nøytral' : 'AI · Neutral';
   String resolveP1Intro(String name) => isNorwegian
       ? 'Hei $name! Jeg er her for å hjelpe dere å finne midten — og jeg tar ikke sider. '
           'Informasjonen dere deler her blir ikke lagret og slettes automatisk når dere forlater samtalen. '
@@ -450,7 +566,36 @@ class AppStrings {
   String resolveNotifTitle(String name) => isNorwegian
       ? '$name vil løse noe sammen med deg.'
       : '$name wants to resolve something with you.';
-  String get resolveNotifSub => isNorwegian ? 'Tom venter 🤝' : 'Tom is waiting 🤝';
+  String get resolveNotifSub => isNorwegian ? 'AI venter 🤝' : 'AI is waiting 🤝';
   String get resolveJoinButton => isNorwegian ? 'Kom inn' : 'Join in';
   String resolveHint(String name) => isNorwegian ? '$name, skriv her…' : '$name, write here…';
+
+  // ── Reminders Screen ────────────────────────────────────────────────────────
+  String get remindersTitle => isNorwegian ? 'Påminnelser' : 'Reminders';
+  String get remindersSubtitle => isNorwegian
+      ? 'Milde nudges som hjelper dere finne tid til hverandre.'
+      : 'Gentle nudges to help you find time for each other.';
+  String get remindersEveningSectionLabel => isNorwegian ? 'Kveldsreminder' : 'Evening reminder';
+  String get remindersEveningTitle => isNorwegian ? 'Kveldsreminder' : 'Evening reminder';
+  String get remindersEveningSub => isNorwegian ? 'En vennlig påminnelse om kvelden' : 'A friendly reminder in the evening';
+  String get remindersTime => isNorwegian ? 'Tidspunkt' : 'Time';
+  String get remindersTapToChange => isNorwegian ? 'Trykk for å endre' : 'Tap to change';
+  String get remindersWeeklySectionLabel => isNorwegian ? 'Ukentlig planlegging' : 'Weekly planning';
+  String get remindersWeeklyTitle => isNorwegian ? 'Planlegg uken sammen' : 'Plan the week together';
+  String remindersWeeklyTimeLabel(String time) =>
+      isNorwegian ? 'Søndager kl $time' : 'Sundays at $time';
+  String get remindersWeeklyOff => isNorwegian ? 'Skrudd av' : 'Turned off';
+  String get remindersWeeklyTimeSub => isNorwegian ? 'Søndager' : 'Sundays';
+  String get remindersNewIdeas => isNorwegian ? 'Nye idéer klar' : 'New ideas ready';
+  String get remindersNewIdeasSub => isNorwegian
+      ? 'Varsle når ukens idéer er klare'
+      : "Notify when this week's ideas are ready";
+  String get remindersPreviewLabel => isNorwegian ? 'Slik ser varselet ut' : 'This is what the notification looks like';
+  String get remindersPreviewTitle => isNorwegian ? 'Tid til dere to?' : 'Time for you two?';
+  String get remindersPreviewBody => isNorwegian
+      ? 'En liten idé venter — ta en titt når dere har et øyeblikk.'
+      : 'A little idea is waiting — take a look when you have a moment.';
+  List<String> get remindersDayAbbreviations => isNorwegian
+      ? ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø']
+      : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 }

@@ -5,11 +5,15 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/strings.dart';
+import '../models/app_state.dart';
 import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
+import 'lifestyle_setup_screen.dart';
 
 // ── Data types ─────────────────────────────────────────────────────────────────
 
@@ -49,11 +53,12 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
     with TickerProviderStateMixin {
 
   // ── Own profile ──────────────────────────────────────────────────────
-  String _name = 'Noah';
+  String _name = '';
   late final TextEditingController _nameCtrl;
   bool _nameChanged = false;
   int _colorIdx = 0;
   XFile? _avatar;
+  String? _savedAvatarPath;
 
   // ── Partner ──────────────────────────────────────────────────────────
   _Phase _phase = _Phase.none;
@@ -79,8 +84,12 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
   void initState() {
     super.initState();
 
+    final appState = context.read<AppState>();
+    _name = appState.displayName;
+    _savedAvatarPath = appState.userAvatarPath;
     _nameCtrl = TextEditingController(text: _name)
       ..addListener(_onNameChange);
+    _loadSavedName();
 
     _travelCtrl = AnimationController(
       vsync: this,
@@ -131,28 +140,45 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
     setState(() => _nameChanged = _nameCtrl.text.trim() != _name);
   }
 
-  void _saveName() {
+  Future<void> _loadSavedName() async {
+    // TODO: replace with Firestore when backend ready
+    final prefs = await SharedPreferences.getInstance();
+    final savedName = prefs.getString('userName') ?? '';
+    if (savedName.isNotEmpty && mounted) {
+      setState(() => _name = savedName);
+      _nameCtrl.text = savedName;
+    }
+  }
+
+  Future<void> _saveName() async {
     FocusScope.of(context).unfocus();
+    final newName = _nameCtrl.text.trim();
     setState(() {
-      _name = _nameCtrl.text.trim();
+      _name = newName;
       _nameChanged = false;
     });
-    // TODO: Firestore /users/{userId}/name = _name
+    // TODO: replace with Firestore when backend ready
+    context.read<AppState>().setDisplayName(newName);
   }
 
   Future<void> _pickAvatar(ImageSource source) async {
     final file = await _picker.pickImage(
         source: source, maxWidth: 400, maxHeight: 400, imageQuality: 85);
-    if (file != null && mounted) {
-      setState(() => _avatar = file);
-      // TODO: Upload to Firebase Storage /users/{userId}/avatar.jpg
-      // TODO: Update Firestore /users/{userId}/avatarUrl
-    }
+    if (file == null || !mounted) return;
+    // Copy to persistent path so HomeScreen can read it after restart
+    final dir = await getApplicationDocumentsDirectory();
+    final destPath = '${dir.path}/avatar.jpg';
+    await File(destPath).writeAsBytes(await file.readAsBytes());
+    if (!mounted) return;
+    setState(() { _avatar = file; _savedAvatarPath = destPath; });
+    // TODO: replace with Firestore when backend ready
+    context.read<AppState>().setUserAvatarPath(destPath);
   }
 
   void _showAvatarOptions() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: false,
       backgroundColor: Colors.transparent,
       builder: (_) => _AvatarOptionsSheet(
         hasPhoto: _avatar != null,
@@ -211,6 +237,21 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
       _phase = _Phase.connected;
       _togetherSince ??= DateTime(2022, 3, 15);
     });
+
+    // Check if lifestyle setup is needed
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    // TODO: replace with Firestore when backend ready
+    final prefs = await SharedPreferences.getInstance();
+    final lifestyleCompleted = prefs.containsKey('weekdayTime');
+    if (!lifestyleCompleted && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const LifestyleSetupScreen(isFirstTime: true),
+        ),
+      );
+    }
   }
 
   Future<void> _changeTogetherSince() async {
@@ -310,12 +351,16 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
 
     return Scaffold(
       backgroundColor: AppTheme.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Stack(
           alignment: Alignment.topCenter,
           children: [
             ListView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 60),
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(20, 18, 20,
+                  max(60.0, MediaQuery.of(context).viewInsets.bottom + 16)),
               children: [
                 _buildTopBar(s),
                 const SizedBox(height: 28),
@@ -388,13 +433,15 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
           ),
         ),
         const SizedBox(width: 14),
-        Text(
-          s.coupleSetupTitle,
-          style: const TextStyle(
-            color: Color(0xFF2C2420),
-            fontSize: 22,
-            fontWeight: FontWeight.w500,
-            letterSpacing: -0.4,
+        Expanded(
+          child: Text(
+            s.coupleSetupTitle,
+            style: const TextStyle(
+              color: Color(0xFF2C2420),
+              fontSize: 22,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.4,
+            ),
           ),
         ),
       ],
@@ -434,6 +481,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                   _avatarCircle(
                       size: 64,
                       file: _avatar,
+                      savedPath: _savedAvatarPath,
                       initial: initial,
                       color: color),
                   Positioned(
@@ -736,6 +784,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                               child: _avatarCircle(
                                 size: 64,
                                 file: _avatar,
+                                savedPath: _savedAvatarPath,
                                 initial: ownInitial,
                                 color: ownColor,
                               ),
@@ -787,66 +836,63 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Waiting for your partner…',
-              style: TextStyle(
+            Text(
+              s.coupleWaitingTitle,
+              style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF1A1A1A)),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Invite sent — they\'ll appear here when they join',
-              style: TextStyle(
+            Text(
+              s.coupleWaitingSubtitle,
+              style: const TextStyle(
                   fontSize: 13, color: Color(0xFF888888)),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            // Pending badge with pulsing dot
             AnimatedBuilder(
               animation: _pulseCtrl,
               builder: (_, __) => _PendingBadge(
-                  pulseT: _pulseCtrl.value),
+                  pulseT: _pulseCtrl.value,
+                  label: s.couplePending),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: _shareInviteLink,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFC1544A),
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    tapTargetSize:
-                        MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(s.coupleResendInvite,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _shareInviteLink,
+                icon: const Icon(Icons.send, size: 18),
+                label: Text(
+                  s.coupleResendInvite,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600),
                 ),
-                const Text(' · ',
-                    style: TextStyle(
-                        color: Color(0xFFB4B2A9))),
-                TextButton(
-                  onPressed: () => setState(() {
-                    _phase = _Phase.none;
-                    _inviteCtrl.clear();
-                  }),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFB4B2A9),
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    tapTargetSize:
-                        MaterialTapTargetSize.shrinkWrap,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFC1544A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(s.coupleCancelInvite,
-                      style:
-                          const TextStyle(fontSize: 13)),
                 ),
-              ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => setState(() {
+                _phase = _Phase.none;
+                _inviteCtrl.clear();
+              }),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB4B2A9),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                s.coupleCancelInvite,
+                style: const TextStyle(fontSize: 13),
+              ),
             ),
           ],
         ),
@@ -877,6 +923,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                   _avatarCircle(
                     size: 64,
                     file: _avatar,
+                    savedPath: _savedAvatarPath,
                     initial: ownInitial,
                     color: ownColor,
                     borderColor: const Color(0xFF993C1D),
@@ -955,6 +1002,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
                           child: _avatarCircle(
                             size: 64,
                             file: _avatar,
+                            savedPath: _savedAvatarPath,
                             initial: ownInitial,
                             color: ownColor,
                           ),
@@ -1207,10 +1255,13 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
   Widget _avatarCircle({
     required double size,
     XFile? file,
+    String? savedPath,
     required String initial,
     required _AvatarColor color,
     Color? borderColor,
   }) {
+    final imagePath = file?.path ??
+        (savedPath != null && File(savedPath).existsSync() ? savedPath : null);
     return Container(
       width: size,
       height: size,
@@ -1221,10 +1272,10 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen>
             ? Border.all(color: borderColor, width: 2)
             : null,
       ),
-      child: file != null
+      child: imagePath != null
           ? ClipOval(
               child: Image.file(
-                File(file.path),
+                File(imagePath),
                 fit: BoxFit.cover,
                 width: size,
                 height: size,
@@ -1268,7 +1319,8 @@ class _Card extends StatelessWidget {
 
 class _PendingBadge extends StatelessWidget {
   final double pulseT;
-  const _PendingBadge({required this.pulseT});
+  final String label;
+  const _PendingBadge({required this.pulseT, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -1298,12 +1350,12 @@ class _PendingBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          const Text(
-            'Pending',
-            style: TextStyle(
+          Text(
+            label,
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF854F0B),
+              color: Color(0xFF633806),
             ),
           ),
         ],

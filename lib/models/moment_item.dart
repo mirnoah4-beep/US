@@ -202,5 +202,15 @@ List<MomentItem> buildInitialMoments() {
         duration: '30 min',
       ),
     ),
+    MomentItem(
+      id: 'send_note',
+      title: 'Send a note',
+      icon: Icons.star_outline,
+      daysAgo: 10,
+      ideaSuggestion: const IdeaSuggestion(
+        text: 'Write a short note — leave it on their pillow or send it as a message.',
+        duration: '5 min',
+      ),
+    ),
   ];
 }

@@ -22,6 +22,7 @@ final _kStaticFallback = WeeklyIdeasDoc(
       tagTextColor: Color(0xFF712B13),
       icon: Icons.coffee_outlined,
       description: 'Sett dere ned uten telefoner og trekk et kort hver.',
+      buttonColor: Color(0xFFC1544A),
     ),
     WeeklyIdea(
       title: 'Kveldstur',
@@ -32,6 +33,7 @@ final _kStaticFallback = WeeklyIdeasDoc(
       tagTextColor: Color(0xFF27500A),
       icon: Icons.directions_walk_outlined,
       description: 'En rolig tur rundt kvartalet. Bare prat og frisk luft.',
+      buttonColor: Color(0xFF3B6D11),
     ),
     WeeklyIdea(
       title: 'Lag mat',
@@ -40,8 +42,9 @@ final _kStaticFallback = WeeklyIdeasDoc(
       cardColor: Color(0xFFFAEEDA),
       tagColor: Color(0xFFFAC775),
       tagTextColor: Color(0xFF633806),
-      icon: Icons.kitchen_outlined,
+      icon: Icons.tv_outlined,
       description: 'Velg en oppskrift ingen har prøvd. Jobb sammen og ha det gøy.',
+      buttonColor: Color(0xFF854F0B),
     ),
     WeeklyIdea(
       title: 'Del en sang',
@@ -50,8 +53,9 @@ final _kStaticFallback = WeeklyIdeasDoc(
       cardColor: Color(0xFFE1F5EE),
       tagColor: Color(0xFF9FE1CB),
       tagTextColor: Color(0xFF085041),
-      icon: Icons.music_note_outlined,
+      icon: Icons.style_outlined,
       description: 'Del en sang som betyr noe nå. Fortell hvorfor.',
+      buttonColor: Color(0xFF0F6E56),
     ),
     WeeklyIdea(
       title: 'Tegn hverandre',
@@ -60,11 +64,43 @@ final _kStaticFallback = WeeklyIdeasDoc(
       cardColor: Color(0xFFFBEAF0),
       tagColor: Color(0xFFF4C0D1),
       tagTextColor: Color(0xFF72243E),
-      icon: Icons.palette_outlined,
+      icon: Icons.local_cafe_outlined,
       description: 'Sett en timer på 10 minutter og tegn den andre.',
+      buttonColor: Color(0xFF993556),
     ),
   ],
 );
+
+enum IdeaSendState { idle, waiting, accepted, declined }
+
+class IncomingIdeaRequest {
+  final String requestId;
+  final String senderName;
+  final String ideaTitle;
+  final String ideaMeta;
+  final String ideaDescription;
+  final String ideaCategory;
+
+  const IncomingIdeaRequest({
+    required this.requestId,
+    required this.senderName,
+    required this.ideaTitle,
+    required this.ideaMeta,
+    required this.ideaDescription,
+    required this.ideaCategory,
+  });
+
+  factory IncomingIdeaRequest.fromFirestore(String id, Map<String, dynamic> data) {
+    return IncomingIdeaRequest(
+      requestId: id,
+      senderName: data['senderName'] as String? ?? 'Din partner',
+      ideaTitle: data['ideaTitle'] as String? ?? '',
+      ideaMeta: data['ideaMeta'] as String? ?? '',
+      ideaDescription: data['ideaDescription'] as String? ?? '',
+      ideaCategory: data['ideaCategory'] as String? ?? '',
+    );
+  }
+}
 
 class WeeklyIdeasProvider extends ChangeNotifier {
   WeeklyIdeasDoc? _doc = _kStaticFallback;
@@ -73,10 +109,20 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   String? _coupleId;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sub;
 
+  IdeaSendState _sendState = IdeaSendState.idle;
+  WeeklyIdea? _sentIdea;
+  String? _pendingRequestId;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _requestSub;
+  IncomingIdeaRequest? _incomingRequest;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _incomingSub;
+
   WeeklyIdeasDoc? get doc => _doc;
   bool get loading => _loading;
   List<WeeklyIdea> get ideas => _doc?.ideas ?? [];
   bool get isAiGenerated => _doc?.isAiGenerated ?? false;
+  IdeaSendState get sendState => _sendState;
+  WeeklyIdea? get sentIdea => _sentIdea;
+  IncomingIdeaRequest? get incomingRequest => _incomingRequest;
 
   // Call once from the HomeScreen widget tree.
   Future<void> init(String coupleId) async {
@@ -142,9 +188,156 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> sendIdea(
+    WeeklyIdea idea,
+    String coupleId,
+    String userId,
+    String senderName,
+  ) async {
+    _sentIdea = idea;
+    _sendState = IdeaSendState.waiting;
+    notifyListeners();
+    try {
+      final ref = FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('ideaRequests')
+          .doc();
+      _pendingRequestId = ref.id;
+      await ref.set({
+        'ideaTitle': idea.title,
+        'ideaMeta': idea.meta,
+        'ideaDescription': idea.description,
+        'ideaCategory': idea.category,
+        'senderName': senderName,
+        'sentBy': userId,
+        'sentAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+      _requestSub?.cancel();
+      _requestSub = ref.snapshots().listen(_onRequestSnapshot, onError: (_) {});
+    } catch (e) {
+      debugPrint('sendIdea failed: $e');
+    }
+  }
+
+  void _onRequestSnapshot(DocumentSnapshot<Map<String, dynamic>> snap) {
+    if (!snap.exists) return;
+    final data = snap.data()!;
+    final status = data['status'] as String?;
+
+    // Auto-expire pending requests older than 24 hours
+    if (status == 'pending') {
+      final sentAt = data['sentAt'] as Timestamp?;
+      if (sentAt != null) {
+        final age = DateTime.now().difference(sentAt.toDate());
+        if (age.inHours >= 24) {
+          snap.reference.update({'status': 'expired'}).catchError((_) {});
+          _sendState = IdeaSendState.idle;
+          _requestSub?.cancel();
+          _requestSub = null;
+          notifyListeners();
+          return;
+        }
+      }
+    }
+
+    if (status == 'accepted') {
+      _sendState = IdeaSendState.accepted;
+      _requestSub?.cancel();
+      _requestSub = null;
+      notifyListeners();
+    } else if (status == 'declined') {
+      _sendState = IdeaSendState.declined;
+      _requestSub?.cancel();
+      _requestSub = null;
+      notifyListeners();
+    } else if (status == 'expired') {
+      _sendState = IdeaSendState.idle;
+      _requestSub?.cancel();
+      _requestSub = null;
+      notifyListeners();
+    }
+  }
+
+  void resetSendState() {
+    _sendState = IdeaSendState.idle;
+    _sentIdea = null;
+    _pendingRequestId = null;
+    _requestSub?.cancel();
+    _requestSub = null;
+    notifyListeners();
+  }
+
+  Future<void> cancelPendingIdea(String coupleId) async {
+    final docId = _pendingRequestId;
+    resetSendState();
+    if (docId != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(coupleId)
+            .collection('ideaRequests')
+            .doc(docId)
+            .delete();
+      } catch (e) {
+        debugPrint('cancelPendingIdea failed: $e');
+      }
+    }
+  }
+
+  Future<void> respondToRequest(String coupleId, String requestId, bool accepted) async {
+    _incomingRequest = null;
+    notifyListeners();
+    try {
+      await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('ideaRequests')
+          .doc(requestId)
+          .update({'status': accepted ? 'accepted' : 'declined'});
+    } catch (e) {
+      debugPrint('respondToRequest failed: $e');
+    }
+  }
+
+  Future<void> checkIncomingRequests(String coupleId, String userId) async {
+    _incomingSub?.cancel();
+    try {
+      _incomingSub = FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('ideaRequests')
+          .where('status', isEqualTo: 'pending')
+          .where('sentBy', isNotEqualTo: userId)
+          .snapshots()
+          .listen(_onIncomingSnapshot, onError: (_) {});
+    } catch (e) {
+      debugPrint('checkIncomingRequests failed: $e');
+    }
+  }
+
+  void _onIncomingSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
+    if (snap.docs.isEmpty) {
+      if (_incomingRequest != null) {
+        _incomingRequest = null;
+        notifyListeners();
+      }
+      return;
+    }
+    final doc = snap.docs.first;
+    final newReq = IncomingIdeaRequest.fromFirestore(doc.id, doc.data());
+    if (newReq.requestId != _incomingRequest?.requestId) {
+      _incomingRequest = newReq;
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
+    _requestSub?.cancel();
+    _incomingSub?.cancel();
     super.dispose();
   }
 }
