@@ -245,19 +245,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSection1(s) {
     return _SettingsCard(
       children: [
-        _NavRow(
-          iconData: Icons.favorite_border,
-          iconColor: const Color(0xFFC1544A),
-          iconBg: const Color(0xFFFAECE7),
-          title: s.settingsCoupleSetup,
-          subtitle: s.settingsCoupleSetupSub,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => const CoupleSetupScreen()),
-          ),
-        ),
-        const _RowDivider(),
         _ToggleRow(
           iconData: Icons.child_care,
           iconColor: const Color(0xFF854F0B),
