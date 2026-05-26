@@ -28,7 +28,7 @@ class HeatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(item.icon, color: item.heatTextColor, size: 24),
+            Icon(item.icon, color: item.heatIconColor, size: 24),
             const SizedBox(height: 8),
             Text(
               s.momentTitle(item.id),

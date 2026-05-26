@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../models/app_state.dart';
 import '../models/language_provider.dart';
+import '../models/weekly_idea.dart';
+import '../models/weekly_ideas_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/relationship_battery_card.dart';
 import 'resolve_together_screen.dart';
@@ -61,6 +63,8 @@ class HomeScreen extends StatelessWidget {
             _sectionLabel(s.homeThisWeekSection),
             const SizedBox(height: 10),
             _buildThisWeekGrid(state, s),
+            const SizedBox(height: 22),
+            const _WeeklyIdeasSection(),
             const SizedBox(height: 22),
             _buildResolveCard(context, s),
           ],
@@ -817,6 +821,223 @@ class _WeekCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Weekly Ideas Section ────────────────────────────────────────────────────
+
+class _WeeklyIdeasSection extends StatefulWidget {
+  const _WeeklyIdeasSection();
+
+  @override
+  State<_WeeklyIdeasSection> createState() => _WeeklyIdeasSectionState();
+}
+
+class _WeeklyIdeasSectionState extends State<_WeeklyIdeasSection> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final coupleId = context.read<AppState>().coupleId;
+      context.read<WeeklyIdeasProvider>().init(coupleId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<WeeklyIdeasProvider>();
+    final s = context.watch<LanguageProvider>().s;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              s.homeWeeklyIdeasSection,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (provider.isAiGenerated) ...[
+              const SizedBox(width: 8),
+              _AiPill(label: s.homeAiPersonalized),
+            ],
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (provider.loading && provider.ideas.isEmpty)
+          const _WeeklyIdeasSkeleton()
+        else if (provider.ideas.isEmpty)
+          _WeeklyIdeasEmpty(message: s.homeWeeklyIdeasEmpty)
+        else
+          _WeeklyIdeasCarousel(ideas: provider.ideas),
+      ],
+    );
+  }
+}
+
+class _AiPill extends StatelessWidget {
+  final String label;
+  const _AiPill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEDFE),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF534AB7),
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _WeeklyIdeasCarousel extends StatelessWidget {
+  final List<WeeklyIdea> ideas;
+  const _WeeklyIdeasCarousel({required this.ideas});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 186,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        itemCount: ideas.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, i) => _WeeklyIdeaCard(idea: ideas[i]),
+      ),
+    );
+  }
+}
+
+class _WeeklyIdeaCard extends StatelessWidget {
+  final WeeklyIdea idea;
+  const _WeeklyIdeaCard({required this.idea});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 158,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: idea.cardColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: idea.tagColor,
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              idea.category,
+              style: TextStyle(
+                color: idea.tagTextColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Icon(idea.icon, size: 22, color: idea.tagTextColor),
+          const SizedBox(height: 8),
+          Text(
+            idea.title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+          Text(
+            idea.meta,
+            style: TextStyle(
+              color: idea.tagTextColor.withValues(alpha: 0.85),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyIdeasSkeleton extends StatelessWidget {
+  const _WeeklyIdeasSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 186,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, __) => Container(
+          width: 158,
+          decoration: BoxDecoration(
+            color: AppTheme.textMuted.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeeklyIdeasEmpty extends StatelessWidget {
+  final String message;
+  const _WeeklyIdeasEmpty({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 14,
+        ),
+        textAlign: TextAlign.center,
       ),
     );
   }

@@ -4,6 +4,9 @@ import 'date_idea.dart';
 
 class AppState extends ChangeNotifier {
   bool hasChildren = false;
+  // TODO: replace with real couple ID from Firebase Auth
+  String get coupleId => 'couple_001';
+  String subscriptionTier = 'premium';
   List<MomentItem> moments = buildInitialMoments();
   List<DateIdea> ideas = buildInitialIdeas();
 

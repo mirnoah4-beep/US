@@ -61,25 +61,46 @@ class LastTimeScreen extends StatelessWidget {
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-              sliver: SliverGrid(
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  mainAxisExtent: 104,
-                ),
+              sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final item = moments[index];
-                    return HeatCard(
-                      key: ValueKey(item.id),
-                      item: item,
-                      onTap: () =>
-                          _openActivitySheet(context, item, state),
+                    final left = index * 2;
+                    final right = left + 1;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(minHeight: 110),
+                                child: HeatCard(
+                                  key: ValueKey(moments[left].id),
+                                  item: moments[left],
+                                  onTap: () => _openActivitySheet(context, moments[left], state),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: right < moments.length
+                                  ? ConstrainedBox(
+                                      constraints: const BoxConstraints(minHeight: 110),
+                                      child: HeatCard(
+                                        key: ValueKey(moments[right].id),
+                                        item: moments[right],
+                                        onTap: () => _openActivitySheet(context, moments[right], state),
+                                      ),
+                                    )
+                                  : const SizedBox(),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
-                  childCount: moments.length,
+                  childCount: (moments.length / 2).ceil(),
                 ),
               ),
             ),

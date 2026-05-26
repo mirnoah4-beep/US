@@ -1,20 +1,28 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'models/app_state.dart';
 import 'models/language_provider.dart';
+import 'models/weekly_ideas_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/last_time_screen.dart';
 import 'screens/ideas_screen.dart';
 import 'screens/plan_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    // Requires google-services.json (Android) and GoogleService-Info.plist (iOS).
+    // App runs without them; Firebase features degrade gracefully until added.
+    await Firebase.initializeApp();
+  } catch (_) {}
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        ChangeNotifierProvider(create: (_) => WeeklyIdeasProvider()),
       ],
       child: const UsApp(),
     ),

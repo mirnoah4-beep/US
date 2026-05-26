@@ -100,6 +100,14 @@ class MomentItem {
     }
   }
 
+  Color get heatIconColor {
+    switch (status) {
+      case MomentStatus.good: return const Color(0xFF3B6D11);
+      case MomentStatus.needsAttention: return const Color(0xFF854F0B);
+      case MomentStatus.reconnectSoon: return const Color(0xFF993C1D);
+    }
+  }
+
   String get daysAgoLabel {
     if (daysAgo == 0) return 'Today';
     if (daysAgo == 1) return 'Yesterday';
@@ -166,7 +174,7 @@ List<MomentItem> buildInitialMoments() {
     MomentItem(
       id: 'walk',
       title: 'Took a walk',
-      icon: Icons.park,
+      icon: Icons.directions_walk,
       daysAgo: 9,
       ideaSuggestion: const IdeaSuggestion(
         text: 'An evening loop around the block — phones in pockets, just talking.',
