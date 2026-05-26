@@ -70,7 +70,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('generateWeeklyIdeas');
+          .httpsCallable('generateWeeklyIdeasNow');
       await callable.call({'coupleId': coupleId});
       // Firestore stream picks up the new doc automatically
     } catch (e) {

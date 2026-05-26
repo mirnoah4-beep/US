@@ -39,8 +39,9 @@ class AppStrings {
   String get homeSendToS => isNorwegian ? 'Send til S' : 'Send to S';
   String get homeSentToS => isNorwegian ? 'Sendt til S!' : 'Sent to S!';
   String get homeWeeklyIdeasSection => isNorwegian ? 'Ukens ideer' : 'This week\'s ideas';
-  String get homeAiPersonalized => isNorwegian ? 'AI-personalisert' : 'AI-personalized';
+  String get homeAiPersonalized => isNorwegian ? 'AI-personalisert denne uken' : 'AI-personalised this week';
   String get homeWeeklyIdeasEmpty => isNorwegian ? 'Ingen ideer ennå — prøv igjen snart.' : 'No ideas yet — check back soon.';
+  String get homeIdeaSendToPartner => isNorwegian ? 'Send idé til partner' : 'Send idea to partner';
 
   // ── Last Time Screen ────────────────────────────────────────────────────
   String get lastTimeTitle => isNorwegian ? 'Sist gang' : 'Last time';

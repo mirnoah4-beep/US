@@ -836,47 +836,85 @@ class _WeeklyIdeasSection extends StatefulWidget {
 }
 
 class _WeeklyIdeasSectionState extends State<_WeeklyIdeasSection> {
+  late final PageController _pageCtrl;
+  int _currentPage = 0;
+
   @override
   void initState() {
     super.initState();
+    _pageCtrl = PageController();
+    _pageCtrl.addListener(() {
+      final p = _pageCtrl.page?.round() ?? 0;
+      if (p != _currentPage) setState(() => _currentPage = p);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final coupleId = context.read<AppState>().coupleId;
-      context.read<WeeklyIdeasProvider>().init(coupleId);
+      context.read<WeeklyIdeasProvider>().init(context.read<AppState>().coupleId);
     });
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WeeklyIdeasProvider>();
     final s = context.watch<LanguageProvider>().s;
+    final ideas = provider.ideas;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              s.homeWeeklyIdeasSection,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (provider.isAiGenerated) ...[
-              const SizedBox(width: 8),
-              _AiPill(label: s.homeAiPersonalized),
-            ],
-          ],
+        Text(
+          s.homeWeeklyIdeasSection,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        if (provider.isAiGenerated) ...[
+          const SizedBox(height: 6),
+          _AiPill(label: s.homeAiPersonalized),
+        ],
         const SizedBox(height: 10),
-        if (provider.loading && provider.ideas.isEmpty)
+        if (provider.loading && ideas.isEmpty)
           const _WeeklyIdeasSkeleton()
-        else if (provider.ideas.isEmpty)
+        else if (ideas.isEmpty)
           _WeeklyIdeasEmpty(message: s.homeWeeklyIdeasEmpty)
-        else
-          _WeeklyIdeasCarousel(ideas: provider.ideas),
+        else ...[
+          SizedBox(
+            height: 220,
+            child: PageView.builder(
+              controller: _pageCtrl,
+              physics: const PageScrollPhysics(),
+              itemCount: ideas.length,
+              itemBuilder: (_, i) => _WeeklyIdeaCard(idea: ideas[i]),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(ideas.length, (i) {
+              final active = i == _currentPage;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: active ? 20 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: active
+                      ? const Color(0xFFC1544A)
+                      : const Color(0xFFE0D9D0),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              );
+            }),
+          ),
+        ],
       ],
     );
   }
@@ -889,7 +927,7 @@ class _AiPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFEEEDFE),
         borderRadius: BorderRadius.circular(99),
@@ -898,28 +936,9 @@ class _AiPill extends StatelessWidget {
         label,
         style: const TextStyle(
           color: Color(0xFF534AB7),
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
-      ),
-    );
-  }
-}
-
-class _WeeklyIdeasCarousel extends StatelessWidget {
-  final List<WeeklyIdea> ideas;
-  const _WeeklyIdeasCarousel({required this.ideas});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 186,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        itemCount: ideas.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => _WeeklyIdeaCard(idea: ideas[i]),
       ),
     );
   }
@@ -931,55 +950,122 @@ class _WeeklyIdeaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Container(
-      width: 158,
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: idea.cardColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: idea.tagColor,
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: Text(
-              idea.category,
-              style: TextStyle(
-                color: idea.tagTextColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+          // Top section — fixed 96px
+          SizedBox(
+            height: 96,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: idea.tagColor,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            idea.category,
+                            style: TextStyle(
+                              color: idea.tagTextColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          idea.title,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          idea.meta,
+                          style: const TextStyle(
+                            color: Color(0xFF888888),
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Opacity(
+                    opacity: 0.22,
+                    child: Icon(idea.icon, size: 48, color: idea.tagTextColor),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          Icon(idea.icon, size: 22, color: idea.tagTextColor),
-          const SizedBox(height: 8),
-          Text(
-            idea.title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
+          // Bottom section — buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                FilledButton(
+                  onPressed: () {},
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFC1544A),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  child: Text(
+                    s.homeIdeaSendToPartner,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () {},
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: idea.tagTextColor,
+                    side: BorderSide(
+                        color: idea.tagTextColor.withValues(alpha: 0.35)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                  ),
+                  child: Text(
+                    s.homeWriteOwn,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const Spacer(),
-          Text(
-            idea.meta,
-            style: TextStyle(
-              color: idea.tagTextColor.withValues(alpha: 0.85),
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -992,21 +1078,32 @@ class _WeeklyIdeasSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 186,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        itemCount: 3,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, __) => Container(
-          width: 158,
+    return Column(
+      children: [
+        Container(
+          height: 220,
           decoration: BoxDecoration(
             color: AppTheme.textMuted.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(20),
           ),
         ),
-      ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (i) => AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: i == 0 ? 20 : 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: i == 0
+                  ? const Color(0xFFC1544A).withValues(alpha: 0.3)
+                  : const Color(0xFFE0D9D0),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          )),
+        ),
+      ],
     );
   }
 }
