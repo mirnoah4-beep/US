@@ -46,3 +46,20 @@ app.*.map.json
 
 # API secrets — never commit
 lib/config/secrets.dart
+
+# Firebase credentials — never commit
+android/app/google-services.json
+**/google-services.json
+ios/Runner/GoogleService-Info.plist
+firebase-debug.log
+
+# Android signing — never commit
+*.jks
+*.keystore
+key.properties
+
+# Environment
+.env
+
+# Artifacts
+flutter_01.png

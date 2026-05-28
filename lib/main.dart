@@ -1,32 +1,67 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' hide ChangeNotifierProvider;
 import 'package:provider/provider.dart';
+
+import 'firebase_options.dart';
 import 'models/app_state.dart';
+import 'models/couple_model.dart';
 import 'models/language_provider.dart';
 import 'models/reminders_provider.dart';
+import 'models/user_model.dart';
 import 'models/weekly_ideas_provider.dart';
+import 'screens/couple_setup_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/last_time_screen.dart';
 import 'screens/ideas_screen.dart';
+import 'screens/last_time_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/plan_screen.dart';
+import 'screens/splash_screen.dart';
+import 'services/firestore_service.dart';
 import 'theme/app_theme.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    // Requires google-services.json (Android) and GoogleService-Info.plist (iOS).
-    // App runs without them; Firebase features degrade gracefully until added.
-    await Firebase.initializeApp();
-  } catch (_) {}
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.debug,
+    appleProvider: AppleProvider.debug,
+  );
+  FirebaseAppCheck.instance.onTokenChange.listen(
+    (token) => print('App Check token: $token'),
+  );
+
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AppState()),
-        ChangeNotifierProvider(create: (_) => LanguageProvider()),
-        ChangeNotifierProvider(create: (_) => WeeklyIdeasProvider()),
-        ChangeNotifierProvider(create: (_) => RemindersProvider()),
-      ],
-      child: const UsApp(),
+    ProviderScope(
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AppState()),
+          ChangeNotifierProvider(create: (_) => LanguageProvider()),
+          ChangeNotifierProvider(create: (_) => WeeklyIdeasProvider()),
+          ChangeNotifierProvider(create: (_) => RemindersProvider()),
+        ],
+        child: const UsApp(),
+      ),
     ),
   );
 }
@@ -40,10 +75,122 @@ class UsApp extends StatelessWidget {
       title: 'US',
       theme: AppTheme.theme,
       debugShowCheckedModeBanner: false,
-      home: const MainShell(),
+      home: const AuthGate(),
     );
   }
 }
+
+// ── AuthGate ───────────────────────────────────────────────────────────────────
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, authSnap) {
+        if (authSnap.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        final user = authSnap.data;
+        if (user == null) return const LoginScreen();
+
+        // Authenticated — watch the user document.
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .snapshots(),
+          builder: (context, userSnap) {
+            if (userSnap.connectionState == ConnectionState.waiting) {
+              return const SplashScreen();
+            }
+
+            final userDoc = userSnap.data;
+
+            // Document not yet written (race between auth callback and
+            // the Firestore write in _handleAuthSuccess).
+            if (userDoc == null || !userDoc.exists) {
+              return const SplashScreen();
+            }
+
+            final userData = UserModel.fromFirestore(userDoc);
+            final coupleId = userData.coupleId;
+
+            // No couple — go to setup.
+            if (coupleId == null || coupleId.isEmpty) {
+              return CoupleSetupScreen(
+                currentUserId: user.uid,
+                onCoupleActive: () {},
+              );
+            }
+
+            // Has coupleId — verify the couple's status.
+            return _CoupleGate(uid: user.uid, coupleId: coupleId);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ── _CoupleGate ────────────────────────────────────────────────────────────────
+
+class _CoupleGate extends StatefulWidget {
+  final String uid;
+  final String coupleId;
+
+  const _CoupleGate({required this.uid, required this.coupleId});
+
+  @override
+  State<_CoupleGate> createState() => _CoupleGateState();
+}
+
+class _CoupleGateState extends State<_CoupleGate> {
+  bool _clearedStale = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<CoupleModel?>(
+      stream: FirestoreService.watchCouple(widget.coupleId),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        final couple = snap.data;
+
+        // Couple document missing — stale coupleId on user doc.
+        // Clear it and wait for AuthGate to re-route.
+        if (couple == null) {
+          if (!_clearedStale) {
+            _clearedStale = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.uid)
+                  .update({'coupleId': null}).catchError((_) {});
+            });
+          }
+          return const SplashScreen();
+        }
+
+        if (couple.isActive) return const MainShell();
+
+        // Pending couple — not reachable in normal flow (coupleId is only
+        // written when active), but handle defensively.
+        return CoupleSetupScreen(
+          currentUserId: widget.uid,
+          onCoupleActive: () {},
+        );
+      },
+    );
+  }
+}
+
+// ── MainShell ──────────────────────────────────────────────────────────────────
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -55,9 +202,6 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  // One navigator key per tab so showModalBottomSheet(useRootNavigator: false)
-  // finds the tab's own navigator and the sheet stays within the body area,
-  // leaving the bottom nav bar visible.
   final List<GlobalKey<NavigatorState>> _tabNavKeys = [
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
@@ -71,6 +215,28 @@ class _MainShellState extends State<MainShell> {
     IdeasScreen(),
     PlanScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initFcm();
+  }
+
+  Future<void> _initFcm() async {
+    final messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission();
+    final token = await messaging.getToken();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (token != null && uid != null) {
+      FirestoreService.saveFcmToken(uid, token).catchError((_) {});
+    }
+    messaging.onTokenRefresh.listen((newToken) {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid != null) {
+        FirestoreService.saveFcmToken(currentUid, newToken).catchError((_) {});
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

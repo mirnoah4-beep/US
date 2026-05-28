@@ -1,14 +1,16 @@
-import 'dart:io';
-
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_state.dart';
 import '../models/language_provider.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
-import 'couple_setup_screen.dart';
 import 'lifestyle_setup_screen.dart';
+import 'our_relationship_screen.dart';
+import 'profile_screen.dart';
 import 'reminders_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -19,34 +21,119 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _parentMode = false;
   bool _quietHours = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPrefs();
-  }
-
-  Future<void> _loadPrefs() async {
-    // TODO: replace with Firestore when backend ready
-    final prefs = await SharedPreferences.getInstance();
-    final parentMode = prefs.getBool('parentMode') ?? false;
-    final savedName = prefs.getString('userName') ?? '';
-    if (mounted) {
-      setState(() => _parentMode = parentMode);
-      final appState = context.read<AppState>();
-      appState.setHasChildren(parentMode);
-      if (savedName.isNotEmpty) appState.updateDisplayName(savedName);
+  Future<void> _saveParentMode(bool value) async {
+    final appState = context.read<AppState>();
+    appState.setHasChildren(value);
+    final coupleId = appState.coupleId;
+    if (coupleId.isNotEmpty) {
+      FirestoreService.updateSettings(coupleId, {'parentMode': value})
+          .catchError((_) {});
     }
   }
 
-  Future<void> _saveParentMode(bool value) async {
-    setState(() => _parentMode = value);
-    // TODO: replace with Firestore when backend ready
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('parentMode', value);
-    if (mounted) context.read<AppState>().setHasChildren(value);
+  Future<void> _signOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        backgroundColor: const Color(0xFFFAF7F4),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCEBEB),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.logout,
+                  color: Color(0xFFA32D2D),
+                  size: 26,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Logg ut',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A),
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Du må logge inn igjen for å bruke appen.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF888780),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFA32D2D),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Logg ut',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF5F5E5A),
+                    side: const BorderSide(color: Color(0xFFE0D9D0)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Avbryt',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    await GoogleSignIn().signOut();
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 
   @override
@@ -64,6 +151,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
             _buildSubscriptionBanner(s),
             const SizedBox(height: 24),
+            _sectionLabel(s.settingsKonto),
+            const SizedBox(height: 8),
+            _buildKontoSection(context, s),
+            const SizedBox(height: 24),
             _sectionLabel(s.settingsDittForhold),
             const SizedBox(height: 8),
             _buildDittForholdSection(context, s),
@@ -72,7 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
             _buildSection2(context, s),
             const SizedBox(height: 12),
-            _buildSection3(s),
+            _buildSection3(context, s),
           ],
         ),
       ),
@@ -119,12 +210,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildCoupleCard(BuildContext context, s) {
     final appState = context.watch<AppState>();
     final displayName = appState.displayName;
-    final avatarPath = appState.userAvatarPath;
+    final avatarUrl = appState.userAvatarUrl;
+    final partnerName = appState.partnerName;
+    final partnerAvatarUrl = appState.partnerAvatarUrl;
+    final partnerInitial =
+        partnerName.isNotEmpty ? partnerName[0].toUpperCase() : null;
+    final hasPartner = appState.coupleId.isNotEmpty;
+    final togetherSince = appState.togetherSince;
+    final subtitleText = togetherSince != null
+        ? s.settingsTogetherSince(s.coupleDate(togetherSince))
+        : s.ourRelationshipNoDate;
+
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -134,104 +232,128 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 54,
-            height: 36,
-            child: Stack(
+      child: Material(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: hasPartner
+              ? () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const OurRelationshipScreen()),
+                  )
+              : null,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
               children: [
-                Positioned(
-                  right: 0,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFAECE7),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: ClipOval(
-                      child: avatarPath != null &&
-                              File(avatarPath).existsSync()
-                          ? Image.file(
-                              File(avatarPath),
-                              fit: BoxFit.cover,
-                              width: 36,
-                              height: 36,
-                            )
-                          : const Icon(
-                              Icons.person,
-                              size: 20,
-                              color: Color(0xFFC1544A),
-                            ),
-                    ),
+                SizedBox(
+                  width: 54,
+                  height: 36,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: 0,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFAECE7),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: ClipOval(
+                            child: avatarUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: avatarUrl,
+                                    fit: BoxFit.cover,
+                                    width: 36,
+                                    height: 36,
+                                    placeholder: (_, _) => const Icon(
+                                      Icons.person,
+                                      size: 20,
+                                      color: Color(0xFFC1544A),
+                                    ),
+                                    errorWidget: (_, _, _) => const Icon(
+                                      Icons.person,
+                                      size: 20,
+                                      color: Color(0xFFC1544A),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.person,
+                                    size: 20,
+                                    color: Color(0xFFC1544A),
+                                  ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFAEEDA),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: ClipOval(
+                            child: partnerAvatarUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: partnerAvatarUrl,
+                                    fit: BoxFit.cover,
+                                    width: 36,
+                                    height: 36,
+                                    placeholder: (_, _) =>
+                                        _partnerFallback(partnerInitial),
+                                    errorWidget: (_, _, _) =>
+                                        _partnerFallback(partnerInitial),
+                                  )
+                                : _partnerFallback(partnerInitial),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFAEEDA),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 20,
-                      color: Color(0xFF854F0B),
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        partnerName.isEmpty
+                            ? displayName
+                            : '$displayName & $partnerName',
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        subtitleText,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                if (hasPartner)
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Color(0xFFD3D1C7),
+                    size: 18,
+                  ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$displayName & Partner',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  s.settingsTogether,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CoupleSetupScreen()),
-            ),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              s.settingsEdit,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFC1544A),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -304,6 +426,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildKontoSection(BuildContext context, s) {
+    return _SettingsCard(
+      children: [
+        _NavRow(
+          iconData: Icons.person_outline,
+          iconColor: const Color(0xFFC1544A),
+          iconBg: const Color(0xFFFAECE7),
+          title: s.settingsProfile,
+          subtitle: s.settingsProfileSub,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDittForholdSection(BuildContext context, s) {
     return _SettingsCard(
       children: [
@@ -334,7 +474,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           iconBg: const Color(0xFFFAEEDA),
           title: s.settingsParentMode,
           subtitle: s.settingsParentModeSub,
-          value: _parentMode,
+          value: context.watch<AppState>().hasChildren,
           onChanged: _saveParentMode,
         ),
         const _RowDivider(),
@@ -394,7 +534,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSection3(s) {
+  Widget _buildSection3(BuildContext context, s) {
     return _SettingsCard(
       children: [
         _NavRow(
@@ -403,6 +543,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           iconBg: const Color(0xFFFCEBEB),
           title: s.settingsSignOut,
           subtitle: s.settingsSignOutSub,
+          onTap: () => _signOut(context),
         ),
         const _RowDivider(),
         _NavRow(
@@ -414,6 +555,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  Widget _partnerFallback(String? initial) {
+    if (initial != null) {
+      return Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF854F0B),
+          ),
+        ),
+      );
+    }
+    return const Icon(Icons.person, size: 20, color: Color(0xFF854F0B));
   }
 
   void _showLanguageSheet(BuildContext context) {

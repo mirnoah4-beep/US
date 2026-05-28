@@ -1,9 +1,14 @@
-import 'dart:convert';
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import '../l10n/strings.dart';
+import '../models/app_state.dart';
 import '../models/language_provider.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'couple_game_screen.dart';
 
@@ -24,22 +29,16 @@ class _PlannedDate {
     required this.createdAt,
   });
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'activity': activity,
-    'date': date.toIso8601String(),
-    'status': status,
-    'sentBy': 'me',
-    'createdAt': createdAt.toIso8601String(),
-  };
-
-  factory _PlannedDate.fromJson(Map<String, dynamic> j) => _PlannedDate(
-    id: j['id'] as String,
-    activity: j['activity'] as String,
-    date: DateTime.parse(j['date'] as String),
-    status: j['status'] as String,
-    createdAt: DateTime.parse(j['createdAt'] as String),
-  );
+  factory _PlannedDate.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data()!;
+    return _PlannedDate(
+      id: doc.id,
+      activity: d['activity'] as String? ?? '',
+      date: (d['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      status: d['status'] as String? ?? 'pending',
+      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -55,7 +54,8 @@ class _PlanScreenState extends State<PlanScreen> {
   late DateTime _selectedDate;
   late DateTime _displayMonth;
   List<_PlannedDate> _plannedDates = [];
-  static const _prefsKey = 'plannedDates';
+  String _coupleId = '';
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _planSub;
 
   @override
   void initState() {
@@ -63,46 +63,46 @@ class _PlanScreenState extends State<PlanScreen> {
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
     _displayMonth = DateTime(now.year, now.month, 1);
-    _loadDates();
   }
 
-  Future<void> _loadDates() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_prefsKey) ?? [];
-    if (!mounted) return;
-    setState(() {
-      _plannedDates = raw
-          .map((s) => _PlannedDate.fromJson(jsonDecode(s) as Map<String, dynamic>))
-          .toList();
-    });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final coupleId = Provider.of<AppState>(context, listen: false).coupleId;
+    if (coupleId != _coupleId && coupleId.isNotEmpty) {
+      _coupleId = coupleId;
+      _planSub?.cancel();
+      _planSub = FirestoreService.weeklyPlanStream(coupleId).listen((snap) {
+        if (!mounted) return;
+        setState(() {
+          _plannedDates = snap.docs
+              .map((d) => _PlannedDate.fromFirestore(d))
+              .toList();
+        });
+      });
+    }
   }
 
-  Future<void> _saveDates() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      _prefsKey,
-      _plannedDates.map((d) => jsonEncode(d.toJson())).toList(),
-    );
+  @override
+  void dispose() {
+    _planSub?.cancel();
+    super.dispose();
   }
 
-  void _addDate(String activity) {
-    final entry = _PlannedDate(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+  Future<void> _addDate(String activity) async {
+    if (_coupleId.isEmpty) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    await FirestoreService.addPlan(
+      coupleId: _coupleId,
       activity: activity,
       date: _selectedDate,
-      status: 'pending',
-      createdAt: DateTime.now(),
+      sentBy: uid,
     );
-    setState(() => _plannedDates.add(entry));
-    _saveDates();
   }
 
-  void _confirmDate(String id) {
-    setState(() {
-      final idx = _plannedDates.indexWhere((d) => d.id == id);
-      if (idx != -1) _plannedDates[idx].status = 'confirmed';
-    });
-    _saveDates();
+  Future<void> _confirmDate(String id) async {
+    if (_coupleId.isEmpty) return;
+    await FirestoreService.confirmPlan(_coupleId, id);
   }
 
   Set<DateTime> get _eventDateSet => _plannedDates
@@ -193,7 +193,7 @@ class _PlanScreenState extends State<PlanScreen> {
         selectedDate: _selectedDate,
         onConfirm: (activity) {
           Navigator.pop(ctx);
-          _addDate(activity);
+          _addDate(activity).catchError((_) {});
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(s.planProposalSent),

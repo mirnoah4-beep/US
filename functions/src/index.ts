@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { generateForCouple, getWeekNumber } from './generateWeeklyIdeas';
 
 admin.initializeApp();
@@ -12,7 +12,6 @@ export const generateWeeklyIdeasScheduled = onSchedule(
   async () => {
     const snap = await admin.firestore()
       .collection('couples')
-      .where('subscriptionTier', 'in', ['premium', 'free'])
       .get();
 
     const results = await Promise.allSettled(
@@ -23,7 +22,16 @@ export const generateWeeklyIdeasScheduled = onSchedule(
   }
 );
 
-// Firestore trigger: sends FCM to partner when an idea request is created
+// FCM helper: send to a user by uid
+async function sendToUser(uid: string, title: string, body: string, data: Record<string, string>) {
+  const userSnap = await admin.firestore().collection('users').doc(uid).get();
+  if (!userSnap.exists) return;
+  const token: string | undefined = userSnap.data()?.fcmToken;
+  if (!token) return;
+  await admin.messaging().send({ token, notification: { title, body }, data });
+}
+
+// Firestore trigger: FCM to partner when an idea request is created
 export const onIdeaRequestCreated = onDocumentCreated(
   { document: 'couples/{coupleId}/ideaRequests/{requestId}', region: 'europe-west1' },
   async (event) => {
@@ -33,23 +41,90 @@ export const onIdeaRequestCreated = onDocumentCreated(
     const requestId: string = event.params.requestId;
     const senderName: string = data.senderName ?? 'Din partner';
     const ideaTitle: string = data.ideaTitle ?? '';
+    const sentBy: string = data.sentBy ?? '';
 
     const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
     if (!coupleSnap.exists) return;
 
-    const tokens: string[] = [coupleSnap.data()!.fcmToken1, coupleSnap.data()!.fcmToken2].filter(
-      (t): t is string => typeof t === 'string' && t.length > 0
-    );
-    if (tokens.length === 0) return;
+    const userIds: string[] = coupleSnap.data()?.userIds ?? [];
+    const partnerId = userIds.find((id) => id !== sentBy);
+    if (!partnerId) return;
 
-    await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title: `${senderName} delte en idé`,
-        body: `"${ideaTitle}" — trykk for å svare`,
-      },
-      data: { type: 'idea_request', coupleId, requestId },
-    });
+    await sendToUser(partnerId,
+      `${senderName} delte en idé`,
+      `"${ideaTitle}" — trykk for å svare`,
+      { type: 'idea_request', coupleId, requestId },
+    );
+  }
+);
+
+// Firestore trigger: FCM to sender when partner accepts/declines an idea request
+export const onIdeaRequestUpdated = onDocumentUpdated(
+  { document: 'couples/{coupleId}/ideaRequests/{requestId}', region: 'europe-west1' },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    const wasAccepted = before.status !== 'accepted' && after.status === 'accepted';
+    const wasDeclined = before.status !== 'declined' && after.status === 'declined';
+    if (!wasAccepted && !wasDeclined) return;
+
+    const coupleId: string = event.params.coupleId;
+    const requestId: string = event.params.requestId;
+    const sentBy: string = after.sentBy ?? '';
+    const ideaTitle: string = after.ideaTitle ?? '';
+
+    const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
+    if (!coupleSnap.exists) return;
+
+    const userIds: string[] = coupleSnap.data()?.userIds ?? [];
+    const partnerId = userIds.find((id) => id !== sentBy);
+    const partnerSnap = partnerId
+      ? await admin.firestore().collection('users').doc(partnerId).get()
+      : null;
+    const partnerName: string = partnerSnap?.data()?.name ?? 'Din partner';
+
+    if (wasAccepted) {
+      await sendToUser(sentBy,
+        `${partnerName} sa ja! 🎉`,
+        `"${ideaTitle}" — planlegg kvelden`,
+        { type: 'idea_accepted', coupleId, requestId },
+      );
+    } else if (wasDeclined) {
+      await sendToUser(sentBy,
+        'Kanskje neste gang',
+        `${partnerName} takket nei til "${ideaTitle}"`,
+        { type: 'idea_declined', coupleId, requestId },
+      );
+    }
+  }
+);
+
+// Firestore trigger: FCM to partner when a plan is added
+export const onWeeklyPlanCreated = onDocumentCreated(
+  { document: 'couples/{coupleId}/weeklyPlan/{planId}', region: 'europe-west1' },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+    const coupleId: string = event.params.coupleId;
+    const planId: string = event.params.planId;
+    const sentBy: string = data.sentBy ?? '';
+    const activity: string = data.activity ?? '';
+
+    const senderSnap = await admin.firestore().collection('users').doc(sentBy).get();
+    const senderName: string = senderSnap.data()?.name ?? 'Din partner';
+
+    const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
+    const userIds: string[] = coupleSnap.data()?.userIds ?? [];
+    const partnerId = userIds.find((id) => id !== sentBy);
+    if (!partnerId) return;
+
+    await sendToUser(partnerId,
+      `${senderName} la til en plan`,
+      `"${activity}" — bekreft for å låse inn`,
+      { type: 'plan_created', coupleId, planId },
+    );
   }
 );
 

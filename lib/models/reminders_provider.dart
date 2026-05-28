@@ -1,37 +1,71 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 
 class RemindersProvider extends ChangeNotifier {
   bool eveningEnabled = true;
   TimeOfDay eveningTime = const TimeOfDay(hour: 20, minute: 0);
-  // Ma Ti On To Fr Lø Sø — default: Ti On To Lø Sø selected
   List<bool> eveningDays = [false, true, true, true, false, true, true];
   bool weeklyPlanEnabled = true;
   TimeOfDay weeklyPlanTime = const TimeOfDay(hour: 18, minute: 0);
   bool newIdeasEnabled = true;
 
+  String? _coupleId;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sub;
+
   RemindersProvider() {
-    _loadFromPrefs();
+    _listenToAuth();
   }
 
-  Future<void> _loadFromPrefs() async {
-    // TODO: replace with Firestore when backend ready
-    final prefs = await SharedPreferences.getInstance();
-    eveningEnabled = prefs.getBool('eveningEnabled') ?? true;
-    eveningTime = _parseTime(
-        prefs.getString('eveningTime'), const TimeOfDay(hour: 20, minute: 0));
-    final edStr = prefs.getString('eveningDays') ?? '0111011';
-    if (edStr.length == 7) {
-      eveningDays = edStr.split('').map((c) => c == '1').toList();
-    }
-    weeklyPlanEnabled = prefs.getBool('weeklyPlanEnabled') ?? true;
-    weeklyPlanTime = _parseTime(
-        prefs.getString('weeklyPlanTime'), const TimeOfDay(hour: 18, minute: 0));
-    newIdeasEnabled = prefs.getBool('newIdeasEnabled') ?? true;
-    notifyListeners();
+  void _listenToAuth() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) {
+        _sub?.cancel();
+        _coupleId = null;
+      } else {
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .snapshots()
+            .listen((snap) {
+          final coupleId = snap.data()?['coupleId'] as String? ?? '';
+          if (coupleId.isNotEmpty && coupleId != _coupleId) {
+            _coupleId = coupleId;
+            _subscribeSettings(coupleId);
+          }
+        });
+      }
+    });
+  }
+
+  void _subscribeSettings(String coupleId) {
+    _sub?.cancel();
+    _sub = FirebaseFirestore.instance
+        .collection('couples')
+        .doc(coupleId)
+        .collection('settings')
+        .doc('main')
+        .snapshots()
+        .listen((snap) {
+      if (!snap.exists) return;
+      final d = snap.data()!;
+      eveningEnabled = d['eveningReminderEnabled'] as bool? ?? true;
+      eveningTime = _parseTime(d['eveningReminderTime'] as String?, const TimeOfDay(hour: 20, minute: 0));
+      final edStr = d['eveningReminderDays'] as String? ?? '0111011';
+      if (edStr.length == 7) {
+        eveningDays = edStr.split('').map((c) => c == '1').toList();
+      }
+      weeklyPlanEnabled = d['weeklyPlanEnabled'] as bool? ?? true;
+      weeklyPlanTime = _parseTime(d['weeklyPlanTime'] as String?, const TimeOfDay(hour: 18, minute: 0));
+      newIdeasEnabled = d['newIdeasEnabled'] as bool? ?? true;
+      notifyListeners();
+    });
   }
 
   TimeOfDay _parseTime(String? s, TimeOfDay fallback) {
@@ -47,21 +81,16 @@ class RemindersProvider extends ChangeNotifier {
   String _fmt(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-  Future<void> _save() async {
-    // TODO: replace with Firestore when backend ready
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('eveningEnabled', eveningEnabled);
-    await prefs.setString('eveningTime', _fmt(eveningTime));
-    await prefs.setString('eveningDays', eveningDays.map((b) => b ? '1' : '0').join());
-    await prefs.setBool('weeklyPlanEnabled', weeklyPlanEnabled);
-    await prefs.setString('weeklyPlanTime', _fmt(weeklyPlanTime));
-    await prefs.setBool('newIdeasEnabled', newIdeasEnabled);
+  Future<void> _save(Map<String, dynamic> data) async {
+    final coupleId = _coupleId;
+    if (coupleId == null || coupleId.isEmpty) return;
+    await FirestoreService.updateSettings(coupleId, data);
   }
 
   void setEveningEnabled(bool v) {
     eveningEnabled = v;
     notifyListeners();
-    _save();
+    _save({'eveningReminderEnabled': v});
     if (v) {
       NotificationService().scheduleEveningNotifications(
         days: eveningDays,
@@ -78,7 +107,7 @@ class RemindersProvider extends ChangeNotifier {
   void setEveningTime(TimeOfDay t) {
     eveningTime = t;
     notifyListeners();
-    _save();
+    _save({'eveningReminderTime': _fmt(t)});
     if (eveningEnabled) {
       NotificationService().scheduleEveningNotifications(
         days: eveningDays,
@@ -93,7 +122,7 @@ class RemindersProvider extends ChangeNotifier {
   void toggleEveningDay(int i) {
     eveningDays = List<bool>.from(eveningDays)..[i] = !eveningDays[i];
     notifyListeners();
-    _save();
+    _save({'eveningReminderDays': eveningDays.map((b) => b ? '1' : '0').join()});
     if (eveningEnabled) {
       NotificationService().scheduleEveningNotifications(
         days: eveningDays,
@@ -108,7 +137,7 @@ class RemindersProvider extends ChangeNotifier {
   void setWeeklyPlanEnabled(bool v) {
     weeklyPlanEnabled = v;
     notifyListeners();
-    _save();
+    _save({'weeklyPlanEnabled': v});
     if (v) {
       NotificationService().scheduleWeeklyPlanNotification(
         hour: weeklyPlanTime.hour,
@@ -124,7 +153,7 @@ class RemindersProvider extends ChangeNotifier {
   void setWeeklyPlanTime(TimeOfDay t) {
     weeklyPlanTime = t;
     notifyListeners();
-    _save();
+    _save({'weeklyPlanTime': _fmt(t)});
     if (weeklyPlanEnabled) {
       NotificationService().scheduleWeeklyPlanNotification(
         hour: t.hour,
@@ -138,10 +167,15 @@ class RemindersProvider extends ChangeNotifier {
   void setNewIdeasEnabled(bool v) {
     newIdeasEnabled = v;
     notifyListeners();
-    _save();
-    // TODO: connect to FCM when backend ready
+    _save({'newIdeasEnabled': v});
   }
 
   String get formattedEveningTime => _fmt(eveningTime);
   String get formattedWeeklyPlanTime => _fmt(weeklyPlanTime);
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 }

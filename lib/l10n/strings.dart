@@ -24,6 +24,29 @@ class AppStrings {
   String get homeTonightSubtitle => isNorwegian ? '20 min · bare dere to' : '20 min · just you two';
   String get homeSendIdea => isNorwegian ? 'Send idé' : 'Send idea';
   String get homeWriteOwn => isNorwegian ? 'Skriv din egen' : 'Write your own';
+  String homeFormattedDate(DateTime date) {
+    final day = planFullDayNames[date.weekday - 1];
+    final month = planMonthNamesShort[date.month - 1];
+    return isNorwegian
+        ? '${day.toLowerCase()} ${date.day}. $month'
+        : '$day, $month ${date.day}';
+  }
+  String homeDurationLine(int years, int months) {
+    if (isNorwegian) {
+      if (years == 0) {
+        return '$months ${months == 1 ? "måned" : "måneder"} sammen';
+      }
+      final yStr = '$years år';
+      if (months == 0) return '$yStr sammen';
+      return '$yStr og $months ${months == 1 ? "måned" : "måneder"} sammen';
+    }
+    if (years == 0) {
+      return '$months ${months == 1 ? "month" : "months"} together';
+    }
+    final yStr = '$years ${years == 1 ? "year" : "years"}';
+    if (months == 0) return '$yStr together';
+    return '$yStr and $months ${months == 1 ? "month" : "months"} together';
+  }
   String homeWaiting(String dots) => isNorwegian ? 'Krysser fingrene... S tenker$dots' : 'Fingers crossed... S is thinking$dots';
   String get homeWalkTogether => isNorwegian ? 'Gå tur sammen' : 'Walk together';
   String get homeDateNight => isNorwegian ? 'Datenatt' : 'Date night';
@@ -434,7 +457,6 @@ class AppStrings {
   // ── Settings Screen ─────────────────────────────────────────────────────
   String get settingsTitle => isNorwegian ? 'Innstillinger' : 'Settings';
   String get settingsEdit => isNorwegian ? 'Rediger' : 'Edit';
-  String get settingsTogether => isNorwegian ? 'Sammen siden 2020' : 'Together since 2020';
   String get settingsUpgrade => isNorwegian ? 'Oppgrader til Premium' : 'Upgrade to Premium';
   String get settingsUnlock => isNorwegian ? 'Lås opp alle funksjoner for forholdet ditt' : 'Unlock all features for your relationship';
   String get settingsCoupleSetup => isNorwegian ? 'Paroppset' : 'Couple setup';
@@ -458,7 +480,59 @@ class AppStrings {
   String get settingsLanguagePickerTitle => isNorwegian ? 'Velg språk' : 'Choose language';
   String get languageSub => isNorwegian ? 'Velg appens språk' : 'Choose app language';
   String get settingsDittForhold => isNorwegian ? 'DITT FORHOLD' : 'YOUR RELATIONSHIP';
+  String get settingsKonto => isNorwegian ? 'KONTO' : 'ACCOUNT';
+  String get settingsProfile => isNorwegian ? 'Min profil' : 'My profile';
+  String get settingsProfileSub => isNorwegian ? 'Navn og profilbilde' : 'Name and profile photo';
   String get settingsLifestyleSub => isNorwegian ? 'Tilpass idéer til livet deres' : 'Adapt ideas to your life';
+  String settingsTogetherSince(String date) =>
+      isNorwegian ? 'Sammen siden $date' : 'Together since $date';
+  String coupleDate(DateTime date) {
+    final month = planMonthNames[date.month - 1];
+    return isNorwegian ? '${month.toLowerCase()} ${date.year}' : '$month ${date.year}';
+  }
+
+  String get settingsDisconnect => isNorwegian ? 'Koble fra partner' : 'Disconnect partner';
+  String get settingsDisconnectTitle => isNorwegian ? 'Koble fra partner?' : 'Disconnect partner?';
+  String settingsDisconnectBody(String partnerName) => isNorwegian
+      ? 'Dette kobler deg og $partnerName fra hverandre. Delt innhold som kalender og øyeblikk blir utilgjengelig for begge. Dette kan ikke angres enkelt.'
+      : 'This disconnects you and $partnerName from each other. Shared content like the calendar and moments will be inaccessible to both. This cannot easily be undone.';
+  String get settingsDisconnectConfirm => isNorwegian ? 'Koble fra' : 'Disconnect';
+  String get settingsDisconnectCancel => isNorwegian ? 'Avbryt' : 'Cancel';
+  // ── Our Relationship Screen ─────────────────────────────────────────────
+  String get ourRelationshipTitle => isNorwegian ? 'Vårt forhold' : 'Our relationship';
+  String get ourRelationshipNoDate => isNorwegian ? 'Sett en dato' : 'Set a date';
+  String get ourRelationshipNoDateSub =>
+      isNorwegian ? 'Ingen jubileumsdato satt ennå' : 'No anniversary date set yet';
+  String get ourRelationshipYears => isNorwegian ? 'år' : 'yr';
+  String get ourRelationshipMonths => isNorwegian ? 'mnd' : 'mo';
+  String get ourRelationshipDays => isNorwegian ? 'dager' : 'days';
+  String get ourRelationshipSecs => isNorwegian ? 'sek' : 'sec';
+  String get ourRelationshipChangeDate =>
+      isNorwegian ? 'Endre dato' : 'Change date';
+  String get ourRelationshipProposeDate =>
+      isNorwegian ? 'Sett dato' : 'Set date';
+  String ourRelationshipFullDate(DateTime date) {
+    final month = planMonthNames[date.month - 1];
+    return isNorwegian
+        ? '${date.day}. ${month.toLowerCase()} ${date.year}'
+        : '$month ${date.day}, ${date.year}';
+  }
+  // Step 2 — anniversary proposal strings
+  String get ourRelationshipProposalPending =>
+      isNorwegian ? 'Venter på godkjenning' : 'Waiting for approval';
+  String ourRelationshipProposedBy(String name, String date) =>
+      isNorwegian ? '$name foreslår $date' : '$name proposes $date';
+  String get ourRelationshipApprove => isNorwegian ? 'Godkjenn' : 'Approve';
+  String get ourRelationshipDecline => isNorwegian ? 'Avvis' : 'Decline';
+  // Step 3 — disconnect request strings
+  String get ourRelationshipDisconnectRequest =>
+      isNorwegian ? 'Be om frakobling' : 'Request disconnect';
+  String ourRelationshipDisconnectRequestedBy(String name) =>
+      isNorwegian ? '$name ønsker å koble fra' : '$name wants to disconnect';
+  String get ourRelationshipDisconnectApprove =>
+      isNorwegian ? 'Bekreft frakobling' : 'Confirm disconnect';
+  String get ourRelationshipCancelRequest =>
+      isNorwegian ? 'Avbryt forespørsel' : 'Cancel request';
 
   // ── Lifestyle Setup Screen ─────────────────────────────────────────────────
   String get lifestyleTitle => isNorwegian ? 'Deres hverdag' : 'Your lifestyle';

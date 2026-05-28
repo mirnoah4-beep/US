@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -179,7 +181,6 @@ class IdeasScreen extends StatefulWidget {
 class _IdeasScreenState extends State<IdeasScreen> {
   String _activeFilter = 'all';
   Set<String> _savedIds = {};
-  static const _prefsKey = 'saved_idea_ids';
 
   @override
   void initState() {
@@ -188,9 +189,13 @@ class _IdeasScreenState extends State<IdeasScreen> {
   }
 
   Future<void> _loadSaved() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_prefsKey) ?? [];
-    if (mounted) setState(() => _savedIds = raw.toSet());
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final ids = List<String>.from(snap.data()?['savedIdeaIds'] as List? ?? []);
+      if (mounted) setState(() => _savedIds = ids.toSet());
+    } catch (_) {}
   }
 
   Future<void> _toggleSave(String id) async {
@@ -201,8 +206,11 @@ class _IdeasScreenState extends State<IdeasScreen> {
         _savedIds.add(id);
       }
     });
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_prefsKey, _savedIds.toList());
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'savedIdeaIds': _savedIds.toList(),
+    }).catchError((_) {});
   }
 
   List<_IdeaItem> get _filtered {

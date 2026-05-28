@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+import '../l10n/strings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_state.dart';
@@ -43,14 +43,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              _formattedDate(),
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
+            _buildDateAndDurationLine(s, state),
             const SizedBox(height: 18),
             _buildInspirationCard(s),
             const SizedBox(height: 14),
@@ -73,7 +66,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  String _timeGreeting(s) {
+  String _timeGreeting(AppStrings s) {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) return s.greetingMorning;
     if (hour >= 12 && hour < 17) return s.greetingAfternoon;
@@ -81,8 +74,41 @@ class HomeScreen extends StatelessWidget {
     return s.greetingNight;
   }
 
-  String _formattedDate() {
-    return DateFormat('EEEE, MMMM d').format(DateTime.now());
+  Widget _buildDateAndDurationLine(AppStrings s, AppState state) {
+    final now = DateTime.now();
+    final dateStr = s.homeFormattedDate(now);
+    final since = state.togetherSince;
+
+    if (since == null) {
+      return Text(
+        dateStr,
+        style: const TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+        ),
+      );
+    }
+
+    int years = now.year - since.year;
+    int months = now.month - since.month;
+    if (now.day < since.day) months--;
+    if (months < 0) { years--; months += 12; }
+
+    return Row(
+      children: [
+        const Icon(Icons.favorite, size: 11, color: AppTheme.accentRose),
+        const SizedBox(width: 5),
+        Text(
+          '${s.homeDurationLine(years, months)} · $dateStr',
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _sectionLabel(String text) {
