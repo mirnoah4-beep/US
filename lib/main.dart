@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -35,13 +34,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.debug,
-    appleProvider: AppleProvider.debug,
-  );
-  FirebaseAppCheck.instance.onTokenChange.listen(
-    (token) => print('App Check token: $token'),
-  );
+  // TODO: Re-enable App Check before launch:
+  // await FirebaseAppCheck.instance.activate(
+  //   androidProvider: AndroidProvider.playIntegrity,
+  //   appleProvider: AppleProvider.appleAttest,
+  // );
 
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
   PlatformDispatcher.instance.onError = (error, stack) {
@@ -108,6 +105,11 @@ class AuthGate extends StatelessWidget {
               return const SplashScreen();
             }
 
+            if (userSnap.hasError) {
+              debugPrint('[AuthGate] user stream error: ${userSnap.error}');
+              return const LoginScreen();
+            }
+
             final userDoc = userSnap.data;
 
             // Document not yet written (race between auth callback and
@@ -157,6 +159,20 @@ class _CoupleGateState extends State<_CoupleGate> {
       stream: FirestoreService.watchCouple(widget.coupleId),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        if (snap.hasError) {
+          debugPrint('[CoupleGate] couple stream error: ${snap.error}');
+          if (!_clearedStale) {
+            _clearedStale = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.uid)
+                  .update({'coupleId': null}).catchError((_) {});
+            });
+          }
           return const SplashScreen();
         }
 

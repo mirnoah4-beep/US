@@ -133,7 +133,7 @@ class AppState extends ChangeNotifier {
         }
       }
       if (changed) notifyListeners();
-    });
+    }, onError: (Object e) => debugPrint('[AppState] userStream error: $e'));
   }
 
   void _subscribeCouple(String coupleId) {
@@ -182,6 +182,25 @@ class AppState extends ChangeNotifier {
         changed = true;
       }
       if (changed) notifyListeners();
+    }, onError: (Object e) {
+      debugPrint('[AppState] coupleStream error: $e');
+      final errStr = e.toString();
+      if (errStr.contains('permission-denied') || errStr.contains('PERMISSION_DENIED')) {
+        _coupleSub?.cancel();
+        _partnerSub?.cancel();
+        _settingsSub?.cancel();
+        _lastTimeSub?.cancel();
+        _coupleId = '';
+        _partnerId = '';
+        _partnerName = '';
+        _partnerEmail = '';
+        partnerAvatarUrl = null;
+        coupleCreatedAt = null;
+        togetherSince = null;
+        togetherSinceProposal = null;
+        disconnectRequestedBy = null;
+        notifyListeners();
+      }
     });
 
     _subscribeSettings(coupleId);
@@ -210,7 +229,7 @@ class AppState extends ChangeNotifier {
       if (newEmail != _partnerEmail) { _partnerEmail = newEmail; changed = true; }
       if (newAvatar != partnerAvatarUrl) { partnerAvatarUrl = newAvatar; changed = true; }
       if (changed) notifyListeners();
-    });
+    }, onError: (Object e) => debugPrint('[AppState] partnerStream error: $e'));
   }
 
   void _subscribeSettings(String coupleId) {
@@ -229,7 +248,7 @@ class AppState extends ChangeNotifier {
         hasChildren = newParentMode;
         notifyListeners();
       }
-    });
+    }, onError: (Object e) => debugPrint('[AppState] settingsStream error: $e'));
   }
 
   void _subscribeLastTime(String coupleId) {
@@ -253,7 +272,7 @@ class AppState extends ChangeNotifier {
         }
       }
       if (changed) notifyListeners();
-    });
+    }, onError: (Object e) => debugPrint('[AppState] lastTimeStream error: $e'));
   }
 
   void _cancelDataSubs() {

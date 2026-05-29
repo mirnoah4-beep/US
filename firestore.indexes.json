@@ -1,6 +1,13 @@
 {
   "indexes": [
     {
+      "collectionGroup": "invites",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "fromUserId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "ideaRequests",
       "queryScope": "COLLECTION",
       "fields": [
