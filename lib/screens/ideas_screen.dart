@@ -438,9 +438,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
   @override
   void initState() {
     super.initState();
-    _imageFuture = IdeaImageService.fetchCoverUrl(
-      IdeaImageService.toId(widget.request.ideaTitle),
-    );
+    _imageFuture = Future.value(widget.request.coverImageUrl);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _openModal(context);
     });

@@ -80,6 +80,7 @@ class IncomingIdeaRequest {
   final String ideaMeta;
   final String ideaDescription;
   final String ideaCategory;
+  final String? coverImageUrl;
 
   const IncomingIdeaRequest({
     required this.requestId,
@@ -88,6 +89,7 @@ class IncomingIdeaRequest {
     required this.ideaMeta,
     required this.ideaDescription,
     required this.ideaCategory,
+    this.coverImageUrl,
   });
 
   factory IncomingIdeaRequest.fromFirestore(String id, Map<String, dynamic> data) {
@@ -98,6 +100,7 @@ class IncomingIdeaRequest {
       ideaMeta: data['ideaMeta'] as String? ?? '',
       ideaDescription: data['ideaDescription'] as String? ?? '',
       ideaCategory: data['ideaCategory'] as String? ?? '',
+      coverImageUrl: data['coverImageUrl'] as String?,
     );
   }
 }

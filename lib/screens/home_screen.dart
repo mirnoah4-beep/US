@@ -1,7 +1,9 @@
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../l10n/strings.dart';
 
@@ -1144,6 +1146,40 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
     if (mounted && url != null) setState(() => _imageUrl = url);
   }
 
+  bool get _isAdmin =>
+      FirebaseAuth.instance.currentUser?.uid == adminUid;
+
+  Future<void> _pickAndUpload(BuildContext context) async {
+    final s = context.read<LanguageProvider>().s;
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(s.adminUploading),
+      duration: const Duration(seconds: 30),
+      behavior: SnackBarBehavior.floating,
+    ));
+    try {
+      final ideaId = IdeaImageService.toId(widget.idea.title);
+      final url = await IdeaImageService.uploadCover(ideaId, picked);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(s.adminUploadSuccess),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF3B6D11),
+      ));
+      setState(() => _imageUrl = url);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Upload failed: $e'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
   void _onSend(BuildContext context) {
     final appState = context.read<AppState>();
     context.read<WeeklyIdeasProvider>().sendIdea(
@@ -1361,20 +1397,23 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
               bottom: 0,
               right: 0,
               width: imageWidth,
-              child: Opacity(
-                opacity: state == IdeaSendState.waiting ? 0.5 : 1.0,
-                child: ClipPath(
-                  clipper: _CardDiagonalClipper(),
-                  child: _imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: _imageUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              Container(color: const Color(0xFFE8D5C0)),
-                          errorWidget: (context, url, error) =>
-                              Container(color: const Color(0xFFE8D5C0)),
-                        )
-                      : Container(color: const Color(0xFFE8D5C0)),
+              child: GestureDetector(
+                onLongPress: _isAdmin ? () => _pickAndUpload(context) : null,
+                child: Opacity(
+                  opacity: state == IdeaSendState.waiting ? 0.5 : 1.0,
+                  child: ClipPath(
+                    clipper: _CardDiagonalClipper(),
+                    child: _imageUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: _imageUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) =>
+                                Container(color: const Color(0xFFE8D5C0)),
+                            errorWidget: (context, url, error) =>
+                                Container(color: const Color(0xFFE8D5C0)),
+                          )
+                        : Container(color: const Color(0xFFE8D5C0)),
+                  ),
                 ),
               ),
             ),
