@@ -804,7 +804,8 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
-    final ideas = context.watch<WeeklyIdeasProvider>().ideas.take(4).toList();
+    final provider = context.watch<WeeklyIdeasProvider>();
+    final ideas = provider.ideas.take(4).toList();
     final appState = context.watch<AppState>();
 
     return Column(
@@ -1061,21 +1062,12 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   }
 
   void _onSend(BuildContext context) {
-    final s = context.read<LanguageProvider>().s;
     context.read<WeeklyIdeasProvider>().sendIdea(
           widget.idea,
           widget.coupleId,
           widget.userId,
           widget.displayName,
         );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(s.ideaSentTo(widget.partnerName)),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppTheme.textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
   void _onCancel(BuildContext context) {
@@ -1376,6 +1368,66 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
         ),
       );
     });
+  }
+}
+
+// ─── Bouncing dots indicator ─────────────────────────────────────────────────
+
+class _BouncingDots extends StatefulWidget {
+  const _BouncingDots();
+
+  @override
+  State<_BouncingDots> createState() => _BouncingDotsState();
+}
+
+class _BouncingDotsState extends State<_BouncingDots>
+    with TickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          final start = i / 3.0;
+          final end = (i + 1) / 3.0;
+          final v = _ctrl.value;
+          final t = (v >= start && v < end)
+              ? (v - start) / (end - start)
+              : 0.0;
+          final dy = -sin(t * pi) * 5.0;
+          return Transform.translate(
+            offset: Offset(0, dy),
+            child: Container(
+              width: 5,
+              height: 5,
+              margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+              decoration: const BoxDecoration(
+                color: Color(0xFFA32D2D),
+                shape: BoxShape.circle,
+              ),
+            ),
+          );
+        }),
+      ),
+    );
   }
 }
 
