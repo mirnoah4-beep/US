@@ -81,6 +81,7 @@ class IncomingIdeaRequest {
   final String ideaDescription;
   final String ideaCategory;
   final String? coverImageUrl;
+  final DateTime? proposedAt;
 
   const IncomingIdeaRequest({
     required this.requestId,
@@ -90,6 +91,7 @@ class IncomingIdeaRequest {
     required this.ideaDescription,
     required this.ideaCategory,
     this.coverImageUrl,
+    this.proposedAt,
   });
 
   factory IncomingIdeaRequest.fromFirestore(String id, Map<String, dynamic> data) {
@@ -101,6 +103,7 @@ class IncomingIdeaRequest {
       ideaDescription: data['ideaDescription'] as String? ?? '',
       ideaCategory: data['ideaCategory'] as String? ?? '',
       coverImageUrl: data['coverImageUrl'] as String?,
+      proposedAt: (data['proposedAt'] as Timestamp?)?.toDate(),
     );
   }
 }
@@ -204,6 +207,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     String senderName, {
     String partnerId = '',
     String? coverImageUrl,
+    DateTime? proposedAt,
   }) async {
     // Guard: abort if no linked partner.
     if (partnerId.isEmpty) {
@@ -234,6 +238,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
         'sentBy': userId,
         'recipientId': partnerId,
         if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
+        if (proposedAt != null) 'proposedAt': Timestamp.fromDate(proposedAt),
         'sentAt': FieldValue.serverTimestamp(),
         'status': 'pending',
       });

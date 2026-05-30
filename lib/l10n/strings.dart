@@ -98,6 +98,22 @@ class AppStrings {
   String get ideasSentToPartner => isNorwegian ? 'Idé sendt til partner!' : 'Idea sent to your partner!';
   String get ideasAlreadySent => isNorwegian ? 'Allerede én forespørsel på vent' : 'A request is already pending';
   String get ideaLater => isNorwegian ? 'Senere' : 'Later';
+  String get ideaSuggestTime => isNorwegian ? 'Foreslå tidspunkt' : 'Suggest a time';
+  String get ideaSuggestTimeOptional => isNorwegian ? '(valgfritt)' : '(optional)';
+  String get ideaDatePlaceholder => isNorwegian ? 'Dato' : 'Date';
+  String get ideaTimePlaceholder => isNorwegian ? 'Tid' : 'Time';
+  String get ideaConfirmSend => isNorwegian ? 'Bekreft og send' : 'Confirm and send';
+  String get ideaSendWithoutTime =>
+      isNorwegian ? 'Du kan sende uten å velge tidspunkt' : 'You can send without choosing a time';
+  String ideaProposedAt(DateTime dt) {
+    final day = planFullDayNames[dt.weekday - 1];
+    final month = planMonthNamesShort[dt.month - 1];
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return isNorwegian
+        ? 'Forslag: ${day.toLowerCase()} ${dt.day}. $month, $h:$m'
+        : 'Suggested: $day, $month ${dt.day}, $h:$m';
+  }
 
   // ── Last Time Screen ────────────────────────────────────────────────────
   String get lastTimeTitle => isNorwegian ? 'Sist gang' : 'Last time';

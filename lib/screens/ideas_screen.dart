@@ -601,6 +601,17 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                           ),
                         ),
                       ],
+                      if (req.proposedAt != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          s.ideaProposedAt(req.proposedAt!),
+                          style: const TextStyle(
+                            color: Color(0xFFA32D2D),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -770,6 +781,15 @@ class _IncomingIdeaSheet extends StatelessWidget {
                     req.ideaMeta,
                     style: const TextStyle(
                         color: Color(0xFF888888), fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                if (req.proposedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    s.ideaProposedAt(req.proposedAt!),
+                    style: const TextStyle(
+                        color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.w500),
                     textAlign: TextAlign.center,
                   ),
                 ],

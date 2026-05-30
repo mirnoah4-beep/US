@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -1123,6 +1124,10 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   String? _imageUrl;
   bool _declinedShown = false;
   late AnimationController _dotCtrl;
+  late AnimationController _slideCtrl;
+  bool _onTimePage = false;
+  DateTime? _proposedDate;
+  TimeOfDay? _proposedTime;
 
   @override
   void initState() {
@@ -1132,11 +1137,16 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat();
+    _slideCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
   }
 
   @override
   void dispose() {
     _dotCtrl.dispose();
+    _slideCtrl.dispose();
     super.dispose();
   }
 
@@ -1181,6 +1191,104 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   }
 
   void _onSend(BuildContext context) {
+    setState(() {
+      _onTimePage = true;
+      _proposedDate = null;
+      _proposedTime = null;
+    });
+    _slideCtrl.forward();
+  }
+
+  void _goBack() {
+    _slideCtrl.reverse();
+    setState(() => _onTimePage = false);
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+    );
+    if (date != null && mounted) setState(() => _proposedDate = date);
+  }
+
+  Future<void> _pickTime(BuildContext context) async {
+    final now = DateTime.now();
+    final initial = _proposedTime != null
+        ? DateTime(now.year, now.month, now.day,
+                   _proposedTime!.hour, _proposedTime!.minute)
+        : DateTime(now.year, now.month, now.day, now.hour, now.minute);
+    var selected = initial;
+    final isNo = context.read<LanguageProvider>().isNorwegian;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+          height: 280,
+          decoration: const BoxDecoration(
+            color: AppTheme.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.divider,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  use24hFormat: true,
+                  initialDateTime: initial,
+                  onDateTimeChanged: (dt) => selected = dt,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetCtx),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFA32D2D),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      isNo ? 'Ferdig' : 'Done',
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+    );
+    if (mounted) {
+      setState(() => _proposedTime =
+          TimeOfDay(hour: selected.hour, minute: selected.minute));
+    }
+  }
+
+  void _onConfirmSend(BuildContext context) {
+    DateTime? proposedAt;
+    if (_proposedDate != null) {
+      final d = _proposedDate!;
+      final t = _proposedTime ?? const TimeOfDay(hour: 20, minute: 0);
+      proposedAt = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    }
     final appState = context.read<AppState>();
     context.read<WeeklyIdeasProvider>().sendIdea(
       widget.idea,
@@ -1189,6 +1297,116 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
       widget.displayName,
       partnerId: appState.partnerId,
       coverImageUrl: _imageUrl,
+      proposedAt: proposedAt,
+    );
+    _slideCtrl.reverse();
+    setState(() {
+      _onTimePage = false;
+      _proposedDate = null;
+      _proposedTime = null;
+    });
+  }
+
+  Widget _buildTimeSide(BuildContext context, AppStrings s) {
+    final dateLabel = _proposedDate != null
+        ? '${_proposedDate!.day}.${_proposedDate!.month}'
+        : s.ideaDatePlaceholder;
+    final timeLabel = _proposedTime != null
+        ? _proposedTime!.format(context)
+        : s.ideaTimePlaceholder;
+    return Container(
+      height: 160,
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: _goBack,
+                child: const Icon(Icons.arrow_back_rounded, size: 18, color: Color(0xFF888888)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${s.ideaSuggestTime} ${s.ideaSuggestTimeOptional}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 34,
+                  child: OutlinedButton(
+                    onPressed: () => _pickDate(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      side: const BorderSide(color: Color(0xFFE0D9D0)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      foregroundColor: const Color(0xFF555555),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: Text(dateLabel),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 34,
+                  child: OutlinedButton(
+                    onPressed: () => _pickTime(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      side: const BorderSide(color: Color(0xFFE0D9D0)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      foregroundColor: const Color(0xFF555555),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: Text(timeLabel),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 36,
+            child: FilledButton(
+              onPressed: () => _onConfirmSend(context),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFA32D2D),
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+              child: Text(s.ideaConfirmSend),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text(
+              s.ideaSendWithoutTime,
+              style: const TextStyle(fontSize: 10, color: Color(0xFFAAAAAA)),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1250,6 +1468,16 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
       });
     }
     if (state == IdeaSendState.idle) _declinedShown = false;
+
+    // If state moved away from idle while on the time page, snap back.
+    if (state != IdeaSendState.idle && _onTimePage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _onTimePage) {
+          _slideCtrl.reverse();
+          setState(() => _onTimePage = false);
+        }
+      });
+    }
 
     return LayoutBuilder(builder: (ctx, constraints) {
       final cardWidth = constraints.maxWidth;
@@ -1376,7 +1604,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
         );
       }
 
-      return Container(
+      final side1 = Container(
         height: 160,
         decoration: BoxDecoration(
           color: AppTheme.white,
@@ -1490,6 +1718,27 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      );
+
+      return ClipRect(
+        child: Stack(
+          children: [
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: Offset.zero,
+                end: const Offset(-1, 0),
+              ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeInOut)),
+              child: side1,
+            ),
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeInOut)),
+              child: _buildTimeSide(context, s),
             ),
           ],
         ),
