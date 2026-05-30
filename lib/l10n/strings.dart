@@ -107,6 +107,13 @@ class AppStrings {
       isNorwegian ? 'Du kan sende uten å velge tidspunkt' : 'You can send without choosing a time';
   String get ideaWhenWorksForYou =>
       isNorwegian ? 'Når passer det?' : 'When works for you?';
+  String get ideaAlreadyPendingTitle =>
+      isNorwegian ? 'Du har allerede en ventende idé' : 'You already have a pending idea';
+  String ideaAlreadyPendingBody(String title) => isNorwegian
+      ? 'Du venter på svar på «$title». Vil du avbryte den og sende denne i stedet?'
+      : 'You\'re waiting for a response to "$title". Cancel it and send this one instead?';
+  String get ideaCancelAndSendNew => isNorwegian ? 'Avbryt og send ny' : 'Cancel and send new';
+  String get ideaKeepCurrent => isNorwegian ? 'Behold nåværende' : 'Keep current';
   String ideaProposedAt(DateTime dt) {
     final day = planFullDayNames[dt.weekday - 1];
     final month = planMonthNamesShort[dt.month - 1];

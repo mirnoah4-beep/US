@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,6 +14,7 @@ import '../models/weekly_ideas_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/already_pending_dialog.dart';
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
 
@@ -342,8 +345,6 @@ class _IdeasScreenState extends State<IdeasScreen> {
   }
 
   void _openDetail(BuildContext context, _IdeaItem idea, _Palette palette) {
-    final provider = context.read<WeeklyIdeasProvider>();
-    final canSend = provider.sendState == IdeaSendState.idle;
     showModalBottomSheet(
       context: context,
       useRootNavigator: false,
@@ -357,56 +358,69 @@ class _IdeasScreenState extends State<IdeasScreen> {
           Navigator.pop(ctx);
           _toggleSave(idea.id);
         },
-        onSend: canSend
-            ? () {
-                () async {
-                  Navigator.pop(ctx);
-                  if (!mounted) return;
-                  final s = context.read<LanguageProvider>().s;
-                  final isNo = s.isNorwegian;
-                  final appState = context.read<AppState>();
-                  final p = context.read<WeeklyIdeasProvider>();
-                  if (p.sendState != IdeaSendState.idle) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(s.ideasAlreadySent),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: AppTheme.textPrimary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ));
-                    return;
-                  }
-                  final messenger = ScaffoldMessenger.of(context);
-                  final coverUrl = await IdeaImageService.fetchCoverUrl(idea.id);
-                  if (!mounted) return;
-                  p.sendIdea(
-                    WeeklyIdea(
-                      title: idea.title(isNo),
-                      category: idea.category(isNo),
-                      meta: idea.duration(isNo),
-                      description: idea.desc(isNo),
-                      cardColor: palette.bg,
-                      tagColor: palette.tagBg,
-                      tagTextColor: palette.tagText,
-                      icon: idea.icon,
-                      buttonColor: palette.icon,
-                    ),
-                    appState.coupleId,
-                    appState.userId,
-                    appState.displayName,
-                    partnerId: appState.partnerId,
-                    coverImageUrl: coverUrl,
-                  );
-                  messenger.showSnackBar(SnackBar(
-                    content: Text(s.ideasSentToPartner),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: AppTheme.textPrimary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ));
-                }();
+        onSend: () {
+          () async {
+            Navigator.pop(ctx);
+            if (!mounted) return;
+            final s = context.read<LanguageProvider>().s;
+            final isNo = s.isNorwegian;
+            final appState = context.read<AppState>();
+            final p = context.read<WeeklyIdeasProvider>();
+            if (p.sendState == IdeaSendState.waiting) {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                useRootNavigator: true,
+                builder: (dCtx) => AlreadyPendingDialog(
+                  pendingTitle: p.sentIdea?.title ?? '',
+                  s: s,
+                ),
+              );
+              if (confirmed != true || !mounted) return;
+              final ok = await p.cancelForReplacement(appState.coupleId);
+              if (!mounted) return;
+              if (!ok) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(isNo
+                      ? 'Noe gikk galt – prøv igjen'
+                      : 'Something went wrong – try again'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: AppTheme.textPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ));
+                return;
               }
-            : null,
+            }
+            final messenger = ScaffoldMessenger.of(context);
+            final coverUrl = await IdeaImageService.fetchCoverUrl(idea.id);
+            if (!mounted) return;
+            p.sendIdea(
+              WeeklyIdea(
+                title: idea.title(isNo),
+                category: idea.category(isNo),
+                meta: idea.duration(isNo),
+                description: idea.desc(isNo),
+                cardColor: palette.bg,
+                tagColor: palette.tagBg,
+                tagTextColor: palette.tagText,
+                icon: idea.icon,
+                buttonColor: palette.icon,
+              ),
+              appState.coupleId,
+              appState.userId,
+              appState.displayName,
+              partnerId: appState.partnerId,
+              coverImageUrl: coverUrl,
+            );
+            messenger.showSnackBar(SnackBar(
+              content: Text(s.ideasSentToPartner),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppTheme.textPrimary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ));
+          }();
+        },
       ),
     );
   }
@@ -434,14 +448,42 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
   bool _responding = false;
   bool _dismissed = false;
   late Future<String?> _imageFuture;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _statusSub;
 
   @override
   void initState() {
     super.initState();
     _imageFuture = Future.value(widget.request.coverImageUrl);
+    _subscribeToRequestStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _openModal(context);
     });
+  }
+
+  void _subscribeToRequestStatus() {
+    _statusSub = FirebaseFirestore.instance
+        .collection('couples')
+        .doc(widget.coupleId)
+        .collection('ideaRequests')
+        .doc(widget.request.requestId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      if (!snap.exists) return;
+      final status = snap.data()!['status'] as String?;
+      if (status != null && status != 'pending') {
+        Navigator.of(context, rootNavigator: true).maybePop();
+        setState(() => _dismissed = true);
+        _statusSub?.cancel();
+        _statusSub = null;
+      }
+    }, onError: (_) {});
+  }
+
+  @override
+  void dispose() {
+    _statusSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _accept() async {

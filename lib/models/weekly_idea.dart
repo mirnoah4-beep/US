@@ -33,22 +33,10 @@ class WeeklyIdea {
       return '';
     }
 
-    // If no known key has a value, scan the whole map so the debug card
-    // can reveal the actual Firestore field names.
-    String titleOrDiag() {
-      final val = tryStr([
-        'titleNo', 'titleEn', 'title', 'name', 'nameNo', 'nameEn',
-        'text', 'ideaTitle', 'idea', 'header', 'heading',
-      ]);
-      if (val.isNotEmpty) return val;
-      final pairs = json.entries
-          .where((e) => e.value is String && (e.value as String).isNotEmpty)
-          .map((e) => '${e.key}=${e.value}')
-          .take(3)
-          .join(' | ');
-      if (pairs.isNotEmpty) return pairs;
-      return json.isEmpty ? 'EMPTY_MAP' : 'KEYS:${json.keys.join(",")}';
-    }
+    String titleOrDiag() => tryStr([
+      'titleNo', 'titleEn', 'title', 'name', 'nameNo', 'nameEn',
+      'text', 'ideaTitle', 'idea', 'header', 'heading',
+    ]);
 
     return WeeklyIdea(
       title: titleOrDiag(),

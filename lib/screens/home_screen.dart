@@ -15,6 +15,7 @@ import '../models/weekly_ideas_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/already_pending_dialog.dart';
 import '../widgets/calendar_card.dart';
 import '../widgets/relationship_battery_card.dart';
 import 'mediator_chat_screen.dart';
@@ -861,7 +862,10 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
     final provider = context.watch<WeeklyIdeasProvider>();
-    final ideas = provider.ideas.take(4).toList();
+    final ideas = provider.ideas
+        .where((idea) => idea.title.isNotEmpty)
+        .take(4)
+        .toList();
     final appState = context.watch<AppState>();
 
     final sentTitle = provider.sentIdea?.title;
@@ -1079,11 +1083,38 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       final text = controller.text.trim();
                       if (text.isEmpty) return;
                       final appState = context.read<AppState>();
-                      context.read<WeeklyIdeasProvider>().sendIdea(
+                      final provider = context.read<WeeklyIdeasProvider>();
+                      final ls = context.read<LanguageProvider>().s;
+                      if (provider.sendState == IdeaSendState.waiting) {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          useRootNavigator: true,
+                          builder: (ctx) => AlreadyPendingDialog(
+                            pendingTitle: provider.sentIdea?.title ?? '',
+                            s: ls,
+                          ),
+                        );
+                        if (confirmed != true || !context.mounted) return;
+                        final ok = await provider.cancelForReplacement(appState.coupleId);
+                        if (!context.mounted) return;
+                        if (!ok) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(ls.isNorwegian
+                                ? 'Noe gikk galt – prøv igjen'
+                                : 'Something went wrong – try again'),
+                            backgroundColor: AppTheme.textPrimary,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ));
+                          return;
+                        }
+                      }
+                      provider.sendIdea(
                         WeeklyIdea(
                           title: text,
                           category: '',
@@ -1101,7 +1132,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                         partnerId: appState.partnerId,
                         coverImageUrl: null,
                       );
-                      Navigator.pop(sheetCtx);
+                      if (context.mounted) Navigator.pop(sheetCtx);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFA32D2D),
@@ -1370,15 +1401,41 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
     }
   }
 
-  void _onConfirmSend(BuildContext context) {
+  Future<void> _onConfirmSend(BuildContext context) async {
+    final provider = context.read<WeeklyIdeasProvider>();
+    final s = context.read<LanguageProvider>().s;
+    final appState = context.read<AppState>();
+    if (provider.sendState == IdeaSendState.waiting) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        useRootNavigator: true,
+        builder: (ctx) => AlreadyPendingDialog(
+          pendingTitle: provider.sentIdea?.title ?? '',
+          s: s,
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final ok = await provider.cancelForReplacement(widget.coupleId);
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(s.isNorwegian
+              ? 'Noe gikk galt – prøv igjen'
+              : 'Something went wrong – try again'),
+          backgroundColor: AppTheme.textPrimary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+        return;
+      }
+    }
     DateTime? proposedAt;
     if (_proposedDate != null) {
       final d = _proposedDate!;
       final t = _proposedTime ?? const TimeOfDay(hour: 20, minute: 0);
       proposedAt = DateTime(d.year, d.month, d.day, t.hour, t.minute);
     }
-    final appState = context.read<AppState>();
-    context.read<WeeklyIdeasProvider>().sendIdea(
+    provider.sendIdea(
       widget.idea,
       widget.coupleId,
       widget.userId,

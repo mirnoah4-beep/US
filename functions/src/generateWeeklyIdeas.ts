@@ -283,15 +283,17 @@ async function getCuratedIdeas(
   );
 
   const ideasSnap = await firestore.collection('ideas').get();
-  const scored = ideasSnap.docs.map((d) => {
-    const data = d.data();
-    let score = 0;
-    if (!recentIds.has(d.id)) score += 3;
-    if (data.season === season || !data.season) score += 1;
-    if (batteryLevel < 60 && data.effort === 'low') score += 2;
-    if (batteryLevel >= 70 && data.effort === 'high') score += 2;
-    return { data, score };
-  });
+  const scored = ideasSnap.docs
+    .filter((d) => typeof d.data().title === 'string' && d.data().title.length > 0)
+    .map((d) => {
+      const data = d.data();
+      let score = 0;
+      if (!recentIds.has(d.id)) score += 3;
+      if (data.season === season || !data.season) score += 1;
+      if (batteryLevel < 60 && data.effort === 'low') score += 2;
+      if (batteryLevel >= 70 && data.effort === 'high') score += 2;
+      return { data, score };
+    });
 
   scored.sort((a, b) => b.score - a.score);
   const top5 = scored.slice(0, 5).map((s) => s.data as IdeaObject);

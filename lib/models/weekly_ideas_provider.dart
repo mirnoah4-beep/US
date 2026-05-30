@@ -313,6 +313,27 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> cancelForReplacement(String coupleId) async {
+    final docId = _pendingRequestId;
+    if (docId == null) {
+      resetSendState();
+      return true;
+    }
+    try {
+      await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('ideaRequests')
+          .doc(docId)
+          .update({'status': 'cancelled'});
+      resetSendState();
+      return true;
+    } catch (e) {
+      debugPrint('cancelForReplacement failed: $e');
+      return false;
+    }
+  }
+
   Future<void> cancelPendingIdea(String coupleId) async {
     final docId = _pendingRequestId;
     resetSendState();
