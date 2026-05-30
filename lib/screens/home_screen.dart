@@ -878,8 +878,9 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           child: OutlinedButton(
             onPressed: () => _openWriteOwnSheet(context, s),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.textPrimary,
-              side: const BorderSide(color: Color(0xFFDDDDDD)),
+              backgroundColor: const Color(0xFFFFFFFF),
+              foregroundColor: const Color(0xFFA32D2D),
+              side: const BorderSide(color: Color(0xFFA32D2D), width: 1.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1097,11 +1098,11 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
                         imageUrl: _imageUrl!,
                         fit: BoxFit.cover,
                         placeholder: (context, url) =>
-                            Container(color: const Color(0xFFC4956A)),
+                            Container(color: const Color(0xFFE8D5C0)),
                         errorWidget: (context, url, error) =>
-                            Container(color: const Color(0xFFC4956A)),
+                            Container(color: const Color(0xFFE8D5C0)),
                       )
-                    : Container(color: const Color(0xFFC4956A)),
+                    : Container(color: const Color(0xFFE8D5C0)),
               ),
             ),
             Positioned(
