@@ -1,9 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/strings.dart';
 
 import '../models/app_state.dart';
 import '../models/language_provider.dart';
+import '../models/weekly_idea.dart';
+import '../models/weekly_ideas_provider.dart';
+import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/relationship_battery_card.dart';
 import 'mediator_chat_screen.dart';
@@ -46,6 +50,8 @@ class HomeScreen extends StatelessWidget {
               statusLine: s.batteryStatus(state.batteryPercent),
               message: s.batteryMsg(state.batteryPercent),
             ),
+            const SizedBox(height: 16),
+            const _WeeklyIdeasCarousel(),
             const SizedBox(height: 16),
             _sectionLabel(s.homeThisWeekSection),
             const SizedBox(height: 10),
@@ -759,6 +765,443 @@ class _PulseDot extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Weekly Ideas Carousel ──────────────────────────────────────────────────
+
+class _WeeklyIdeasCarousel extends StatefulWidget {
+  const _WeeklyIdeasCarousel();
+
+  @override
+  State<_WeeklyIdeasCarousel> createState() => _WeeklyIdeasCarouselState();
+}
+
+class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
+  final _controller = PageController();
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final coupleId = context.read<AppState>().coupleId;
+      if (coupleId.isNotEmpty) {
+        context.read<WeeklyIdeasProvider>().init(coupleId);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final ideas = context.watch<WeeklyIdeasProvider>().ideas.take(4).toList();
+    final appState = context.watch<AppState>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              s.homeWeeklyIdeasSection,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            if (ideas.isNotEmpty)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(ideas.length, (i) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(left: 5),
+                    decoration: BoxDecoration(
+                      color: i == _page
+                          ? const Color(0xFFA32D2D)
+                          : const Color(0xFFDDDDDD),
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (ideas.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              s.homeWeeklyIdeasEmpty,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 160,
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: ideas.length,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (_, i) => Padding(
+                padding: EdgeInsets.only(
+                    right: i < ideas.length - 1 ? 12 : 0),
+                child: _IdeaPageCard(
+                  idea: ideas[i],
+                  coupleId: appState.coupleId,
+                  userId: appState.userId,
+                  displayName: appState.displayName,
+                  partnerName: appState.partnerName,
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 42,
+          child: OutlinedButton(
+            onPressed: () => _openWriteOwnSheet(context, s),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.textPrimary,
+              side: const BorderSide(color: Color(0xFFDDDDDD)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              s.homeWriteOwn,
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openWriteOwnSheet(BuildContext context, AppStrings s) {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => AnimatedPadding(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior:
+              ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppTheme.background,
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.divider,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  s.homeWriteOwnSheetTitle,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  s.homeWriteOwnSheetSubtitle,
+                  style: const TextStyle(
+                      color: AppTheme.textSecondary, fontSize: 14),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: AppTheme.white,
+                    hintText: s.homeWriteOwnHint,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetCtx);
+                      final name =
+                          context.read<AppState>().partnerName;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(s.ideaSentTo(name)),
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: AppTheme.textPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFA32D2D),
+                      foregroundColor: AppTheme.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      s.homeSendIdea,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Single idea card ─────────────────────────────────────────────────────────
+
+class _IdeaPageCard extends StatefulWidget {
+  final WeeklyIdea idea;
+  final String coupleId;
+  final String userId;
+  final String displayName;
+  final String partnerName;
+
+  const _IdeaPageCard({
+    required this.idea,
+    required this.coupleId,
+    required this.userId,
+    required this.displayName,
+    required this.partnerName,
+  });
+
+  @override
+  State<_IdeaPageCard> createState() => _IdeaPageCardState();
+}
+
+class _IdeaPageCardState extends State<_IdeaPageCard> {
+  String? _imageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    final id = IdeaImageService.toId(widget.idea.title);
+    final url = await IdeaImageService.fetchCoverUrl(id);
+    if (mounted && url != null) setState(() => _imageUrl = url);
+  }
+
+  void _onSend(BuildContext context) {
+    final s = context.read<LanguageProvider>().s;
+    context.read<WeeklyIdeasProvider>().sendIdea(
+          widget.idea,
+          widget.coupleId,
+          widget.userId,
+          widget.displayName,
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(s.ideaSentTo(widget.partnerName)),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppTheme.textPrimary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    return LayoutBuilder(builder: (ctx, constraints) {
+      final cardWidth = constraints.maxWidth;
+      final imageWidth = cardWidth * 0.55;
+      return Container(
+        height: 160,
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.textPrimary.withValues(alpha: 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              bottom: 0,
+              right: 0,
+              width: imageWidth,
+              child: ClipPath(
+                clipper: _CardDiagonalClipper(),
+                child: _imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: _imageUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            Container(color: const Color(0xFFC4956A)),
+                        errorWidget: (context, url, error) =>
+                            Container(color: const Color(0xFFC4956A)),
+                      )
+                    : Container(color: const Color(0xFFC4956A)),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: cardWidth * 0.50,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFCF0EC),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        widget.idea.category,
+                        style: const TextStyle(
+                          color: Color(0xFFA32D2D),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.idea.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Georgia',
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.idea.meta,
+                      style: const TextStyle(
+                        color: Color(0xFF888888),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => _onSend(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFA32D2D),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          s.homeSendIdea,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+// ─── Diagonal clip ────────────────────────────────────────────────────────────
+
+class _CardDiagonalClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..moveTo(size.width * 0.18, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(_CardDiagonalClipper old) => false;
 }
 
 // ─── Week card ──────────────────────────────────────────────────────────────
