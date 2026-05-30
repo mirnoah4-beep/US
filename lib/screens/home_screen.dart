@@ -15,6 +15,7 @@ import '../models/weekly_ideas_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/calendar_card.dart';
 import '../widgets/relationship_battery_card.dart';
 import 'mediator_chat_screen.dart';
 import 'settings_screen.dart';
@@ -1205,13 +1206,69 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   }
 
   Future<void> _pickDate(BuildContext context) async {
-    final date = await showDatePicker(
+    final s = context.read<LanguageProvider>().s;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    await showModalBottomSheet<void>(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        var displayMonth = DateTime(
+          (_proposedDate ?? today).year,
+          (_proposedDate ?? today).month,
+          1,
+        );
+        var selected = _proposedDate ?? today;
+
+        return StatefulBuilder(
+          builder: (_, setSheetState) => Container(
+            decoration: const BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.divider,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                CalendarCard(
+                  displayMonth: displayMonth,
+                  selectedDate: selected,
+                  eventDates: const {},
+                  s: s,
+                  onPrevMonth: () => setSheetState(() {
+                    displayMonth = DateTime(
+                        displayMonth.year, displayMonth.month - 1, 1);
+                  }),
+                  onNextMonth: () => setSheetState(() {
+                    displayMonth = DateTime(
+                        displayMonth.year, displayMonth.month + 1, 1);
+                  }),
+                  onSelectDate: (date) {
+                    setSheetState(() => selected = date);
+                    setState(() => _proposedDate = date);
+                    Navigator.pop(sheetCtx);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
     );
-    if (date != null && mounted) setState(() => _proposedDate = date);
   }
 
   Future<void> _pickTime(BuildContext context) async {
