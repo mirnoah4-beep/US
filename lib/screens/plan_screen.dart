@@ -8,9 +8,11 @@ import 'package:provider/provider.dart';
 import '../l10n/strings.dart';
 import '../models/app_state.dart';
 import '../models/language_provider.dart';
+import '../models/weekly_ideas_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'couple_game_screen.dart';
+import 'ideas_screen.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 
@@ -121,6 +123,9 @@ class _PlanScreenState extends State<PlanScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
+    final provider = context.watch<WeeklyIdeasProvider>();
+    final appState = context.watch<AppState>();
+    final incoming = provider.incomingRequest;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F4),
@@ -133,6 +138,25 @@ class _PlanScreenState extends State<PlanScreen> {
             const SizedBox(height: 4),
             Text(s.planSubtitle, style: const TextStyle(color: Color(0xFF888888), fontSize: 13)),
             const SizedBox(height: 22),
+            if (incoming != null) ...[
+              Text(
+                s.ideaWaiting.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFA32D2D),
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const SizedBox(height: 10),
+              PendingIdeaCard(
+                key: ValueKey(incoming.requestId),
+                request: incoming,
+                coupleId: appState.coupleId,
+                userId: appState.userId,
+              ),
+              const SizedBox(height: 24),
+            ],
             _SectionLabel(s.planChooseDate),
             const SizedBox(height: 10),
             _CalendarCard(

@@ -230,9 +230,6 @@ class _IdeasScreenState extends State<IdeasScreen> {
     final s = context.watch<LanguageProvider>().s;
     final isNo = s.isNorwegian;
     final filtered = _filtered;
-    final provider = context.watch<WeeklyIdeasProvider>();
-    final appState = context.watch<AppState>();
-    final incoming = provider.incomingRequest;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F4),
@@ -304,19 +301,6 @@ class _IdeasScreenState extends State<IdeasScreen> {
                 ),
               ),
             ),
-            // ── Pending request from partner ───────────────────────────────
-            if (incoming != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: _PendingIdeaCard(
-                    key: ValueKey(incoming.requestId),
-                    request: incoming,
-                    coupleId: appState.coupleId,
-                    userId: appState.userId,
-                  ),
-                ),
-              ),
             if (filtered.isEmpty)
               SliverFillRemaining(
                 child: Center(
@@ -375,45 +359,52 @@ class _IdeasScreenState extends State<IdeasScreen> {
         },
         onSend: canSend
             ? () {
-                Navigator.pop(ctx);
-                if (!mounted) return;
-                final s = context.read<LanguageProvider>().s;
-                final isNo = s.isNorwegian;
-                final appState = context.read<AppState>();
-                final p = context.read<WeeklyIdeasProvider>();
-                if (p.sendState != IdeaSendState.idle) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(s.ideasAlreadySent),
+                () async {
+                  Navigator.pop(ctx);
+                  if (!mounted) return;
+                  final s = context.read<LanguageProvider>().s;
+                  final isNo = s.isNorwegian;
+                  final appState = context.read<AppState>();
+                  final p = context.read<WeeklyIdeasProvider>();
+                  if (p.sendState != IdeaSendState.idle) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(s.ideasAlreadySent),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: AppTheme.textPrimary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ));
+                    return;
+                  }
+                  final messenger = ScaffoldMessenger.of(context);
+                  final coverUrl = await IdeaImageService.fetchCoverUrl(idea.id);
+                  if (!mounted) return;
+                  p.sendIdea(
+                    WeeklyIdea(
+                      title: idea.title(isNo),
+                      category: idea.category(isNo),
+                      meta: idea.duration(isNo),
+                      description: idea.desc(isNo),
+                      cardColor: palette.bg,
+                      tagColor: palette.tagBg,
+                      tagTextColor: palette.tagText,
+                      icon: idea.icon,
+                      buttonColor: palette.icon,
+                    ),
+                    appState.coupleId,
+                    appState.userId,
+                    appState.displayName,
+                    partnerId: appState.partnerId,
+                    coverImageUrl: coverUrl,
+                  );
+                  messenger.showSnackBar(SnackBar(
+                    content: Text(s.ideasSentToPartner),
                     behavior: SnackBarBehavior.floating,
                     backgroundColor: AppTheme.textPrimary,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ));
-                  return;
-                }
-                p.sendIdea(
-                  WeeklyIdea(
-                    title: idea.title(isNo),
-                    category: idea.category(isNo),
-                    meta: idea.duration(isNo),
-                    description: idea.desc(isNo),
-                    cardColor: palette.bg,
-                    tagColor: palette.tagBg,
-                    tagTextColor: palette.tagText,
-                    icon: idea.icon,
-                    buttonColor: palette.icon,
-                  ),
-                  appState.coupleId,
-                  appState.userId,
-                  appState.displayName,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(s.ideasSentToPartner),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppTheme.textPrimary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ));
+                }();
               }
             : null,
       ),
@@ -423,12 +414,12 @@ class _IdeasScreenState extends State<IdeasScreen> {
 
 // ─── Pending idea card ────────────────────────────────────────────────────────
 
-class _PendingIdeaCard extends StatefulWidget {
+class PendingIdeaCard extends StatefulWidget {
   final IncomingIdeaRequest request;
   final String coupleId;
   final String userId;
 
-  const _PendingIdeaCard({
+  const PendingIdeaCard({
     super.key,
     required this.request,
     required this.coupleId,
@@ -436,11 +427,21 @@ class _PendingIdeaCard extends StatefulWidget {
   });
 
   @override
-  State<_PendingIdeaCard> createState() => _PendingIdeaCardState();
+  State<PendingIdeaCard> createState() => _PendingIdeaCardState();
 }
 
-class _PendingIdeaCardState extends State<_PendingIdeaCard> {
+class _PendingIdeaCardState extends State<PendingIdeaCard> {
   bool _responding = false;
+  bool _dismissed = false;
+  late Future<String?> _imageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageFuture = IdeaImageService.fetchCoverUrl(
+      IdeaImageService.toId(widget.request.ideaTitle),
+    );
+  }
 
   Future<void> _accept() async {
     setState(() => _responding = true);
@@ -452,7 +453,6 @@ class _PendingIdeaCardState extends State<_PendingIdeaCard> {
 
     if (!mounted) return;
 
-    // Ask whether to add to plan
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
@@ -492,8 +492,31 @@ class _PendingIdeaCardState extends State<_PendingIdeaCard> {
     );
   }
 
+  void _openModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _IncomingIdeaSheet(
+        request: widget.request,
+        imageFuture: _imageFuture,
+        onAccept: () {
+          Navigator.pop(ctx);
+          _accept();
+        },
+        onDecline: () {
+          Navigator.pop(ctx);
+          _decline();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+
     final s = context.watch<LanguageProvider>().s;
     final req = widget.request;
 
@@ -511,59 +534,73 @@ class _PendingIdeaCardState extends State<_PendingIdeaCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFAECE7),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  s.ideasPendingSection,
-                  style: const TextStyle(
-                    color: Color(0xFF993C1D),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+          // Tappable top section opens the full modal
+          GestureDetector(
+            onTap: () => _openModal(context),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FutureBuilder<String?>(
+                  future: _imageFuture,
+                  builder: (context, snap) => ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: snap.hasData && snap.data != null
+                          ? CachedNetworkImage(
+                              imageUrl: snap.data!,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) =>
+                                  const ColoredBox(color: Color(0xFFE8D5C0)),
+                              errorWidget: (context, url, error) =>
+                                  const ColoredBox(color: Color(0xFFE8D5C0)),
+                            )
+                          : const ColoredBox(color: Color(0xFFE8D5C0)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                s.ideaFromLabel(req.senderName),
-                style: const TextStyle(color: Color(0xFF888888), fontSize: 11),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            req.ideaTitle,
-            style: const TextStyle(
-              color: Color(0xFF1A1A1A),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.ideaFromLabel(req.senderName),
+                        style: const TextStyle(
+                          color: Color(0xFFA32D2D),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        req.ideaTitle,
+                        style: const TextStyle(
+                          color: Color(0xFF1A1A1A),
+                          fontSize: 15,
+                          fontFamily: 'Georgia',
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (req.ideaMeta.isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          req.ideaMeta,
+                          style: const TextStyle(
+                            color: Color(0xFF888888),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          if (req.ideaMeta.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              req.ideaMeta,
-              style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
-            ),
-          ],
-          if (req.ideaDescription.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              req.ideaDescription,
-              style: const TextStyle(
-                color: Color(0xFF5F5E5A),
-                fontSize: 13,
-                height: 1.5,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -574,11 +611,11 @@ class _PendingIdeaCardState extends State<_PendingIdeaCard> {
                     backgroundColor: const Color(0xFFC1544A),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
-                    textStyle: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                    textStyle:
+                        const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   child: _responding
                       ? const SizedBox(
@@ -587,25 +624,218 @@ class _PendingIdeaCardState extends State<_PendingIdeaCard> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
-                      : Text(s.ideaAccept),
+                      : Text('✓ ${s.ideaAccept}'),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton(
                   onPressed: _responding ? null : _decline,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF888888),
                     side: const BorderSide(color: Color(0xFFE0D9D0)),
-                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     textStyle: const TextStyle(fontSize: 13),
                   ),
-                  child: Text(s.ideaDecline),
+                  child: Text('✕ ${s.ideaDecline}'),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => setState(() => _dismissed = true),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFB4B2A9),
+                side: const BorderSide(color: Color(0xFFE0D9D0)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                textStyle: const TextStyle(fontSize: 13),
+              ),
+              child: Text(s.ideaLater),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Incoming idea sheet (modal) ──────────────────────────────────────────────
+
+class _IncomingIdeaSheet extends StatelessWidget {
+  final IncomingIdeaRequest request;
+  final Future<String?> imageFuture;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  const _IncomingIdeaSheet({
+    required this.request,
+    required this.imageFuture,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final req = request;
+    final initial =
+        req.senderName.isNotEmpty ? req.senderName[0].toUpperCase() : '?';
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFFAF7F4),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD3D1C7),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Cover image with sender avatar overlay
+          Stack(
+            children: [
+              FutureBuilder<String?>(
+                future: imageFuture,
+                builder: (context, snap) => SizedBox(
+                  height: 130,
+                  width: double.infinity,
+                  child: snap.hasData && snap.data != null
+                      ? CachedNetworkImage(
+                          imageUrl: snap.data!,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) =>
+                              const ColoredBox(color: Color(0xFFE8D5C0)),
+                          errorWidget: (context, url, error) =>
+                              const ColoredBox(color: Color(0xFFE8D5C0)),
+                        )
+                      : const ColoredBox(color: Color(0xFFE8D5C0)),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFC1544A),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Content
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 24 + bottomPad),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  s.ideaFromPartner(req.senderName),
+                  style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  req.ideaTitle,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 18,
+                    fontFamily: 'Georgia',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (req.ideaMeta.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    req.ideaMeta,
+                    style: const TextStyle(
+                        color: Color(0xFF888888), fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: onAccept,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFC1544A),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          textStyle: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                        child: Text('✓ ${s.ideaAccept}'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onDecline,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF888888),
+                          side: const BorderSide(color: Color(0xFFE0D9D0)),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          textStyle: const TextStyle(fontSize: 14),
+                        ),
+                        child: Text('✕ ${s.ideaDecline}'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB4B2A9),
+                      side: const BorderSide(color: Color(0xFFE0D9D0)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      textStyle: const TextStyle(fontSize: 14),
+                    ),
+                    child: Text(s.ideaLater),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

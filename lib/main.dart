@@ -5,7 +5,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart' hide ChangeNotifierProvider;
+import 'package:flutter_riverpod/flutter_riverpod.dart' hide ChangeNotifierProvider, Provider;
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
@@ -225,6 +225,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  String _lastCheckedCoupleId = '';
 
   final List<GlobalKey<NavigatorState>> _tabNavKeys = [
     GlobalKey<NavigatorState>(),
@@ -244,6 +245,18 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _initFcm();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final appState = Provider.of<AppState>(context);
+    final coupleId = appState.coupleId;
+    final userId = appState.userId;
+    if (coupleId.isNotEmpty && userId.isNotEmpty && coupleId != _lastCheckedCoupleId) {
+      _lastCheckedCoupleId = coupleId;
+      context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
+    }
   }
 
   Future<void> _initFcm() async {
@@ -366,21 +379,21 @@ class _MainShellState extends State<MainShell> {
                   label: s.navLastTime,
                 ),
                 BottomNavigationBarItem(
+                  icon: const Icon(Icons.lightbulb_outline_rounded),
+                  activeIcon: const Icon(Icons.lightbulb_rounded),
+                  label: s.navIdeas,
+                ),
+                BottomNavigationBarItem(
                   icon: Badge(
                     isLabelVisible: pendingIdeas > 0,
                     label: Text('$pendingIdeas'),
-                    child: const Icon(Icons.lightbulb_outline_rounded),
+                    child: const Icon(Icons.calendar_today_outlined),
                   ),
                   activeIcon: Badge(
                     isLabelVisible: pendingIdeas > 0,
                     label: Text('$pendingIdeas'),
-                    child: const Icon(Icons.lightbulb_rounded),
+                    child: const Icon(Icons.calendar_today_rounded),
                   ),
-                  label: s.navIdeas,
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.calendar_today_outlined),
-                  activeIcon: const Icon(Icons.calendar_today_rounded),
                   label: s.navPlan,
                 ),
               ],

@@ -112,6 +112,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   IdeaSendState _sendState = IdeaSendState.idle;
   WeeklyIdea? _sentIdea;
   String? _pendingRequestId;
+  String? _sendError;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _requestSub;
   IncomingIdeaRequest? _incomingRequest;
   int _pendingIncomingCount = 0;
@@ -123,8 +124,11 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   bool get isAiGenerated => _doc?.isAiGenerated ?? false;
   IdeaSendState get sendState => _sendState;
   WeeklyIdea? get sentIdea => _sentIdea;
+  String? get sendError => _sendError;
   IncomingIdeaRequest? get incomingRequest => _incomingRequest;
   int get pendingIncomingCount => _pendingIncomingCount;
+
+  void clearSendError() { _sendError = null; }
 
   // Call once from the HomeScreen widget tree.
   Future<void> init(String coupleId) async {
@@ -194,8 +198,20 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     WeeklyIdea idea,
     String coupleId,
     String userId,
-    String senderName,
-  ) async {
+    String senderName, {
+    String partnerId = '',
+    String? coverImageUrl,
+  }) async {
+    // Guard: abort if no linked partner.
+    if (partnerId.isEmpty) {
+      _sendState = IdeaSendState.idle;
+      _sentIdea = null;
+      _pendingRequestId = null;
+      _sendError = 'noPartner';
+      notifyListeners();
+      return;
+    }
+
     _sentIdea = idea;
     _sendState = IdeaSendState.waiting;
     notifyListeners();
@@ -213,13 +229,20 @@ class WeeklyIdeasProvider extends ChangeNotifier {
         'ideaCategory': idea.category,
         'senderName': senderName,
         'sentBy': userId,
+        'recipientId': partnerId,
+        if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
         'sentAt': FieldValue.serverTimestamp(),
         'status': 'pending',
       });
       _requestSub?.cancel();
       _requestSub = ref.snapshots().listen(_onRequestSnapshot, onError: (_) {});
     } catch (e) {
+      _sendState = IdeaSendState.idle;
+      _sentIdea = null;
+      _pendingRequestId = null;
+      _sendError = 'networkError';
       debugPrint('sendIdea failed: $e');
+      notifyListeners();
     }
   }
 
@@ -266,6 +289,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     _sendState = IdeaSendState.idle;
     _sentIdea = null;
     _pendingRequestId = null;
+    _sendError = null;
     _requestSub?.cancel();
     _requestSub = null;
     notifyListeners();

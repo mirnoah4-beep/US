@@ -364,7 +364,6 @@ class _TonightCard extends StatefulWidget {
 
 class _TonightCardState extends State<_TonightCard>
     with SingleTickerProviderStateMixin {
-  bool _waiting = false;
   late AnimationController _pulseController;
   late Animation<double> _pulseOpacity;
 
@@ -396,9 +395,36 @@ class _TonightCardState extends State<_TonightCard>
   }
 
   void _sendIdea() {
-    setState(() => _waiting = true);
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    if (!reduceMotion) _pulseController.repeat();
+    final appState = context.read<AppState>();
+    if (appState.partnerId.isEmpty) {
+      final isNo = context.read<LanguageProvider>().isNorwegian;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isNo ? 'Ingen partner koblet til' : 'No partner linked'),
+        backgroundColor: AppTheme.textPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
+    final s = context.read<LanguageProvider>().s;
+    context.read<WeeklyIdeasProvider>().sendIdea(
+      WeeklyIdea(
+        title: s.homeTonightTitle,
+        category: '',
+        meta: '',
+        description: s.homeTonightSubtitle,
+        cardColor: Colors.white,
+        tagColor: const Color(0xFFFFE8E0),
+        tagTextColor: const Color(0xFF8B2E2E),
+        icon: Icons.nights_stay_outlined,
+        buttonColor: const Color(0xFF8B2E2E),
+      ),
+      appState.coupleId,
+      appState.userId,
+      appState.displayName,
+      partnerId: appState.partnerId,
+      coverImageUrl: null,
+    );
   }
 
   String _dotsText(double v) {
@@ -410,6 +436,17 @@ class _TonightCardState extends State<_TonightCard>
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
+    final provider = context.watch<WeeklyIdeasProvider>();
+    final isWaiting = provider.sendState == IdeaSendState.waiting;
+
+    if (isWaiting && !_pulseController.isAnimating) {
+      final reduceMotion = MediaQuery.of(context).disableAnimations;
+      if (!reduceMotion) _pulseController.repeat();
+    } else if (!isWaiting && _pulseController.isAnimating) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFFFE8E0),
@@ -423,7 +460,7 @@ class _TonightCardState extends State<_TonightCard>
         ],
       ),
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: _waiting ? _buildWaiting(s) : _buildIdle(context, s),
+      child: isWaiting ? _buildWaiting(s) : _buildIdle(context, s),
     );
   }
 
@@ -820,6 +857,25 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
       });
     }
 
+    // Fix 4: surface send errors as a SnackBar.
+    final sendError = provider.sendError;
+    if (sendError != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<WeeklyIdeasProvider>().clearSendError();
+        final isNo = context.read<LanguageProvider>().isNorwegian;
+        final msg = sendError == 'noPartner'
+            ? (isNo ? 'Ingen partner koblet til' : 'No partner linked')
+            : (isNo ? 'Noe gikk galt – prøv igjen' : 'Something went wrong – try again');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
+          backgroundColor: AppTheme.textPrimary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      });
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1005,6 +1061,8 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                         appState.coupleId,
                         appState.userId,
                         appState.displayName,
+                        partnerId: appState.partnerId,
+                        coverImageUrl: null,
                       );
                       Navigator.pop(sheetCtx);
                     },
@@ -1084,12 +1142,15 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   }
 
   void _onSend(BuildContext context) {
+    final appState = context.read<AppState>();
     context.read<WeeklyIdeasProvider>().sendIdea(
-          widget.idea,
-          widget.coupleId,
-          widget.userId,
-          widget.displayName,
-        );
+      widget.idea,
+      widget.coupleId,
+      widget.userId,
+      widget.displayName,
+      partnerId: appState.partnerId,
+      coverImageUrl: _imageUrl,
+    );
   }
 
   void _onCancel(BuildContext context) {
