@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,7 @@ import '../models/app_state.dart';
 import '../models/language_provider.dart';
 import '../models/weekly_idea.dart';
 import '../models/weekly_ideas_provider.dart';
+import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/relationship_battery_card.dart';
@@ -1029,13 +1032,26 @@ class _IdeaPageCard extends StatefulWidget {
   State<_IdeaPageCard> createState() => _IdeaPageCardState();
 }
 
-class _IdeaPageCardState extends State<_IdeaPageCard> {
+class _IdeaPageCardState extends State<_IdeaPageCard>
+    with TickerProviderStateMixin {
   String? _imageUrl;
+  bool _declinedShown = false;
+  late AnimationController _dotCtrl;
 
   @override
   void initState() {
     super.initState();
     _loadImage();
+    _dotCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _dotCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadImage() async {
@@ -1057,9 +1073,41 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
         content: Text(s.ideaSentTo(widget.partnerName)),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppTheme.textPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _onCancel(BuildContext context) {
+    context.read<WeeklyIdeasProvider>().cancelPendingIdea(widget.coupleId);
+  }
+
+  Future<void> _onAddToPlan(BuildContext context) async {
+    final s = context.read<LanguageProvider>().s;
+    final provider = context.read<WeeklyIdeasProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+      helpText: s.ideaAddToPlanDialogTitle,
+    );
+    if (date == null || !mounted) return;
+    await FirestoreService.addPlan(
+      coupleId: widget.coupleId,
+      activity: widget.idea.title,
+      date: date,
+      sentBy: widget.userId,
+    );
+    if (!mounted) return;
+    provider.resetSendState();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(s.ideaAddedToPlan),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppTheme.textPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -1067,9 +1115,153 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
+    final provider = context.watch<WeeklyIdeasProvider>();
+    final isMyIdea = provider.sentIdea?.title == widget.idea.title;
+    final state = isMyIdea ? provider.sendState : IdeaSendState.idle;
+
+    if (state == IdeaSendState.declined && !_declinedShown) {
+      _declinedShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(s.ideaDeclinedTitle),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppTheme.textPrimary,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        context.read<WeeklyIdeasProvider>().resetSendState();
+      });
+    }
+    if (state == IdeaSendState.idle) _declinedShown = false;
+
     return LayoutBuilder(builder: (ctx, constraints) {
       final cardWidth = constraints.maxWidth;
       final imageWidth = cardWidth * 0.55;
+
+      // ── Badge ───────────────────────────────────────────────────────────────
+      Widget badge;
+      if (state == IdeaSendState.accepted) {
+        badge = Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F5E9),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: const Text(
+            '✓ Godkjent',
+            style: TextStyle(
+              color: Color(0xFF2E7D32),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      } else {
+        badge = Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFCF0EC),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            widget.idea.category,
+            style: const TextStyle(
+              color: Color(0xFFA32D2D),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }
+
+      // ── Duration line ───────────────────────────────────────────────────────
+      final String durationText;
+      final bool isPending = state == IdeaSendState.waiting;
+      if (isPending) {
+        final isNo = context.read<LanguageProvider>().isNorwegian;
+        durationText = isNo
+            ? 'Venter på ${widget.partnerName}'
+            : 'Waiting for ${widget.partnerName}';
+      } else if (state == IdeaSendState.accepted) {
+        durationText = s.ideaPartnerSaidYes(widget.partnerName);
+      } else {
+        durationText = widget.idea.meta;
+      }
+
+      // ── Bottom button ───────────────────────────────────────────────────────
+      Widget button;
+      if (state == IdeaSendState.waiting) {
+        button = GestureDetector(
+          onTap: () => _onCancel(context),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: const Color(0xFFA32D2D)),
+            ),
+            child: Text(
+              s.ideaCancel,
+              style: const TextStyle(
+                color: Color(0xFFA32D2D),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      } else if (state == IdeaSendState.accepted) {
+        button = GestureDetector(
+          onTap: () => _onAddToPlan(context),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2E7D32),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: const Text(
+              '📅 Legg til plan',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      } else {
+        button = GestureDetector(
+          onTap: () => _onSend(context),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFA32D2D),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              s.homeSendIdea,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      }
+
       return Container(
         height: 160,
         decoration: BoxDecoration(
@@ -1091,18 +1283,21 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
               bottom: 0,
               right: 0,
               width: imageWidth,
-              child: ClipPath(
-                clipper: _CardDiagonalClipper(),
-                child: _imageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: _imageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            Container(color: const Color(0xFFE8D5C0)),
-                        errorWidget: (context, url, error) =>
-                            Container(color: const Color(0xFFE8D5C0)),
-                      )
-                    : Container(color: const Color(0xFFE8D5C0)),
+              child: Opacity(
+                opacity: state == IdeaSendState.waiting ? 0.5 : 1.0,
+                child: ClipPath(
+                  clipper: _CardDiagonalClipper(),
+                  child: _imageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: _imageUrl!,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) =>
+                              Container(color: const Color(0xFFE8D5C0)),
+                          errorWidget: (context, url, error) =>
+                              Container(color: const Color(0xFFE8D5C0)),
+                        )
+                      : Container(color: const Color(0xFFE8D5C0)),
+                ),
               ),
             ),
             Positioned(
@@ -1115,24 +1310,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFCF0EC),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Text(
-                        widget.idea.category,
-                        style: const TextStyle(
-                          color: Color(0xFFA32D2D),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                    badge,
                     const SizedBox(height: 6),
                     Text(
                       widget.idea.title,
@@ -1147,33 +1325,49 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.idea.meta,
-                      style: const TextStyle(
-                        color: Color(0xFF888888),
-                        fontSize: 12,
+                      durationText,
+                      style: TextStyle(
+                        color: const Color(0xFF888888),
+                        fontSize: isPending ? 11.0 : 12.0,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => _onSend(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFA32D2D),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          s.homeSendIdea,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                    if (isPending) ...[
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: AnimatedBuilder(
+                          animation: _dotCtrl,
+                          builder: (context, child) => Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(3, (i) {
+                              final start = i / 3.0;
+                              final end = (i + 1) / 3.0;
+                              final v = _dotCtrl.value;
+                              final t = (v >= start && v < end)
+                                  ? (v - start) / (end - start)
+                                  : 0.0;
+                              final dy = -sin(t * pi) * 5.0;
+                              return Transform.translate(
+                                offset: Offset(0, dy),
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  margin:
+                                      EdgeInsets.only(right: i < 2 ? 4 : 0),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFA32D2D),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
                         ),
                       ),
-                    ),
+                    ],
+                    const Spacer(),
+                    button,
                   ],
                 ),
               ),
