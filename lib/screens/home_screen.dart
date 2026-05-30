@@ -808,6 +808,18 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     final ideas = provider.ideas.take(4).toList();
     final appState = context.watch<AppState>();
 
+    final sentTitle = provider.sentIdea?.title;
+    final isCustomPending = provider.sendState == IdeaSendState.waiting &&
+        !ideas.any((idea) => idea.title == sentTitle);
+    if (sentTitle != null &&
+        !ideas.any((idea) => idea.title == sentTitle) &&
+        (provider.sendState == IdeaSendState.accepted ||
+         provider.sendState == IdeaSendState.declined)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<WeeklyIdeasProvider>().resetSendState();
+      });
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -871,6 +883,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                   userId: appState.userId,
                   displayName: appState.displayName,
                   partnerName: appState.partnerName,
+                  forceCustomPending: isCustomPending && i == 0,
                 ),
               ),
             ),
@@ -974,19 +987,26 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                   height: 50,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(sheetCtx);
-                      final name =
-                          context.read<AppState>().partnerName;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(s.ideaSentTo(name)),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: AppTheme.textPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                      final text = controller.text.trim();
+                      if (text.isEmpty) return;
+                      final appState = context.read<AppState>();
+                      context.read<WeeklyIdeasProvider>().sendIdea(
+                        WeeklyIdea(
+                          title: text,
+                          category: '',
+                          meta: '',
+                          description: text,
+                          cardColor: Colors.white,
+                          tagColor: const Color(0xFFFCF0EC),
+                          tagTextColor: const Color(0xFFA32D2D),
+                          icon: Icons.edit_outlined,
+                          buttonColor: const Color(0xFFA32D2D),
                         ),
+                        appState.coupleId,
+                        appState.userId,
+                        appState.displayName,
                       );
+                      Navigator.pop(sheetCtx);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFA32D2D),
@@ -1020,6 +1040,7 @@ class _IdeaPageCard extends StatefulWidget {
   final String userId;
   final String displayName;
   final String partnerName;
+  final bool forceCustomPending;
 
   const _IdeaPageCard({
     required this.idea,
@@ -1027,6 +1048,7 @@ class _IdeaPageCard extends StatefulWidget {
     required this.userId,
     required this.displayName,
     required this.partnerName,
+    this.forceCustomPending = false,
   });
 
   @override
@@ -1109,7 +1131,9 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
     final s = context.watch<LanguageProvider>().s;
     final provider = context.watch<WeeklyIdeasProvider>();
     final isMyIdea = provider.sentIdea?.title == widget.idea.title;
-    final state = isMyIdea ? provider.sendState : IdeaSendState.idle;
+    final state = (isMyIdea || widget.forceCustomPending)
+        ? provider.sendState
+        : IdeaSendState.idle;
 
     if (state == IdeaSendState.declined && !_declinedShown) {
       _declinedShown = true;
@@ -1186,7 +1210,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
       } else if (state == IdeaSendState.accepted) {
         durationText = s.ideaPartnerSaidYes(widget.partnerName);
       } else {
-        durationText = widget.idea.meta;
+        durationText = widget.idea.meta.split('·').first.trim();
       }
 
       // ── Bottom button ───────────────────────────────────────────────────────
@@ -1323,6 +1347,8 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                         fontSize: isPending ? 11.0 : 12.0,
                         fontWeight: FontWeight.w400,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (isPending) ...[
                       const SizedBox(height: 6),
