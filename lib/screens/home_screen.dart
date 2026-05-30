@@ -939,32 +939,37 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                   userId: appState.userId,
                   displayName: appState.displayName,
                   partnerName: appState.partnerName,
-                  forceCustomPending: isCustomPending && i == 0,
+
                 ),
               ),
             ),
           ),
         const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          height: 42,
-          child: OutlinedButton(
-            onPressed: () => _openWriteOwnSheet(context, s),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFFFFF),
-              foregroundColor: const Color(0xFFA32D2D),
-              side: const BorderSide(color: Color(0xFFA32D2D), width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        if (isCustomPending)
+          _WriteOwnWaitingBar(
+            coupleId: appState.coupleId,
+            partnerName: appState.partnerName,
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: OutlinedButton(
+              onPressed: () => _openWriteOwnSheet(context, s),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFFFFF),
+                foregroundColor: const Color(0xFFA32D2D),
+                side: const BorderSide(color: Color(0xFFA32D2D), width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                s.homeWriteOwn,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ),
-            child: Text(
-              s.homeWriteOwn,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600),
-            ),
           ),
-        ),
       ],
     );
   }
@@ -1098,7 +1103,6 @@ class _IdeaPageCard extends StatefulWidget {
   final String userId;
   final String displayName;
   final String partnerName;
-  final bool forceCustomPending;
 
   const _IdeaPageCard({
     required this.idea,
@@ -1106,7 +1110,6 @@ class _IdeaPageCard extends StatefulWidget {
     required this.userId,
     required this.displayName,
     required this.partnerName,
-    this.forceCustomPending = false,
   });
 
   @override
@@ -1192,9 +1195,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
     final s = context.watch<LanguageProvider>().s;
     final provider = context.watch<WeeklyIdeasProvider>();
     final isMyIdea = provider.sentIdea?.title == widget.idea.title;
-    final state = (isMyIdea || widget.forceCustomPending)
-        ? provider.sendState
-        : IdeaSendState.idle;
+    final state = isMyIdea ? provider.sendState : IdeaSendState.idle;
 
     if (state == IdeaSendState.declined && !_declinedShown) {
       _declinedShown = true;
@@ -1455,6 +1456,55 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
         ),
       );
     });
+  }
+}
+
+// ─── Write-own compact waiting bar ───────────────────────────────────────────
+
+class _WriteOwnWaitingBar extends StatelessWidget {
+  final String coupleId;
+  final String partnerName;
+
+  const _WriteOwnWaitingBar({
+    required this.coupleId,
+    required this.partnerName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    return SizedBox(
+      width: double.infinity,
+      height: 42,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFA32D2D), width: 1.5),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            Text(
+              s.homeWriteOwnWaiting(partnerName),
+              style: const TextStyle(
+                color: Color(0xFFA32D2D),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const _BouncingDots(),
+            const Spacer(),
+            GestureDetector(
+              onTap: () =>
+                  context.read<WeeklyIdeasProvider>().cancelPendingIdea(coupleId),
+              child: const Icon(Icons.close, color: Color(0xFFA32D2D), size: 18),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

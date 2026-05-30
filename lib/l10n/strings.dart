@@ -24,6 +24,8 @@ class AppStrings {
   String get homeTonightSubtitle => isNorwegian ? '20 min · bare dere to' : '20 min · just you two';
   String get homeSendIdea => isNorwegian ? 'Send idé' : 'Send idea';
   String get homeWriteOwn => isNorwegian ? 'Skriv din egen idé' : 'Write your own idea';
+  String homeWriteOwnWaiting(String name) =>
+      isNorwegian ? 'Venter på $name' : 'Waiting for $name';
   String homeFormattedDate(DateTime date) {
     final day = planFullDayNames[date.weekday - 1];
     final month = planMonthNamesShort[date.month - 1];
