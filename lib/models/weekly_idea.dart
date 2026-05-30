@@ -2,27 +2,51 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class WeeklyIdea {
-  final String title;
-  final String category;
-  final String meta;
+  final String titleNo;
+  final String titleEn;
+  final String categoryNo;
+  final String categoryEn;
+  final String metaNo;
+  final String metaEn;
   final Color cardColor;
   final Color tagColor;
   final Color tagTextColor;
   final IconData icon;
-  final String description;
+  final String descriptionNo;
+  final String descriptionEn;
   final Color buttonColor;
 
   const WeeklyIdea({
-    required this.title,
-    required this.category,
-    required this.meta,
+    required this.titleNo,
+    required this.titleEn,
+    required this.categoryNo,
+    required this.categoryEn,
+    required this.metaNo,
+    required this.metaEn,
     required this.cardColor,
     required this.tagColor,
     required this.tagTextColor,
     required this.icon,
-    required this.description,
+    required this.descriptionNo,
+    required this.descriptionEn,
     this.buttonColor = const Color(0xFFC1544A),
   });
+
+  String title(bool isNorwegian) => isNorwegian
+      ? (titleNo.isNotEmpty ? titleNo : titleEn)
+      : (titleEn.isNotEmpty ? titleEn : titleNo);
+
+  String category(bool isNorwegian) => isNorwegian
+      ? (categoryNo.isNotEmpty ? categoryNo : categoryEn)
+      : (categoryEn.isNotEmpty ? categoryEn : categoryNo);
+
+  String meta(bool isNorwegian) => isNorwegian
+      ? (metaNo.isNotEmpty ? metaNo : metaEn)
+      : (metaEn.isNotEmpty ? metaEn : metaNo);
+
+  String description(bool isNorwegian) => isNorwegian
+      ? (descriptionNo.isNotEmpty ? descriptionNo : descriptionEn)
+      : (descriptionEn.isNotEmpty ? descriptionEn : descriptionNo);
 
   factory WeeklyIdea.fromJson(Map<String, dynamic> json) {
     String tryStr(List<String> keys) {
@@ -33,25 +57,25 @@ class WeeklyIdea {
       return '';
     }
 
-    String titleOrDiag() => tryStr([
-      'titleNo', 'titleEn', 'title', 'name', 'nameNo', 'nameEn',
-      'text', 'ideaTitle', 'idea', 'header', 'heading',
+    final titleFallback = tryStr([
+      'title', 'name', 'nameNo', 'nameEn', 'text', 'ideaTitle', 'idea', 'header', 'heading',
     ]);
+    final tNo = tryStr(['titleNo']);
+    final tEn = tryStr(['titleEn']);
 
     return WeeklyIdea(
-      title: titleOrDiag(),
-      category: tryStr([
-        'category', 'categoryNo', 'categoryEn', 'type', 'tag', 'label',
-      ]),
-      meta: tryStr([
-        'duration', 'durationNo', 'durationEn', 'meta', 'time',
-        'timeEst', 'timeEstimate', 'length',
-      ]),
+      titleNo: tNo.isNotEmpty ? tNo : titleFallback,
+      titleEn: tEn.isNotEmpty ? tEn : titleFallback,
+      categoryNo: tryStr(['categoryNo', 'category', 'type', 'tag', 'label']),
+      categoryEn: tryStr(['categoryEn', 'category', 'type', 'tag', 'label']),
+      metaNo: tryStr(['metaNo', 'durationNo', 'meta', 'duration', 'time', 'timeEst', 'timeEstimate', 'length']),
+      metaEn: tryStr(['metaEn', 'durationEn', 'meta', 'duration', 'time', 'timeEst', 'timeEstimate', 'length']),
       cardColor: _hexColor(json['cardColor'] as String? ?? '#FAECE7'),
       tagColor: _hexColor(json['tagColor'] as String? ?? '#F5C4B3'),
       tagTextColor: _hexColor(json['tagTextColor'] as String? ?? '#712B13'),
       icon: _iconFromName(json['iconName'] as String? ?? 'star_outline'),
-      description: tryStr(['description', 'descriptionNo', 'descriptionEn', 'desc']),
+      descriptionNo: tryStr(['descriptionNo', 'description', 'desc']),
+      descriptionEn: tryStr(['descriptionEn', 'description', 'desc']),
       buttonColor: _hexColor(json['buttonColor'] as String? ?? '#C1544A'),
     );
   }

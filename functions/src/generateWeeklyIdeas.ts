@@ -17,6 +17,16 @@ export interface IdeaObject {
   tagTextColor: string;
   iconName: string;
   description: string;
+  titleNo?: string;
+  titleEn?: string;
+  categoryNo?: string;
+  categoryEn?: string;
+  metaNo?: string;
+  metaEn?: string;
+  descriptionNo?: string;
+  descriptionEn?: string;
+  season?: string;
+  effort?: string;
 }
 
 // ─── Main entry ──────────────────────────────────────────────────────────────
@@ -284,7 +294,11 @@ async function getCuratedIdeas(
 
   const ideasSnap = await firestore.collection('ideas').get();
   const scored = ideasSnap.docs
-    .filter((d) => typeof d.data().title === 'string' && d.data().title.length > 0)
+    .filter((d) => {
+      const data = d.data();
+      return (typeof data.title === 'string' && data.title.length > 0) ||
+             (typeof data.titleNo === 'string' && data.titleNo.length > 0);
+    })
     .map((d) => {
       const data = d.data();
       let score = 0;
@@ -305,54 +319,54 @@ async function getCuratedIdeas(
 function getHardcodedFallback(): IdeaObject[] {
   return [
     {
-      title: 'Kveldstur',
-      category: 'Ute',
-      meta: '30 min · uten telefoner',
-      cardColor: '#EAF3DE',
-      tagColor: '#C0DD97',
-      tagTextColor: '#27500A',
+      title: 'Kveldstur', titleNo: 'Kveldstur', titleEn: 'Evening walk',
+      category: 'Ute', categoryNo: 'Ute', categoryEn: 'Outside',
+      meta: '30 min · uten telefoner', metaNo: '30 min · uten telefoner', metaEn: '30 min · no phones',
+      cardColor: '#EAF3DE', tagColor: '#C0DD97', tagTextColor: '#27500A',
       iconName: 'directions_walk_outlined',
       description: 'En rolig tur rundt kvartalet. Telefoner i lomma, bare prat og frisk luft.',
+      descriptionNo: 'En rolig tur rundt kvartalet. Telefoner i lomma, bare prat og frisk luft.',
+      descriptionEn: 'A quiet walk around the block. Phones in pockets, just talk and fresh air.',
     },
     {
-      title: 'Spørsmålskort',
-      category: 'Minidate',
-      meta: '20 min · i sofaen',
-      cardColor: '#FAECE7',
-      tagColor: '#F5C4B3',
-      tagTextColor: '#712B13',
+      title: 'Spørsmålskort', titleNo: 'Spørsmålskort', titleEn: 'Question cards',
+      category: 'Minidate', categoryNo: 'Minidate', categoryEn: 'Mini-date',
+      meta: '20 min · i sofaen', metaNo: '20 min · i sofaen', metaEn: '20 min · on the couch',
+      cardColor: '#FAECE7', tagColor: '#F5C4B3', tagTextColor: '#712B13',
       iconName: 'coffee_outlined',
       description: 'Trekk spørsmål fra en app. Finn ut noe nytt om hverandre i kveld.',
+      descriptionNo: 'Trekk spørsmål fra en app. Finn ut noe nytt om hverandre i kveld.',
+      descriptionEn: 'Draw questions from an app. Find out something new about each other tonight.',
     },
     {
-      title: 'Lag mat',
-      category: 'Hjemme',
-      meta: '1 time · ny oppskrift',
-      cardColor: '#FAEEDA',
-      tagColor: '#FAC775',
-      tagTextColor: '#633806',
+      title: 'Lag mat', titleNo: 'Lag mat', titleEn: 'Cook together',
+      category: 'Hjemme', categoryNo: 'Hjemme', categoryEn: 'At home',
+      meta: '1 time · ny oppskrift', metaNo: '1 time · ny oppskrift', metaEn: '1 hour · new recipe',
+      cardColor: '#FAEEDA', tagColor: '#FAC775', tagTextColor: '#633806',
       iconName: 'kitchen_outlined',
       description: 'Velg en oppskrift ingen av dere har prøvd. Jobb sammen og ha det gøy.',
+      descriptionNo: 'Velg en oppskrift ingen av dere har prøvd. Jobb sammen og ha det gøy.',
+      descriptionEn: 'Choose a recipe no one has tried. Work together and have fun.',
     },
     {
-      title: 'Del en sang',
-      category: 'Koble til',
-      meta: '30 min · musikk + prat',
-      cardColor: '#E1F5EE',
-      tagColor: '#9FE1CB',
-      tagTextColor: '#085041',
+      title: 'Del en sang', titleNo: 'Del en sang', titleEn: 'Share a song',
+      category: 'Koble til', categoryNo: 'Koble til', categoryEn: 'Connect',
+      meta: '30 min · musikk + prat', metaNo: '30 min · musikk + prat', metaEn: '30 min · music + talk',
+      cardColor: '#E1F5EE', tagColor: '#9FE1CB', tagTextColor: '#085041',
       iconName: 'music_note_outlined',
       description: 'Del en sang som betyr noe for deg nå. Fortell hvorfor. La dem gjøre det samme.',
+      descriptionNo: 'Del en sang som betyr noe for deg nå. Fortell hvorfor. La dem gjøre det samme.',
+      descriptionEn: 'Share a song that means something to you right now. Say why. Let them do the same.',
     },
     {
-      title: 'Tegn hverandre',
-      category: 'Kreativt',
-      meta: '20 min · papir + blyant',
-      cardColor: '#FBEAF0',
-      tagColor: '#F4C0D1',
-      tagTextColor: '#72243E',
+      title: 'Tegn hverandre', titleNo: 'Tegn hverandre', titleEn: 'Draw each other',
+      category: 'Kreativt', categoryNo: 'Kreativt', categoryEn: 'Creative',
+      meta: '20 min · papir + blyant', metaNo: '20 min · papir + blyant', metaEn: '20 min · pen + paper',
+      cardColor: '#FBEAF0', tagColor: '#F4C0D1', tagTextColor: '#72243E',
       iconName: 'palette_outlined',
       description: 'Sett en timer på 10 minutter og tegn den andre. Ingen regel om å være flink.',
+      descriptionNo: 'Sett en timer på 10 minutter og tegn den andre. Ingen regel om å være flink.',
+      descriptionEn: 'Set a timer for 10 minutes and draw each other. No rule about being good.',
     },
   ];
 }

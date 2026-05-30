@@ -411,18 +411,21 @@ class _TonightCardState extends State<_TonightCard>
       ));
       return;
     }
-    final s = context.read<LanguageProvider>().s;
     context.read<WeeklyIdeasProvider>().sendIdea(
-      WeeklyIdea(
-        title: s.homeTonightTitle,
-        category: '',
-        meta: '',
-        description: s.homeTonightSubtitle,
+      const WeeklyIdea(
+        titleNo: 'Kort + te',
+        titleEn: 'Cards + tea',
+        categoryNo: '',
+        categoryEn: '',
+        metaNo: '',
+        metaEn: '',
+        descriptionNo: '20 min · bare dere to',
+        descriptionEn: '20 min · just you two',
         cardColor: Colors.white,
-        tagColor: const Color(0xFFFFE8E0),
-        tagTextColor: const Color(0xFF8B2E2E),
+        tagColor: Color(0xFFFFE8E0),
+        tagTextColor: Color(0xFF8B2E2E),
         icon: Icons.nights_stay_outlined,
-        buttonColor: const Color(0xFF8B2E2E),
+        buttonColor: Color(0xFF8B2E2E),
       ),
       appState.coupleId,
       appState.userId,
@@ -831,7 +834,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
       BuildContext ctx, List<WeeklyIdea> ideas) =>
       Future.wait(ideas.map((idea) async {
         final url = IdeaImageService.getCachedUrl(
-            IdeaImageService.toId(idea.title));
+            IdeaImageService.toId(idea.titleNo));
         if (url != null) {
           try {
             await precacheImage(
@@ -863,16 +866,16 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     final s = context.watch<LanguageProvider>().s;
     final provider = context.watch<WeeklyIdeasProvider>();
     final ideas = provider.ideas
-        .where((idea) => idea.title.isNotEmpty)
+        .where((idea) => idea.titleNo.isNotEmpty || idea.titleEn.isNotEmpty)
         .take(4)
         .toList();
     final appState = context.watch<AppState>();
 
-    final sentTitle = provider.sentIdea?.title;
+    final sentTitle = provider.sentIdea?.titleNo;
     final isCustomPending = provider.sendState == IdeaSendState.waiting &&
-        !ideas.any((idea) => idea.title == sentTitle);
+        !ideas.any((idea) => idea.titleNo == sentTitle);
     if (sentTitle != null &&
-        !ideas.any((idea) => idea.title == sentTitle) &&
+        !ideas.any((idea) => idea.titleNo == sentTitle) &&
         (provider.sendState == IdeaSendState.accepted ||
          provider.sendState == IdeaSendState.declined)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -899,7 +902,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
       });
     }
 
-    final key = ideas.map((e) => e.title).join(',');
+    final key = ideas.map((e) => e.titleNo).join(',');
     final imagesReady = _precachedKey == key;
 
     if (ideas.isNotEmpty && !_precaching && !imagesReady) {
@@ -1094,7 +1097,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                           context: context,
                           useRootNavigator: true,
                           builder: (ctx) => AlreadyPendingDialog(
-                            pendingTitle: provider.sentIdea?.title ?? '',
+                            pendingTitle: provider.sentIdea?.title(ls.isNorwegian) ?? '',
                             s: ls,
                           ),
                         );
@@ -1116,10 +1119,14 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                       }
                       provider.sendIdea(
                         WeeklyIdea(
-                          title: text,
-                          category: '',
-                          meta: '',
-                          description: text,
+                          titleNo: text,
+                          titleEn: text,
+                          categoryNo: '',
+                          categoryEn: '',
+                          metaNo: '',
+                          metaEn: '',
+                          descriptionNo: text,
+                          descriptionEn: text,
                           cardColor: Colors.white,
                           tagColor: const Color(0xFFFCF0EC),
                           tagTextColor: const Color(0xFFA32D2D),
@@ -1193,7 +1200,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   @override
   void initState() {
     super.initState();
-    _imageUrl = IdeaImageService.getCachedUrl(IdeaImageService.toId(widget.idea.title));
+    _imageUrl = IdeaImageService.getCachedUrl(IdeaImageService.toId(widget.idea.titleNo));
     _urlWasKnownAtInit = _imageUrl != null;
     if (_imageUrl == null) _loadImage();
     _dotCtrl = AnimationController(
@@ -1214,7 +1221,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   }
 
   Future<void> _loadImage() async {
-    final id = IdeaImageService.toId(widget.idea.title);
+    final id = IdeaImageService.toId(widget.idea.titleNo);
     final url = await IdeaImageService.fetchCoverUrl(id);
     if (mounted && url != null) setState(() => _imageUrl = url);
   }
@@ -1232,7 +1239,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
       behavior: SnackBarBehavior.floating,
     ));
     try {
-      final ideaId = IdeaImageService.toId(widget.idea.title);
+      final ideaId = IdeaImageService.toId(widget.idea.titleNo);
       final url = await IdeaImageService.uploadCover(ideaId, picked);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -1410,7 +1417,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
         context: context,
         useRootNavigator: true,
         builder: (ctx) => AlreadyPendingDialog(
-          pendingTitle: provider.sentIdea?.title ?? '',
+          pendingTitle: provider.sentIdea?.title(s.isNorwegian) ?? '',
           s: s,
         ),
       );
@@ -1485,7 +1492,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
             children: [
               Center(
                 child: Text(
-                  widget.idea.title,
+                  widget.idea.title(s.isNorwegian),
                   style: const TextStyle(
                     color: Color(0xFF1A1A1A),
                     fontSize: 17,
@@ -1604,7 +1611,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
     if (date == null || !mounted) return;
     await FirestoreService.addPlan(
       coupleId: widget.coupleId,
-      activity: widget.idea.title,
+      activity: widget.idea.title(s.isNorwegian),
       date: date,
       sentBy: widget.userId,
     );
@@ -1623,8 +1630,9 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
+    final isNo = s.isNorwegian;
     final provider = context.watch<WeeklyIdeasProvider>();
-    final isMyIdea = provider.sentIdea?.title == widget.idea.title;
+    final isMyIdea = provider.sentIdea?.titleNo == widget.idea.titleNo;
     final state = isMyIdea ? provider.sendState : IdeaSendState.idle;
 
     if (state == IdeaSendState.declined && !_declinedShown) {
@@ -1689,7 +1697,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
             borderRadius: BorderRadius.circular(99),
           ),
           child: Text(
-            widget.idea.category,
+            widget.idea.category(isNo),
             style: const TextStyle(
               color: Color(0xFFA32D2D),
               fontSize: 11,
@@ -1712,7 +1720,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
       } else if (state == IdeaSendState.accepted) {
         durationText = s.ideaPartnerSaidYes(widget.partnerName);
       } else {
-        durationText = widget.idea.meta.split('·').first.trim();
+        durationText = widget.idea.meta(isNo).split('·').first.trim();
       }
 
       // ── Bottom button ───────────────────────────────────────────────────────
@@ -1839,7 +1847,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                     badge,
                     const SizedBox(height: 6),
                     Text(
-                      widget.idea.title,
+                      widget.idea.title(isNo),
                       style: const TextStyle(
                         color: Color(0xFF1A1A1A),
                         fontSize: 17,

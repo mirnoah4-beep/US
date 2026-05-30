@@ -371,7 +371,7 @@ class _IdeasScreenState extends State<IdeasScreen> {
                 context: context,
                 useRootNavigator: true,
                 builder: (dCtx) => AlreadyPendingDialog(
-                  pendingTitle: p.sentIdea?.title ?? '',
+                  pendingTitle: p.sentIdea?.title(s.isNorwegian) ?? '',
                   s: s,
                 ),
               );
@@ -396,10 +396,14 @@ class _IdeasScreenState extends State<IdeasScreen> {
             if (!mounted) return;
             p.sendIdea(
               WeeklyIdea(
-                title: idea.title(isNo),
-                category: idea.category(isNo),
-                meta: idea.duration(isNo),
-                description: idea.desc(isNo),
+                titleNo: idea.titleNo,
+                titleEn: idea.titleEn,
+                categoryNo: idea.categoryNo,
+                categoryEn: idea.categoryEn,
+                metaNo: idea.durationNo,
+                metaEn: idea.durationEn,
+                descriptionNo: idea.descNo,
+                descriptionEn: idea.descEn,
                 cardColor: palette.bg,
                 tagColor: palette.tagBg,
                 tagTextColor: palette.tagText,
@@ -512,7 +516,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       await FirestoreService.addPlan(
         coupleId: appState.coupleId,
-        activity: widget.request.ideaTitle,
+        activity: widget.request.ideaTitle(s.isNorwegian),
         date: picked,
         sentBy: uid,
       );
@@ -566,6 +570,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
     if (_dismissed) return const SizedBox.shrink();
 
     final s = context.watch<LanguageProvider>().s;
+    final isNo = s.isNorwegian;
     final req = widget.request;
 
     return Container(
@@ -624,7 +629,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        req.ideaTitle,
+                        req.ideaTitle(isNo),
                         style: const TextStyle(
                           color: Color(0xFF1A1A1A),
                           fontSize: 15,
@@ -633,10 +638,10 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (req.ideaMeta.isNotEmpty) ...[
+                      if (req.ideaMeta(isNo).isNotEmpty) ...[
                         const SizedBox(height: 1),
                         Text(
-                          req.ideaMeta,
+                          req.ideaMeta(isNo),
                           style: const TextStyle(
                             color: AppTheme.textSubtle,
                             fontSize: 12,
@@ -743,6 +748,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
+    final isNo = s.isNorwegian;
     final req = request;
     final initial =
         req.senderName.isNotEmpty ? req.senderName[0].toUpperCase() : '?';
@@ -809,7 +815,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  req.ideaTitle,
+                  req.ideaTitle(isNo),
                   style: const TextStyle(
                     color: Color(0xFF1A1A1A),
                     fontSize: 18,
@@ -817,10 +823,10 @@ class _IncomingIdeaSheet extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                if (req.ideaMeta.isNotEmpty) ...[
+                if (req.ideaMeta(isNo).isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    req.ideaMeta,
+                    req.ideaMeta(isNo),
                     style: const TextStyle(
                         color: AppTheme.textSubtle, fontSize: 12),
                     textAlign: TextAlign.center,

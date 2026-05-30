@@ -15,58 +15,78 @@ final _kStaticFallback = WeeklyIdeasDoc(
   generatedBy: 'curated',
   ideas: const [
     WeeklyIdea(
-      title: 'Kort + te',
-      category: 'Minidate',
-      meta: '20 min · bare dere to',
+      titleNo: 'Kort + te',
+      titleEn: 'Cards + tea',
+      categoryNo: 'Minidate',
+      categoryEn: 'Mini-date',
+      metaNo: '20 min · bare dere to',
+      metaEn: '20 min · just you two',
       cardColor: Color(0xFFFAECE7),
       tagColor: Color(0xFFF5C4B3),
       tagTextColor: Color(0xFF712B13),
       icon: Icons.coffee_outlined,
-      description: 'Sett dere ned uten telefoner og trekk et kort hver.',
+      descriptionNo: 'Sett dere ned uten telefoner og trekk et kort hver.',
+      descriptionEn: 'Sit down without phones and draw a card each.',
       buttonColor: Color(0xFFC1544A),
     ),
     WeeklyIdea(
-      title: 'Kveldstur',
-      category: 'Ute',
-      meta: '30 min · uten telefoner',
+      titleNo: 'Kveldstur',
+      titleEn: 'Evening walk',
+      categoryNo: 'Ute',
+      categoryEn: 'Outside',
+      metaNo: '30 min · uten telefoner',
+      metaEn: '30 min · no phones',
       cardColor: Color(0xFFEAF3DE),
       tagColor: Color(0xFFC0DD97),
       tagTextColor: Color(0xFF27500A),
       icon: Icons.directions_walk_outlined,
-      description: 'En rolig tur rundt kvartalet. Bare prat og frisk luft.',
+      descriptionNo: 'En rolig tur rundt kvartalet. Bare prat og frisk luft.',
+      descriptionEn: 'A quiet walk around the block. Just talk and fresh air.',
       buttonColor: Color(0xFF3B6D11),
     ),
     WeeklyIdea(
-      title: 'Lag mat',
-      category: 'Hjemme',
-      meta: '1 time · ny oppskrift',
+      titleNo: 'Lag mat',
+      titleEn: 'Cook together',
+      categoryNo: 'Hjemme',
+      categoryEn: 'At home',
+      metaNo: '1 time · ny oppskrift',
+      metaEn: '1 hour · new recipe',
       cardColor: Color(0xFFFAEEDA),
       tagColor: Color(0xFFFAC775),
       tagTextColor: Color(0xFF633806),
       icon: Icons.tv_outlined,
-      description: 'Velg en oppskrift ingen har prøvd. Jobb sammen og ha det gøy.',
+      descriptionNo: 'Velg en oppskrift ingen har prøvd. Jobb sammen og ha det gøy.',
+      descriptionEn: 'Choose a recipe no one has tried. Work together and have fun.',
       buttonColor: Color(0xFF854F0B),
     ),
     WeeklyIdea(
-      title: 'Del en sang',
-      category: 'Koble til',
-      meta: '30 min · musikk + prat',
+      titleNo: 'Del en sang',
+      titleEn: 'Share a song',
+      categoryNo: 'Koble til',
+      categoryEn: 'Connect',
+      metaNo: '30 min · musikk + prat',
+      metaEn: '30 min · music + talk',
       cardColor: Color(0xFFE1F5EE),
       tagColor: Color(0xFF9FE1CB),
       tagTextColor: Color(0xFF085041),
       icon: Icons.style_outlined,
-      description: 'Del en sang som betyr noe nå. Fortell hvorfor.',
+      descriptionNo: 'Del en sang som betyr noe nå. Fortell hvorfor.',
+      descriptionEn: 'Share a song that means something right now. Say why.',
       buttonColor: Color(0xFF0F6E56),
     ),
     WeeklyIdea(
-      title: 'Tegn hverandre',
-      category: 'Kreativt',
-      meta: '20 min · papir + blyant',
+      titleNo: 'Tegn hverandre',
+      titleEn: 'Draw each other',
+      categoryNo: 'Kreativt',
+      categoryEn: 'Creative',
+      metaNo: '20 min · papir + blyant',
+      metaEn: '20 min · pen + paper',
       cardColor: Color(0xFFFBEAF0),
       tagColor: Color(0xFFF4C0D1),
       tagTextColor: Color(0xFF72243E),
       icon: Icons.local_cafe_outlined,
-      description: 'Sett en timer på 10 minutter og tegn den andre.',
+      descriptionNo: 'Sett en timer på 10 minutter og tegn den andre.',
+      descriptionEn: 'Set a timer for 10 minutes and draw each other.',
       buttonColor: Color(0xFF993556),
     ),
   ],
@@ -77,32 +97,61 @@ enum IdeaSendState { idle, waiting, accepted, declined }
 class IncomingIdeaRequest {
   final String requestId;
   final String senderName;
-  final String ideaTitle;
-  final String ideaMeta;
-  final String ideaDescription;
-  final String ideaCategory;
+  final String ideaTitleNo;
+  final String ideaTitleEn;
+  final String ideaMetaNo;
+  final String ideaMetaEn;
+  final String ideaDescriptionNo;
+  final String ideaDescriptionEn;
+  final String ideaCategoryNo;
+  final String ideaCategoryEn;
   final String? coverImageUrl;
   final DateTime? proposedAt;
 
   const IncomingIdeaRequest({
     required this.requestId,
     required this.senderName,
-    required this.ideaTitle,
-    required this.ideaMeta,
-    required this.ideaDescription,
-    required this.ideaCategory,
+    required this.ideaTitleNo,
+    required this.ideaTitleEn,
+    required this.ideaMetaNo,
+    required this.ideaMetaEn,
+    required this.ideaDescriptionNo,
+    required this.ideaDescriptionEn,
+    required this.ideaCategoryNo,
+    required this.ideaCategoryEn,
     this.coverImageUrl,
     this.proposedAt,
   });
 
+  String ideaTitle(bool isNorwegian) => isNorwegian
+      ? (ideaTitleNo.isNotEmpty ? ideaTitleNo : ideaTitleEn)
+      : (ideaTitleEn.isNotEmpty ? ideaTitleEn : ideaTitleNo);
+
+  String ideaMeta(bool isNorwegian) => isNorwegian
+      ? (ideaMetaNo.isNotEmpty ? ideaMetaNo : ideaMetaEn)
+      : (ideaMetaEn.isNotEmpty ? ideaMetaEn : ideaMetaNo);
+
+  String ideaDescription(bool isNorwegian) => isNorwegian
+      ? (ideaDescriptionNo.isNotEmpty ? ideaDescriptionNo : ideaDescriptionEn)
+      : (ideaDescriptionEn.isNotEmpty ? ideaDescriptionEn : ideaDescriptionNo);
+
+  String ideaCategory(bool isNorwegian) => isNorwegian
+      ? (ideaCategoryNo.isNotEmpty ? ideaCategoryNo : ideaCategoryEn)
+      : (ideaCategoryEn.isNotEmpty ? ideaCategoryEn : ideaCategoryNo);
+
   factory IncomingIdeaRequest.fromFirestore(String id, Map<String, dynamic> data) {
+    final legacyTitle = data['ideaTitle'] as String? ?? '';
     return IncomingIdeaRequest(
       requestId: id,
       senderName: data['senderName'] as String? ?? 'Din partner',
-      ideaTitle: data['ideaTitle'] as String? ?? '',
-      ideaMeta: data['ideaMeta'] as String? ?? '',
-      ideaDescription: data['ideaDescription'] as String? ?? '',
-      ideaCategory: data['ideaCategory'] as String? ?? '',
+      ideaTitleNo: data['ideaTitleNo'] as String? ?? legacyTitle,
+      ideaTitleEn: data['ideaTitleEn'] as String? ?? legacyTitle,
+      ideaMetaNo: data['ideaMetaNo'] as String? ?? data['ideaMeta'] as String? ?? '',
+      ideaMetaEn: data['ideaMetaEn'] as String? ?? data['ideaMeta'] as String? ?? '',
+      ideaDescriptionNo: data['ideaDescriptionNo'] as String? ?? data['ideaDescription'] as String? ?? '',
+      ideaDescriptionEn: data['ideaDescriptionEn'] as String? ?? data['ideaDescription'] as String? ?? '',
+      ideaCategoryNo: data['ideaCategoryNo'] as String? ?? data['ideaCategory'] as String? ?? '',
+      ideaCategoryEn: data['ideaCategoryEn'] as String? ?? data['ideaCategory'] as String? ?? '',
       coverImageUrl: data['coverImageUrl'] as String?,
       proposedAt: (data['proposedAt'] as Timestamp?)?.toDate(),
     );
@@ -184,7 +233,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
 
   Future<void> _prefetchImageUrls(List<WeeklyIdea> ideas) => Future.wait(
         ideas.map((idea) => IdeaImageService.fetchCoverUrl(
-            IdeaImageService.toId(idea.title))),
+            IdeaImageService.toId(idea.titleNo))),
       );
 
   void _triggerGenerationIfNeeded() {
@@ -240,10 +289,15 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .doc();
       _pendingRequestId = ref.id;
       await ref.set({
-        'ideaTitle': idea.title,
-        'ideaMeta': idea.meta,
-        'ideaDescription': idea.description,
-        'ideaCategory': idea.category,
+        'ideaTitle': idea.titleNo.isNotEmpty ? idea.titleNo : idea.titleEn,
+        'ideaTitleNo': idea.titleNo,
+        'ideaTitleEn': idea.titleEn,
+        'ideaCategoryNo': idea.categoryNo,
+        'ideaCategoryEn': idea.categoryEn,
+        'ideaMetaNo': idea.metaNo,
+        'ideaMetaEn': idea.metaEn,
+        'ideaDescriptionNo': idea.descriptionNo,
+        'ideaDescriptionEn': idea.descriptionEn,
         'senderName': senderName,
         'sentBy': userId,
         'recipientId': partnerId,
@@ -402,16 +456,23 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
   }
 
-  WeeklyIdea _ideaFromRequestData(Map<String, dynamic> data) => WeeklyIdea(
-        title: data['ideaTitle'] as String? ?? '',
-        category: data['ideaCategory'] as String? ?? '',
-        meta: data['ideaMeta'] as String? ?? '',
-        description: data['ideaDescription'] as String? ?? '',
-        cardColor: const Color(0xFFFAF7F4),
-        tagColor: const Color(0xFFE5DDD5),
-        tagTextColor: const Color(0xFF6B5B55),
-        icon: Icons.star_outline_rounded,
-      );
+  WeeklyIdea _ideaFromRequestData(Map<String, dynamic> data) {
+    final legacyTitle = data['ideaTitle'] as String? ?? '';
+    return WeeklyIdea(
+      titleNo: data['ideaTitleNo'] as String? ?? legacyTitle,
+      titleEn: data['ideaTitleEn'] as String? ?? legacyTitle,
+      categoryNo: data['ideaCategoryNo'] as String? ?? data['ideaCategory'] as String? ?? '',
+      categoryEn: data['ideaCategoryEn'] as String? ?? data['ideaCategory'] as String? ?? '',
+      metaNo: data['ideaMetaNo'] as String? ?? data['ideaMeta'] as String? ?? '',
+      metaEn: data['ideaMetaEn'] as String? ?? data['ideaMeta'] as String? ?? '',
+      descriptionNo: data['ideaDescriptionNo'] as String? ?? data['ideaDescription'] as String? ?? '',
+      descriptionEn: data['ideaDescriptionEn'] as String? ?? data['ideaDescription'] as String? ?? '',
+      cardColor: const Color(0xFFFAF7F4),
+      tagColor: const Color(0xFFE5DDD5),
+      tagTextColor: const Color(0xFF6B5B55),
+      icon: Icons.star_outline_rounded,
+    );
+  }
 
   String? _incomingUserId;
 
