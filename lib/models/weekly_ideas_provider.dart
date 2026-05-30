@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'weekly_idea.dart';
+import '../services/idea_image_service.dart';
 
 // Shown immediately while Firebase loads or when unavailable.
 final _kStaticFallback = WeeklyIdeasDoc(
@@ -171,11 +172,20 @@ class WeeklyIdeasProvider extends ChangeNotifier {
 
     final newDoc = WeeklyIdeasDoc.fromFirestore(snap.data()!);
     _doc = newDoc;
-    if (!newDoc.isStale) _loading = false;
-    notifyListeners();
+    // Fetch all cover URLs in parallel BEFORE notifying so carousel cards
+    // sync-seed _imageUrl immediately and never render without a URL.
+    _prefetchImageUrls(newDoc.ideas.take(4).toList()).whenComplete(() {
+      if (!newDoc.isStale) _loading = false;
+      notifyListeners();
+    });
 
     if (newDoc.isStale) _triggerGenerationIfNeeded();
   }
+
+  Future<void> _prefetchImageUrls(List<WeeklyIdea> ideas) => Future.wait(
+        ideas.map((idea) => IdeaImageService.fetchCoverUrl(
+            IdeaImageService.toId(idea.title))),
+      );
 
   void _triggerGenerationIfNeeded() {
     if (_generationPending || _coupleId == null) return;

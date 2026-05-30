@@ -823,6 +823,21 @@ class _WeeklyIdeasCarousel extends StatefulWidget {
 class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   final _controller = PageController();
   int _page = 0;
+  bool _precaching = false;
+  String _precachedKey = '';
+
+  Future<void> _precacheAllImages(
+      BuildContext ctx, List<WeeklyIdea> ideas) =>
+      Future.wait(ideas.map((idea) async {
+        final url = IdeaImageService.getCachedUrl(
+            IdeaImageService.toId(idea.title));
+        if (url != null) {
+          try {
+            await precacheImage(
+                CachedNetworkImageProvider(url, maxWidth: 600), ctx);
+          } catch (_) {}
+        }
+      }));
 
   @override
   void initState() {
@@ -880,6 +895,18 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
       });
     }
 
+    final key = ideas.map((e) => e.title).join(',');
+    final imagesReady = _precachedKey == key;
+
+    if (ideas.isNotEmpty && !_precaching && !imagesReady) {
+      _precaching = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _precacheAllImages(context, ideas);
+        if (mounted) setState(() { _precachedKey = key; _precaching = false; });
+      });
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -895,7 +922,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
               ),
             ),
             const Spacer(),
-            if (ideas.isNotEmpty)
+            if (ideas.isNotEmpty && imagesReady)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(ideas.length, (i) {
@@ -916,7 +943,9 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           ],
         ),
         const SizedBox(height: 10),
-        if (ideas.isEmpty)
+        if (!imagesReady)
+          const SizedBox(height: 160)
+        else if (ideas.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
@@ -943,7 +972,6 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                   userId: appState.userId,
                   displayName: appState.displayName,
                   partnerName: appState.partnerName,
-
                 ),
               ),
             ),
@@ -1123,6 +1151,7 @@ class _IdeaPageCard extends StatefulWidget {
 class _IdeaPageCardState extends State<_IdeaPageCard>
     with TickerProviderStateMixin {
   String? _imageUrl;
+  bool _urlWasKnownAtInit = false;
   bool _declinedShown = false;
   late AnimationController _dotCtrl;
   late AnimationController _slideCtrl;
@@ -1133,7 +1162,9 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   @override
   void initState() {
     super.initState();
-    _loadImage();
+    _imageUrl = IdeaImageService.getCachedUrl(IdeaImageService.toId(widget.idea.title));
+    _urlWasKnownAtInit = _imageUrl != null;
+    if (_imageUrl == null) _loadImage();
     _dotCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -1692,12 +1723,17 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                         ? CachedNetworkImage(
                             imageUrl: _imageUrl!,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) =>
-                                Container(color: const Color(0xFFE8D5C0)),
+                            fadeInDuration: Duration.zero,
+                            fadeOutDuration: Duration.zero,
+                            memCacheWidth: 600,
+                            placeholder: _urlWasKnownAtInit
+                                ? null
+                                : (context, url) =>
+                                    Container(color: AppTheme.white),
                             errorWidget: (context, url, error) =>
-                                Container(color: const Color(0xFFE8D5C0)),
+                                Container(color: AppTheme.white),
                           )
-                        : Container(color: const Color(0xFFE8D5C0)),
+                        : Container(color: AppTheme.white),
                   ),
                 ),
               ),

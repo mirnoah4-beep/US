@@ -13,6 +13,9 @@ class IdeaImageService {
   static String toId(String title) =>
       title.toLowerCase().trim().replaceAll(RegExp(r'[^a-z0-9æøå]+'), '_');
 
+  static String? getCachedUrl(String ideaId) =>
+      _urlCache.containsKey(ideaId) ? _urlCache[ideaId] : null;
+
   static Future<String?> fetchCoverUrl(String ideaId) async {
     if (_urlCache.containsKey(ideaId)) return _urlCache[ideaId];
     try {
