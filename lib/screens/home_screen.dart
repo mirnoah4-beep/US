@@ -1137,14 +1137,13 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
                     Text(
                       widget.idea.title,
                       style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 16,
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
                         fontFamily: 'Georgia',
                         height: 1.2,
                       ),
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1154,8 +1153,6 @@ class _IdeaPageCardState extends State<_IdeaPageCard> {
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const Spacer(),
                     GestureDetector(
