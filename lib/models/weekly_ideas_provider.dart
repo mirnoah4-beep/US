@@ -345,6 +345,53 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> checkOutgoingRequests(String coupleId, String userId) async {
+    if (_sendState != IdeaSendState.idle) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('ideaRequests')
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      final outgoing = snap.docs
+          .where((d) => (d.data()['sentBy'] as String?) == userId)
+          .toList();
+
+      if (outgoing.isEmpty) return;
+
+      final doc = outgoing.first;
+      final data = doc.data();
+
+      final sentAt = data['sentAt'] as Timestamp?;
+      if (sentAt != null && DateTime.now().difference(sentAt.toDate()).inHours >= 24) {
+        doc.reference.update({'status': 'expired'}).catchError((_) {});
+        return;
+      }
+
+      _pendingRequestId = doc.id;
+      _sentIdea = _ideaFromRequestData(data);
+      _sendState = IdeaSendState.waiting;
+      _requestSub?.cancel();
+      _requestSub = doc.reference.snapshots().listen(_onRequestSnapshot, onError: (_) {});
+      notifyListeners();
+    } catch (e) {
+      debugPrint('checkOutgoingRequests failed: $e');
+    }
+  }
+
+  WeeklyIdea _ideaFromRequestData(Map<String, dynamic> data) => WeeklyIdea(
+        title: data['ideaTitle'] as String? ?? '',
+        category: data['ideaCategory'] as String? ?? '',
+        meta: data['ideaMeta'] as String? ?? '',
+        description: data['ideaDescription'] as String? ?? '',
+        cardColor: const Color(0xFFFAF7F4),
+        tagColor: const Color(0xFFE5DDD5),
+        tagTextColor: const Color(0xFF6B5B55),
+        icon: Icons.star_outline_rounded,
+      );
+
   String? _incomingUserId;
 
   Future<void> checkIncomingRequests(String coupleId, String userId) async {

@@ -140,7 +140,7 @@ class _LastTimeScreenState extends State<LastTimeScreen> {
         Text(
           s.lastTimeSubtitle,
           style: const TextStyle(
-            color: Color(0xFF888888),
+            color: AppTheme.textSubtle,
             fontSize: 13,
           ),
         ),

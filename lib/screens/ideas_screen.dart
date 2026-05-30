@@ -254,7 +254,7 @@ class _IdeasScreenState extends State<IdeasScreen> {
                     Text(
                       s.ideasSubtitle,
                       style: const TextStyle(
-                        color: Color(0xFF888888),
+                        color: AppTheme.textSubtle,
                         fontSize: 13,
                       ),
                     ),
@@ -306,7 +306,7 @@ class _IdeasScreenState extends State<IdeasScreen> {
                 child: Center(
                   child: Text(
                     s.ideasEmpty,
-                    style: const TextStyle(color: Color(0xFF888888), fontSize: 15),
+                    style: const TextStyle(color: AppTheme.textSubtle, fontSize: 15),
                   ),
                 ),
               )
@@ -596,7 +596,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                         Text(
                           req.ideaMeta,
                           style: const TextStyle(
-                            color: Color(0xFF888888),
+                            color: AppTheme.textSubtle,
                             fontSize: 12,
                           ),
                         ),
@@ -649,7 +649,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                 child: OutlinedButton(
                   onPressed: _responding ? null : _decline,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF888888),
+                    foregroundColor: AppTheme.textSubtle,
                     side: const BorderSide(color: Color(0xFFE0D9D0)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
@@ -762,7 +762,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
               children: [
                 Text(
                   s.ideaFromPartner(req.senderName),
-                  style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+                  style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 6),
@@ -780,7 +780,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
                   Text(
                     req.ideaMeta,
                     style: const TextStyle(
-                        color: Color(0xFF888888), fontSize: 12),
+                        color: AppTheme.textSubtle, fontSize: 12),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -789,7 +789,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
                   Text(
                     s.ideaProposedAt(req.proposedAt!),
                     style: const TextStyle(
-                        color: Color(0xFF888888), fontSize: 12, fontWeight: FontWeight.w500),
+                        color: AppTheme.textSubtle, fontSize: 12, fontWeight: FontWeight.w500),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -817,7 +817,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: onDecline,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF888888),
+                          foregroundColor: AppTheme.textSubtle,
                           side: const BorderSide(color: Color(0xFFE0D9D0)),
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
@@ -1145,7 +1145,7 @@ class _IdeaDetailSheet extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${idea.duration(isNo)} · ${idea.category(isNo)}',
-            style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+            style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13),
           ),
           const SizedBox(height: 14),
           Container(

@@ -162,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Icon(
                 Icons.arrow_back_ios_new,
                 size: 16,
-                color: Color(0xFF888888),
+                color: AppTheme.textSubtle,
               ),
             ),
           ),

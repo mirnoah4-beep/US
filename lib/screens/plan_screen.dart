@@ -137,7 +137,7 @@ class _PlanScreenState extends State<PlanScreen> {
             const SizedBox(height: 24),
             Text(s.planTitle, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 26, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
-            Text(s.planSubtitle, style: const TextStyle(color: Color(0xFF888888), fontSize: 13)),
+            Text(s.planSubtitle, style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13)),
             const SizedBox(height: 22),
             if (incoming != null) ...[
               Text(
@@ -277,7 +277,7 @@ class _UpcomingCard extends StatelessWidget {
         children: [
           const Icon(Icons.calendar_today_outlined, color: Color(0xFFD3D1C7), size: 32),
           const SizedBox(height: 12),
-          Text(s.planNoUpcomingTitle, style: const TextStyle(color: Color(0xFF888888), fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(s.planNoUpcomingTitle, style: const TextStyle(color: AppTheme.textSubtle, fontSize: 14, fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
           Text(s.planNoUpcomingSub, style: const TextStyle(color: Color(0xFFB4B2A9), fontSize: 12)),
         ],
@@ -341,7 +341,7 @@ class _UpcomingRow extends StatelessWidget {
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A))),
                 const SizedBox(height: 2),
                 Text(s.planFormatDate(date.date),
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF888888))),
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle)),
               ],
             ),
           ),
@@ -422,7 +422,7 @@ class _PlanDateSheetState extends State<_PlanDateSheet> {
           ),
           Text(s.planSheetTitle, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: Color(0xFF1A1A1A))),
           const SizedBox(height: 4),
-          Text(s.planSheetSub, style: const TextStyle(fontSize: 13, color: Color(0xFF888888))),
+          Text(s.planSheetSub, style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle)),
           const SizedBox(height: 16),
           _buildGrid(s),
           if (_selected == 'other') ...[
@@ -503,7 +503,7 @@ class _PlanDateSheetState extends State<_PlanDateSheet> {
         ),
         child: Row(
           children: [
-            Icon(act.icon, size: 22, color: isSelected ? const Color(0xFFC1544A) : const Color(0xFF888888)),
+            Icon(act.icon, size: 22, color: isSelected ? const Color(0xFFC1544A) : AppTheme.textSubtle),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

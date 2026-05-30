@@ -8,7 +8,8 @@ class AppTheme {
   static const Color accentGreen = Color(0xFF4A7C59);
   static const Color accentGreenLight = Color(0xFFD4EAD9);
   static const Color textPrimary = Color(0xFF2C2420);
-  static const Color textSecondary = Color(0xFF8C7B72);
+  static const Color textSecondary = Color(0xFF6B5B55);
+  static const Color textSubtle = Color(0xFF6B6B6B);
   static const Color textMuted = Color(0xFFB0A090);
   static const Color divider = Color(0xFFE5DDD5);
   static const Color white = Color(0xFFFFFFFF);

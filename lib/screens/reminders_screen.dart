@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/strings.dart';
 import '../models/language_provider.dart';
 import '../models/reminders_provider.dart';
+import '../theme/app_theme.dart';
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
@@ -65,7 +66,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
               const SizedBox(height: 6),
               Text(
                 s.remindersSubtitle,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle),
               ),
               const SizedBox(height: 28),
               _SectionLabel(s.remindersEveningSectionLabel),
@@ -196,7 +197,7 @@ class _TopBar extends StatelessWidget {
               child: Icon(
                 Icons.arrow_back_ios_new,
                 size: 16,
-                color: Color(0xFF888888),
+                color: AppTheme.textSubtle,
               ),
             ),
           ),
@@ -308,7 +309,7 @@ class _ToggleRow extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+        style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13),
       ),
       trailing: Switch(
         value: value,
@@ -365,7 +366,7 @@ class _TimeRow extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+        style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13),
       ),
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -426,7 +427,7 @@ class _DayPickerRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: sel ? Colors.white : const Color(0xFF888888),
+                    color: sel ? Colors.white : AppTheme.textSubtle,
                   ),
                 ),
               ),

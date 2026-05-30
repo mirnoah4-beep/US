@@ -323,7 +323,7 @@ class _MediatorChatScreenState extends State<MediatorChatScreen>
               ),
               child: const Center(
                 child: Icon(Icons.arrow_back_ios_new,
-                    size: 15, color: Color(0xFF888888)),
+                    size: 15, color: AppTheme.textSubtle),
               ),
             ),
           ),
@@ -358,7 +358,7 @@ class _MediatorChatScreenState extends State<MediatorChatScreen>
                   'Privat · bare dere to',
                   style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF888888),
+                      color: AppTheme.textSubtle,
                       fontWeight: FontWeight.w400),
                 ),
               ],

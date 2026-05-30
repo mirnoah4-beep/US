@@ -256,6 +256,7 @@ class _MainShellState extends State<MainShell> {
     if (coupleId.isNotEmpty && userId.isNotEmpty && coupleId != _lastCheckedCoupleId) {
       _lastCheckedCoupleId = coupleId;
       context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
+      context.read<WeeklyIdeasProvider>().checkOutgoingRequests(coupleId, userId);
     }
   }
 

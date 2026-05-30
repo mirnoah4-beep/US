@@ -1418,7 +1418,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
             child: GestureDetector(
               onTap: _goBack,
               child: const Icon(Icons.arrow_back_rounded,
-                  size: 18, color: Color(0xFF888888)),
+                  size: 18, color: AppTheme.textSubtle),
             ),
           ),
           // All content vertically centered as a group
@@ -1796,7 +1796,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                     Text(
                       durationText,
                       style: TextStyle(
-                        color: const Color(0xFF888888),
+                        color: AppTheme.textSubtle,
                         fontSize: isPending ? 11.0 : 12.0,
                         fontWeight: FontWeight.w400,
                       ),

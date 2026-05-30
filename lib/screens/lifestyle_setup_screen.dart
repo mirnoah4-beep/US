@@ -184,7 +184,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                 ),
                 child: const Center(
                   child: Icon(Icons.arrow_back_ios_new,
-                      size: 16, color: Color(0xFF888888)),
+                      size: 16, color: AppTheme.textSubtle),
                 ),
               ),
             )
@@ -194,7 +194,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
           TextButton(
             onPressed: _saving ? null : _skip,
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF888888),
+              foregroundColor: AppTheme.textSubtle,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -379,7 +379,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                   const SizedBox(height: 2),
                   Text(
                     _s.lifestyleHaveKidsSub,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
+                    style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle),
                   ),
                 ],
               ),
@@ -513,7 +513,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
             Text(
               _s.lifestyleDoneBody,
               style: const TextStyle(
-                  fontSize: 15, color: Color(0xFF888888), height: 1.5),
+                  fontSize: 15, color: AppTheme.textSubtle, height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 36),
@@ -589,7 +589,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                             size: 20,
                             color: selected
                                 ? const Color(0xFFC1544A)
-                                : const Color(0xFF888888)),
+                                : AppTheme.textSubtle),
                       ),
                       const Spacer(),
                       _checkCircle(selected),
@@ -609,7 +609,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                   const SizedBox(height: 2),
                   Text(subtitle,
                       style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF888888))),
+                          fontSize: 12, color: AppTheme.textSubtle)),
                 ],
               )
             : Row(
@@ -628,7 +628,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                         size: 22,
                         color: selected
                             ? const Color(0xFFC1544A)
-                            : const Color(0xFF888888)),
+                            : AppTheme.textSubtle),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -649,7 +649,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                         Text(subtitle,
                             style: const TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF888888))),
+                                color: AppTheme.textSubtle)),
                       ],
                     ),
                   ),
@@ -780,7 +780,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
     return Text(
       text,
       style: const TextStyle(
-          fontSize: 15, color: Color(0xFF888888), height: 1.4),
+          fontSize: 15, color: AppTheme.textSubtle, height: 1.4),
     );
   }
 }

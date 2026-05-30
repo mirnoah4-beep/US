@@ -252,7 +252,7 @@ class _LogMomentSheetState extends State<LogMomentSheet> {
           children: [
             Icon(
               opt.icon,
-              color: isSelected ? const Color(0xFFC1544A) : const Color(0xFF888888),
+              color: isSelected ? const Color(0xFFC1544A) : AppTheme.textSubtle,
               size: 18,
             ),
             const SizedBox(width: 8),
