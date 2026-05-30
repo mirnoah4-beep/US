@@ -25,15 +25,45 @@ class WeeklyIdea {
   });
 
   factory WeeklyIdea.fromJson(Map<String, dynamic> json) {
+    String tryStr(List<String> keys) {
+      for (final k in keys) {
+        final v = json[k];
+        if (v is String && v.isNotEmpty) return v;
+      }
+      return '';
+    }
+
+    // If no known key has a value, scan the whole map so the debug card
+    // can reveal the actual Firestore field names.
+    String titleOrDiag() {
+      final val = tryStr([
+        'titleNo', 'titleEn', 'title', 'name', 'nameNo', 'nameEn',
+        'text', 'ideaTitle', 'idea', 'header', 'heading',
+      ]);
+      if (val.isNotEmpty) return val;
+      final pairs = json.entries
+          .where((e) => e.value is String && (e.value as String).isNotEmpty)
+          .map((e) => '${e.key}=${e.value}')
+          .take(3)
+          .join(' | ');
+      if (pairs.isNotEmpty) return pairs;
+      return json.isEmpty ? 'EMPTY_MAP' : 'KEYS:${json.keys.join(",")}';
+    }
+
     return WeeklyIdea(
-      title: json['title'] as String? ?? '',
-      category: json['category'] as String? ?? '',
-      meta: json['meta'] as String? ?? '',
+      title: titleOrDiag(),
+      category: tryStr([
+        'category', 'categoryNo', 'categoryEn', 'type', 'tag', 'label',
+      ]),
+      meta: tryStr([
+        'duration', 'durationNo', 'durationEn', 'meta', 'time',
+        'timeEst', 'timeEstimate', 'length',
+      ]),
       cardColor: _hexColor(json['cardColor'] as String? ?? '#FAECE7'),
       tagColor: _hexColor(json['tagColor'] as String? ?? '#F5C4B3'),
       tagTextColor: _hexColor(json['tagTextColor'] as String? ?? '#712B13'),
       icon: _iconFromName(json['iconName'] as String? ?? 'star_outline'),
-      description: json['description'] as String? ?? '',
+      description: tryStr(['description', 'descriptionNo', 'descriptionEn', 'desc']),
       buttonColor: _hexColor(json['buttonColor'] as String? ?? '#C1544A'),
     );
   }

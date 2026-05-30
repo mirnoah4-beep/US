@@ -17,6 +17,7 @@
 //   iOS — ios/Runner/Info.plist: no extra keys needed for local notifications
 //   iOS — call requestPermissions() once (done in init() below)
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // Evening reminder IDs: 100–106 (one per weekday, Ma=100 … Sø=106)
@@ -28,6 +29,8 @@ const _kEveningChannelId = 'evening_reminder';
 const _kEveningChannelName = 'Kveldsreminder';
 const _kWeeklyChannelId = 'weekly_plan';
 const _kWeeklyChannelName = 'Ukentlig planlegging';
+const _kIdeaChannelId = 'idea_requests';
+const _kIdeaChannelName = 'Idéforespørsler';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
@@ -48,7 +51,53 @@ class NotificationService {
     await _plugin.initialize(
       const InitializationSettings(android: androidSettings, iOS: iosSettings),
     );
+    // Create Android notification channels (no-op on iOS / older Android)
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _kIdeaChannelId,
+        _kIdeaChannelName,
+        importance: Importance.high,
+      ),
+    );
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _kEveningChannelId,
+        _kEveningChannelName,
+        importance: Importance.high,
+      ),
+    );
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _kWeeklyChannelId,
+        _kWeeklyChannelName,
+        importance: Importance.defaultImportance,
+      ),
+    );
     _initialized = true;
+  }
+
+  /// Show an FCM message as a local heads-up notification (foreground only).
+  Future<void> showFcmMessage(RemoteMessage message) async {
+    if (!_initialized) await init();
+    final n = message.notification;
+    if (n == null) return;
+    await _plugin.show(
+      message.hashCode,
+      n.title,
+      n.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _kIdeaChannelId,
+          _kIdeaChannelName,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
   }
 
   // Schedule one repeating notification per selected weekday at eveningTime.

@@ -417,19 +417,157 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
 
   Widget _buildDisconnectCard(
       BuildContext context, AppStrings s, AppState appState) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ListTile(
+    final requested = appState.disconnectRequestedBy;
+    final myId = appState.userId;
+    final partnerId = appState.partnerId;
+    final partnerName =
+        appState.partnerName.isNotEmpty ? appState.partnerName : '?';
+
+    Widget cardChild;
+
+    if (requested == myId) {
+      // ── I requested: show waiting state ──────────────────────────────────
+      cardChild = Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(
+                    Icons.hourglass_top_rounded,
+                    color: Color(0xFF856404),
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    s.ourRelationshipWaitingFor(partnerName),
+                    style: const TextStyle(
+                      color: Color(0xFF856404),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () =>
+                    _cancelDisconnectRequest(context, appState.coupleId),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF5F5E5A),
+                  side: const BorderSide(color: Color(0xFFE0D9D0)),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  s.ourRelationshipCancelRequest,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (requested == partnerId && partnerId.isNotEmpty) {
+      // ── Partner requested: show approval banner ───────────────────────────
+      cardChild = Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFCEBEB),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(
+                    Icons.link_off,
+                    color: Color(0xFFA32D2D),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    s.ourRelationshipDisconnectRequestedBy(partnerName),
+                    style: const TextStyle(
+                      color: Color(0xFF1A1A1A),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () =>
+                        _approveDisconnect(context, s, appState),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFA32D2D),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      s.ourRelationshipDisconnectApprove,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        _cancelDisconnectRequest(context, appState.coupleId),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF5F5E5A),
+                      side: const BorderSide(color: Color(0xFFE0D9D0)),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      s.ourRelationshipDeclineRequest,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    } else {
+      // ── No request: show disconnect button ────────────────────────────────
+      cardChild = ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(
@@ -453,13 +591,30 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        onTap: () => _confirmDisconnect(context, s, appState.partnerName),
+        onTap: () => _requestDisconnect(context, s, partnerName, appState),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
+      child: cardChild,
     );
   }
 
-  Future<void> _confirmDisconnect(
-      BuildContext context, AppStrings s, String partnerName) async {
+  // ── Confirm and send request ───────────────────────────────────────────────
+
+  Future<void> _requestDisconnect(BuildContext context, AppStrings s,
+      String partnerName, AppState appState) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => Dialog(
@@ -496,8 +651,7 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                s.settingsDisconnectBody(
-                    partnerName.isEmpty ? '?' : partnerName),
+                s.settingsDisconnectBody(partnerName),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 14,
@@ -552,11 +706,28 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
     );
     if (confirmed != true || !context.mounted) return;
 
-    final appState = context.read<AppState>();
+    final coupleId = appState.coupleId;
+    final userId = appState.userId;
+    if (coupleId.isEmpty) return;
+
+    try {
+      await FirestoreService.requestDisconnect(coupleId, userId);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  // ── Partner approved — execute disconnect ─────────────────────────────────
+
+  Future<void> _approveDisconnect(
+      BuildContext context, AppStrings s, AppState appState) async {
     final coupleId = appState.coupleId;
     final partnerId = appState.partnerId;
     if (coupleId.isEmpty) return;
-
     try {
       await FirestoreService.disconnectCouple(
         coupleId: coupleId,
@@ -566,10 +737,23 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  // ── Cancel / decline request ──────────────────────────────────────────────
+
+  Future<void> _cancelDisconnectRequest(
+      BuildContext context, String coupleId) async {
+    if (coupleId.isEmpty) return;
+    try {
+      await FirestoreService.clearDisconnectRequest(coupleId);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
         );
       }
     }

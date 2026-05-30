@@ -23,7 +23,7 @@ class AppStrings {
   String get homeTonightTitle => isNorwegian ? 'Kort + te' : 'Cards + tea';
   String get homeTonightSubtitle => isNorwegian ? '20 min · bare dere to' : '20 min · just you two';
   String get homeSendIdea => isNorwegian ? 'Send idé' : 'Send idea';
-  String get homeWriteOwn => isNorwegian ? 'Skriv din egen' : 'Write your own';
+  String get homeWriteOwn => isNorwegian ? 'Skriv din egen idé' : 'Write your own idea';
   String homeFormattedDate(DateTime date) {
     final day = planFullDayNames[date.weekday - 1];
     final month = planMonthNamesShort[date.month - 1];
@@ -84,6 +84,18 @@ class AppStrings {
   String get ideaAcceptButtonText => isNorwegian ? 'Ja, la oss gjøre det!' : "Yes, let's do it!";
   String get ideaDeclineButtonText => isNorwegian ? 'Kanskje senere' : 'Maybe later';
   String get ideaDoneAddedPlan => isNorwegian ? 'Ferdig! Lagt til ukens plan' : "Done! Added to this week's plan";
+  String get ideaAccept => isNorwegian ? 'Godkjenn' : 'Accept';
+  String get ideaDecline => isNorwegian ? 'Avslå' : 'Decline';
+  String get ideasPendingSection => isNorwegian ? 'Forespørsel fra partner' : 'Request from partner';
+  String get ideaAddToPlanDialogTitle => isNorwegian ? 'Legg til i planen?' : 'Add to your plan?';
+  String ideaAddToPlanDialogBody(String title) => isNorwegian
+      ? 'Vil dere sette av en dato for «$title»?'
+      : 'Want to pick a date for "$title"?';
+  String get ideaAddToPlanConfirm => isNorwegian ? 'Velg dato' : 'Pick a date';
+  String get ideaSkipPlan => isNorwegian ? 'Hopp over' : 'Skip';
+  String get ideasSentToPartner => isNorwegian ? 'Idé sendt til partner!' : 'Idea sent to your partner!';
+  String get ideasAlreadySent => isNorwegian ? 'Allerede én forespørsel på vent' : 'A request is already pending';
+  String get ideaLater => isNorwegian ? 'Senere' : 'Later';
 
   // ── Last Time Screen ────────────────────────────────────────────────────
   String get lastTimeTitle => isNorwegian ? 'Sist gang' : 'Last time';
@@ -191,6 +203,9 @@ class AppStrings {
   String get ideasFilter1Hour => isNorwegian ? '1 time+' : '1 hour+';
   String get ideasSaveLater => isNorwegian ? 'Lagre til senere' : 'Save for later';
   String get ideasDismiss => isNorwegian ? 'Avbryt' : 'Dismiss';
+  String get adminUploadCover => isNorwegian ? 'Last opp forsidebilde' : 'Upload cover image';
+  String get adminUploading => isNorwegian ? 'Laster opp…' : 'Uploading…';
+  String get adminUploadSuccess => isNorwegian ? 'Forsidebilde oppdatert' : 'Cover updated';
   String get ideasEmpty => isNorwegian ? 'Ingen ideer i denne kategorien.' : 'No ideas in this category.';
   String get ideasSuggestionSent => isNorwegian ? 'Forslag sendt til partneren din!' : 'Suggestion sent to your partner!';
   String get ideaSendLabel => isNorwegian ? 'Send' : 'Send';
@@ -533,6 +548,10 @@ class AppStrings {
       isNorwegian ? 'Bekreft frakobling' : 'Confirm disconnect';
   String get ourRelationshipCancelRequest =>
       isNorwegian ? 'Avbryt forespørsel' : 'Cancel request';
+  String ourRelationshipWaitingFor(String name) =>
+      isNorwegian ? 'Venter på $name...' : 'Waiting for $name...';
+  String get ourRelationshipDeclineRequest =>
+      isNorwegian ? 'Avslå' : 'Decline';
 
   // ── Lifestyle Setup Screen ─────────────────────────────────────────────────
   String get lifestyleTitle => isNorwegian ? 'Deres hverdag' : 'Your lifestyle';
@@ -576,6 +595,12 @@ class AppStrings {
       ? 'Vi bruker dette til å lage idéer som faktisk passer hverdagen deres. Du kan endre dette når som helst under innstillinger.'
       : 'We use this to create ideas that actually fit your everyday life. You can change this at any time in settings.';
   String get lifestyleBackToApp => isNorwegian ? 'Tilbake til appen' : 'Back to the app';
+
+  // ── Name Screen ────────────────────────────────────────────────────────
+  String get nameScreenTitle => isNorwegian ? 'Hva heter du?' : 'What\'s your name?';
+  String get nameScreenSubtitle => isNorwegian ? 'Partneren din ser dette.' : 'Your partner will see this.';
+  String get nameScreenHint => isNorwegian ? 'Fornavnet ditt' : 'Your first name';
+  String get nameScreenContinue => isNorwegian ? 'Fortsett' : 'Continue';
 
   // ── Couple Setup Screen ─────────────────────────────────────────────────
   String get coupleSetupTitle => isNorwegian ? 'Paroppset' : 'Couple setup';

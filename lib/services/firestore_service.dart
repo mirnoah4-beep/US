@@ -204,6 +204,12 @@ class FirestoreService {
     });
   }
 
+  static Future<void> requestDisconnect(String coupleId, String userId) =>
+      coupleRef(coupleId).update({'disconnectRequestedBy': userId});
+
+  static Future<void> clearDisconnectRequest(String coupleId) =>
+      coupleRef(coupleId).update({'disconnectRequestedBy': null});
+
   /// Ends the couple relationship atomically.
   /// Sets status to 'ended' and clears coupleId on both user docs.
   static Future<void> disconnectCouple({

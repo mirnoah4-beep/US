@@ -20,9 +20,11 @@ import 'screens/home_screen.dart';
 import 'screens/ideas_screen.dart';
 import 'screens/last_time_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/name_screen.dart';
 import 'screens/plan_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
 @pragma('vm:entry-point')
@@ -119,6 +121,12 @@ class AuthGate extends StatelessWidget {
             }
 
             final userData = UserModel.fromFirestore(userDoc);
+
+            // No name yet — must set before anything else.
+            if (userData.displayName.isEmpty) {
+              return NameScreen(uid: user.uid);
+            }
+
             final coupleId = userData.coupleId;
 
             // No couple — go to setup.
@@ -252,12 +260,46 @@ class _MainShellState extends State<MainShell> {
         FirestoreService.saveFcmToken(currentUid, newToken).catchError((_) {});
       }
     });
+
+    // Init local notifications plugin + create Android channels
+    await NotificationService().init();
+
+    // Foreground: FCM delivers silently — show a local heads-up notification
+    FirebaseMessaging.onMessage.listen((message) {
+      NotificationService().showFcmMessage(message);
+    });
+
+    // Tap: app was in background when notification arrived
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _handleNotificationTap(message.data);
+    });
+
+    // Tap: app was terminated when notification arrived
+    final initial = await messaging.getInitialMessage();
+    if (initial != null) _handleNotificationTap(initial.data);
+  }
+
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final appState = context.read<AppState>();
+      if (data['type'] == 'idea_request') {
+        appState.requestIdeaSheet();
+        final coupleId = appState.coupleId;
+        final userId = appState.userId;
+        if (coupleId.isNotEmpty && userId.isNotEmpty) {
+          context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
+        }
+      }
+      appState.requestTabNavigation(0);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
     final appState = context.watch<AppState>();
+    final pendingIdeas = context.watch<WeeklyIdeasProvider>().pendingIncomingCount;
     if (appState.pendingTabIndex != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -324,8 +366,16 @@ class _MainShellState extends State<MainShell> {
                   label: s.navLastTime,
                 ),
                 BottomNavigationBarItem(
-                  icon: const Icon(Icons.lightbulb_outline_rounded),
-                  activeIcon: const Icon(Icons.lightbulb_rounded),
+                  icon: Badge(
+                    isLabelVisible: pendingIdeas > 0,
+                    label: Text('$pendingIdeas'),
+                    child: const Icon(Icons.lightbulb_outline_rounded),
+                  ),
+                  activeIcon: Badge(
+                    isLabelVisible: pendingIdeas > 0,
+                    label: Text('$pendingIdeas'),
+                    child: const Icon(Icons.lightbulb_rounded),
+                  ),
                   label: s.navIdeas,
                 ),
                 BottomNavigationBarItem(

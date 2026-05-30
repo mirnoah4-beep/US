@@ -2,8 +2,7 @@ import * as admin from 'firebase-admin';
 import OpenAI from 'openai';
 
 // Set key via: firebase functions:secrets:set OPENAI_API_KEY
-// Then access in v2 functions via: process.env.OPENAI_API_KEY
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Instantiated lazily inside callOpenAI so module load never crashes without the key.
 
 const db = admin.firestore;
 
@@ -233,6 +232,7 @@ palette_outlined, theater_comedy_outlined`;
 }
 
 async function callOpenAI(prompt: string): Promise<IdeaObject[]> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const required = ['title', 'category', 'meta', 'cardColor', 'tagColor', 'tagTextColor', 'iconName', 'description'];
 
   for (let attempt = 0; attempt < 2; attempt++) {

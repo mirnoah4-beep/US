@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -148,16 +147,17 @@ class _OverlappingAvatars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final avatarPath = appState.userAvatarPath;
+    final userAvatarUrl = appState.userAvatarUrl;
+    final partnerAvatarUrl = appState.partnerAvatarUrl;
     final myInitial = appState.displayName.isNotEmpty
         ? appState.displayName[0].toUpperCase()
-        : 'N';
+        : '?';
     final partnerInitial = appState.partnerName.isNotEmpty
         ? appState.partnerName[0].toUpperCase()
-        : 'S';
+        : '?';
 
-    const diameter = 48.0;
-    const overlap = 14.0;
+    const diameter = 52.0;
+    const overlap = 16.0;
     const totalWidth = diameter * 2 - overlap;
 
     return SizedBox(
@@ -172,7 +172,7 @@ class _OverlappingAvatars extends StatelessWidget {
               background: const Color(0xFFEBD2D2),
               foreground: AppTheme.accentRose,
               diameter: diameter,
-              imagePath: avatarPath,
+              imageUrl: userAvatarUrl,
             ),
           ),
           Positioned(
@@ -182,6 +182,7 @@ class _OverlappingAvatars extends StatelessWidget {
               background: const Color(0xFFD8E9DA),
               foreground: AppTheme.accentGreen,
               diameter: diameter,
+              imageUrl: partnerAvatarUrl,
             ),
           ),
         ],
@@ -195,18 +196,29 @@ class _Avatar extends StatelessWidget {
   final Color background;
   final Color foreground;
   final double diameter;
-  final String? imagePath;
+  final String? imageUrl;
 
   const _Avatar({
     required this.label,
     required this.background,
     required this.foreground,
     required this.diameter,
-    this.imagePath,
+    this.imageUrl,
   });
 
   @override
   Widget build(BuildContext context) {
+    final fallback = Center(
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foreground,
+          fontSize: diameter * 0.42,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+
     return Container(
       width: diameter,
       height: diameter,
@@ -216,30 +228,23 @@ class _Avatar extends StatelessWidget {
         border: Border.all(color: AppTheme.white, width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.06),
+            color: Colors.black12,
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: ClipOval(
-        child: imagePath != null
-            ? Image.file(
-                File(imagePath!),
+        child: imageUrl != null
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
                 fit: BoxFit.cover,
                 width: diameter,
                 height: diameter,
+                placeholder: (_, _) => fallback,
+                errorWidget: (_, _, _) => fallback,
               )
-            : Center(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: diameter * 0.42,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
+            : fallback,
       ),
     );
   }

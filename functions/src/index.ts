@@ -46,8 +46,8 @@ export const onIdeaRequestCreated = onDocumentCreated(
     const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
     if (!coupleSnap.exists) return;
 
-    const userIds: string[] = coupleSnap.data()?.userIds ?? [];
-    const partnerId = userIds.find((id) => id !== sentBy);
+    const members: string[] = coupleSnap.data()?.members ?? [];
+    const partnerId = members.find((id) => id !== sentBy);
     if (!partnerId) return;
 
     await sendToUser(partnerId,
@@ -78,12 +78,12 @@ export const onIdeaRequestUpdated = onDocumentUpdated(
     const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
     if (!coupleSnap.exists) return;
 
-    const userIds: string[] = coupleSnap.data()?.userIds ?? [];
-    const partnerId = userIds.find((id) => id !== sentBy);
+    const members: string[] = coupleSnap.data()?.members ?? [];
+    const partnerId = members.find((id) => id !== sentBy);
     const partnerSnap = partnerId
       ? await admin.firestore().collection('users').doc(partnerId).get()
       : null;
-    const partnerName: string = partnerSnap?.data()?.name ?? 'Din partner';
+    const partnerName: string = partnerSnap?.data()?.displayName ?? 'Din partner';
 
     if (wasAccepted) {
       await sendToUser(sentBy,
@@ -113,11 +113,11 @@ export const onWeeklyPlanCreated = onDocumentCreated(
     const activity: string = data.activity ?? '';
 
     const senderSnap = await admin.firestore().collection('users').doc(sentBy).get();
-    const senderName: string = senderSnap.data()?.name ?? 'Din partner';
+    const senderName: string = senderSnap.data()?.displayName ?? 'Din partner';
 
     const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
-    const userIds: string[] = coupleSnap.data()?.userIds ?? [];
-    const partnerId = userIds.find((id) => id !== sentBy);
+    const members: string[] = coupleSnap.data()?.members ?? [];
+    const partnerId = members.find((id) => id !== sentBy);
     if (!partnerId) return;
 
     await sendToUser(partnerId,

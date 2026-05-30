@@ -1,9 +1,16 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../models/app_state.dart';
 import '../models/language_provider.dart';
+import '../models/weekly_idea.dart';
+import '../models/weekly_ideas_provider.dart';
+import '../services/firestore_service.dart';
+import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -223,6 +230,9 @@ class _IdeasScreenState extends State<IdeasScreen> {
     final s = context.watch<LanguageProvider>().s;
     final isNo = s.isNorwegian;
     final filtered = _filtered;
+    final provider = context.watch<WeeklyIdeasProvider>();
+    final appState = context.watch<AppState>();
+    final incoming = provider.incomingRequest;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F4),
@@ -294,6 +304,19 @@ class _IdeasScreenState extends State<IdeasScreen> {
                 ),
               ),
             ),
+            // ── Pending request from partner ───────────────────────────────
+            if (incoming != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: _PendingIdeaCard(
+                    key: ValueKey(incoming.requestId),
+                    request: incoming,
+                    coupleId: appState.coupleId,
+                    userId: appState.userId,
+                  ),
+                ),
+              ),
             if (filtered.isEmpty)
               SliverFillRemaining(
                 child: Center(
@@ -335,6 +358,8 @@ class _IdeasScreenState extends State<IdeasScreen> {
   }
 
   void _openDetail(BuildContext context, _IdeaItem idea, _Palette palette) {
+    final provider = context.read<WeeklyIdeasProvider>();
+    final canSend = provider.sendState == IdeaSendState.idle;
     showModalBottomSheet(
       context: context,
       useRootNavigator: false,
@@ -348,17 +373,241 @@ class _IdeasScreenState extends State<IdeasScreen> {
           Navigator.pop(ctx);
           _toggleSave(idea.id);
         },
-        onSend: () {
-          Navigator.pop(ctx);
-          if (!mounted) return;
-          final s = context.read<LanguageProvider>().s;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(s.ideasSuggestionSent),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppTheme.textPrimary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ));
-        },
+        onSend: canSend
+            ? () {
+                Navigator.pop(ctx);
+                if (!mounted) return;
+                final s = context.read<LanguageProvider>().s;
+                final isNo = s.isNorwegian;
+                final appState = context.read<AppState>();
+                final p = context.read<WeeklyIdeasProvider>();
+                if (p.sendState != IdeaSendState.idle) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(s.ideasAlreadySent),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppTheme.textPrimary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ));
+                  return;
+                }
+                p.sendIdea(
+                  WeeklyIdea(
+                    title: idea.title(isNo),
+                    category: idea.category(isNo),
+                    meta: idea.duration(isNo),
+                    description: idea.desc(isNo),
+                    cardColor: palette.bg,
+                    tagColor: palette.tagBg,
+                    tagTextColor: palette.tagText,
+                    icon: idea.icon,
+                    buttonColor: palette.icon,
+                  ),
+                  appState.coupleId,
+                  appState.userId,
+                  appState.displayName,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(s.ideasSentToPartner),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: AppTheme.textPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ));
+              }
+            : null,
+      ),
+    );
+  }
+}
+
+// ─── Pending idea card ────────────────────────────────────────────────────────
+
+class _PendingIdeaCard extends StatefulWidget {
+  final IncomingIdeaRequest request;
+  final String coupleId;
+  final String userId;
+
+  const _PendingIdeaCard({
+    super.key,
+    required this.request,
+    required this.coupleId,
+    required this.userId,
+  });
+
+  @override
+  State<_PendingIdeaCard> createState() => _PendingIdeaCardState();
+}
+
+class _PendingIdeaCardState extends State<_PendingIdeaCard> {
+  bool _responding = false;
+
+  Future<void> _accept() async {
+    setState(() => _responding = true);
+    final provider = context.read<WeeklyIdeasProvider>();
+    final appState = context.read<AppState>();
+    final s = context.read<LanguageProvider>().s;
+
+    await provider.respondToRequest(widget.coupleId, widget.request.requestId, true);
+
+    if (!mounted) return;
+
+    // Ask whether to add to plan
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+      helpText: s.ideaAddToPlanDialogTitle,
+      confirmText: s.ideaAddToPlanConfirm,
+      cancelText: s.ideaSkipPlan,
+    );
+
+    if (!mounted) return;
+
+    if (picked != null) {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      await FirestoreService.addPlan(
+        coupleId: appState.coupleId,
+        activity: widget.request.ideaTitle,
+        date: picked,
+        sentBy: uid,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(s.ideaDoneAddedPlan),
+        backgroundColor: const Color(0xFF3B6D11),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    }
+  }
+
+  Future<void> _decline() async {
+    setState(() => _responding = true);
+    await context.read<WeeklyIdeasProvider>().respondToRequest(
+      widget.coupleId,
+      widget.request.requestId,
+      false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final req = widget.request;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF5C4B3), width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Color(0x08000000), blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAECE7),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  s.ideasPendingSection,
+                  style: const TextStyle(
+                    color: Color(0xFF993C1D),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                s.ideaFromLabel(req.senderName),
+                style: const TextStyle(color: Color(0xFF888888), fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            req.ideaTitle,
+            style: const TextStyle(
+              color: Color(0xFF1A1A1A),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (req.ideaMeta.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              req.ideaMeta,
+              style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+            ),
+          ],
+          if (req.ideaDescription.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              req.ideaDescription,
+              style: const TextStyle(
+                color: Color(0xFF5F5E5A),
+                fontSize: 13,
+                height: 1.5,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _responding ? null : _accept,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFC1544A),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  child: _responding
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(s.ideaAccept),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _responding ? null : _decline,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF888888),
+                    side: const BorderSide(color: Color(0xFFE0D9D0)),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(fontSize: 13),
+                  ),
+                  child: Text(s.ideaDecline),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -391,6 +640,7 @@ class _IdeaCard extends StatefulWidget {
 class _IdeaCardState extends State<_IdeaCard> with SingleTickerProviderStateMixin {
   late AnimationController _heartCtrl;
   late Animation<double> _heartScale;
+  late Future<String?> _imageFuture;
 
   @override
   void initState() {
@@ -409,12 +659,48 @@ class _IdeaCardState extends State<_IdeaCard> with SingleTickerProviderStateMixi
         weight: 2,
       ),
     ]).animate(_heartCtrl);
+    _imageFuture = IdeaImageService.fetchCoverUrl(widget.idea.id);
   }
 
   @override
   void dispose() {
     _heartCtrl.dispose();
     super.dispose();
+  }
+
+  bool get _isAdmin =>
+      FirebaseAuth.instance.currentUser?.uid == adminUid;
+
+  Future<void> _pickAndUpload(BuildContext context) async {
+    final s = context.read<LanguageProvider>().s;
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null || !context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(s.adminUploading),
+      duration: const Duration(seconds: 30),
+      behavior: SnackBarBehavior.floating,
+    ));
+
+    try {
+      final url = await IdeaImageService.uploadCover(widget.idea.id, picked);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(s.adminUploadSuccess),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF3B6D11),
+      ));
+      setState(() => _imageFuture = Future.value(url));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Upload failed: $e'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red,
+      ));
+    }
   }
 
   @override
@@ -424,74 +710,123 @@ class _IdeaCardState extends State<_IdeaCard> with SingleTickerProviderStateMixi
 
     return GestureDetector(
       onTap: widget.onTap,
+      onLongPress: _isAdmin ? () => _pickAndUpload(context) : null,
       child: Container(
         decoration: BoxDecoration(
-          color: p.bg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: p.border, width: 1.5),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-            Icon(widget.idea.icon, size: 22, color: p.icon),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12.5),
+          child: SizedBox(
+            height: 140,
+            width: double.infinity,
+            child: FutureBuilder<String?>(
+              future: _imageFuture,
+              builder: (_, snap) => Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(
-                    widget.idea.title(isNo),
-                    style: const TextStyle(
-                      color: Color(0xFF1A1A1A),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  // warm placeholder
+                  const ColoredBox(color: Color(0xFFC4956A)),
+                  // pexels image
+                  if (snap.hasData && snap.data != null)
+                    CachedNetworkImage(
+                      imageUrl: snap.data!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => const SizedBox(),
+                      errorWidget: (_, _, _) => const SizedBox(),
+                    ),
+                  // gradient overlay
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x00000000), Color(0xCC000000)],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: p.tagBg,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      widget.idea.duration(isNo),
-                      style: TextStyle(
-                        color: p.tagText,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  // content
+                  Positioned(
+                    bottom: 14,
+                    left: 16,
+                    right: 8,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                widget.idea.title(isNo),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  shadows: [
+                                    Shadow(blurRadius: 4, color: Colors.black54),
+                                  ],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.20),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  widget.idea.duration(isNo),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AnimatedBuilder(
+                          animation: _heartCtrl,
+                          builder: (context, _) => GestureDetector(
+                            onTap: () {
+                              _heartCtrl.forward(from: 0);
+                              widget.onHeartTap();
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 12, bottom: 2),
+                              child: Transform.scale(
+                                scale: _heartScale.value,
+                                child: Icon(
+                                  widget.isSaved
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: widget.isSaved
+                                      ? const Color(0xFFFF6B6B)
+                                      : Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            AnimatedBuilder(
-              animation: _heartCtrl,
-              builder: (context, _) => GestureDetector(
-                onTap: () {
-                  _heartCtrl.forward(from: 0);
-                  widget.onHeartTap();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Transform.scale(
-                    scale: _heartScale.value,
-                    child: Icon(
-                      widget.isSaved
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      color: widget.isSaved
-                          ? const Color(0xFFC1544A)
-                          : p.border,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -505,7 +840,7 @@ class _IdeaDetailSheet extends StatelessWidget {
   final _Palette palette;
   final bool isSaved;
   final VoidCallback onSave;
-  final VoidCallback onSend;
+  final VoidCallback? onSend;
 
   const _IdeaDetailSheet({
     required this.idea,
@@ -596,11 +931,13 @@ class _IdeaDetailSheet extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFC1544A),
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFD4A090),
+                disabledForegroundColor: Colors.white70,
                 textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 minimumSize: const Size.fromHeight(48),
               ),
-              child: Text(s.homeIdeaSendToPartner),
+              child: Text(onSend != null ? s.homeIdeaSendToPartner : s.ideasAlreadySent),
             ),
           ),
           const SizedBox(height: 10),

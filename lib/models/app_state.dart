@@ -27,6 +27,7 @@ class AppState extends ChangeNotifier {
   // ── UI state ───────────────────────────────────────────────────────────────
   bool hasChildren = false;
   int? pendingTabIndex;
+  bool ideaSheetRequested = false;
   String? highlightMomentId;
   DateTime? coupleCreatedAt;
   String _partnerId = '';
@@ -103,7 +104,11 @@ class AppState extends ChangeNotifier {
       if (!snap.exists) return;
       final d = snap.data()!;
       final newCoupleId = d['coupleId'] as String? ?? '';
-      final newName = d['displayName'] as String? ?? _displayName;
+      final rawName = d['displayName'] as String? ?? '';
+      final selfEmail = d['email'] as String? ?? '';
+      final newName = rawName.isNotEmpty
+          ? rawName
+          : (selfEmail.isNotEmpty ? selfEmail.split('@').first : _displayName);
       final newAvatar = d['avatarUrl'] as String? ?? '';
       final newLang = d['language'] as String? ?? 'no';
 
@@ -321,6 +326,15 @@ class AppState extends ChangeNotifier {
   void consumeTabNavigation() {
     pendingTabIndex = null;
     notifyListeners();
+  }
+
+  void requestIdeaSheet() {
+    ideaSheetRequested = true;
+    notifyListeners();
+  }
+
+  void consumeIdeaSheet() {
+    ideaSheetRequested = false;
   }
 
   void clearHighlight() {

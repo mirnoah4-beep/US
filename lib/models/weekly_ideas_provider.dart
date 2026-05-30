@@ -114,6 +114,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   String? _pendingRequestId;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _requestSub;
   IncomingIdeaRequest? _incomingRequest;
+  int _pendingIncomingCount = 0;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _incomingSub;
 
   WeeklyIdeasDoc? get doc => _doc;
@@ -123,6 +124,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   IdeaSendState get sendState => _sendState;
   WeeklyIdea? get sentIdea => _sentIdea;
   IncomingIdeaRequest? get incomingRequest => _incomingRequest;
+  int get pendingIncomingCount => _pendingIncomingCount;
 
   // Call once from the HomeScreen widget tree.
   Future<void> init(String coupleId) async {
@@ -301,33 +303,51 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
   }
 
+  String? _incomingUserId;
+
   Future<void> checkIncomingRequests(String coupleId, String userId) async {
     _incomingSub?.cancel();
+    _incomingUserId = userId;
+    debugPrint('=== checkIncomingRequests called coupleId=$coupleId userId=$userId');
     try {
+      // Single-field query avoids composite index requirement.
+      // Filter out own requests client-side in _onIncomingSnapshot.
       _incomingSub = FirebaseFirestore.instance
           .collection('couples')
           .doc(coupleId)
           .collection('ideaRequests')
           .where('status', isEqualTo: 'pending')
-          .where('sentBy', isNotEqualTo: userId)
           .snapshots()
-          .listen(_onIncomingSnapshot, onError: (_) {});
+          .listen(_onIncomingSnapshot, onError: (Object e) {
+            debugPrint('=== INCOMING STREAM ERROR: $e');
+          });
     } catch (e) {
-      debugPrint('checkIncomingRequests failed: $e');
+      debugPrint('=== checkIncomingRequests THREW: $e');
     }
   }
 
   void _onIncomingSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
-    if (snap.docs.isEmpty) {
-      if (_incomingRequest != null) {
-        _incomingRequest = null;
-        notifyListeners();
-      }
+    debugPrint('=== INCOMING SNAPSHOT fired: ${snap.docs.length} total pending docs');
+    // Filter out requests sent by the current user (client-side to avoid composite index).
+    final incoming = snap.docs
+        .where((d) => (d.data()['sentBy'] as String?) != _incomingUserId)
+        .toList();
+    debugPrint('=== INCOMING after filter: ${incoming.length} docs for userId=$_incomingUserId');
+
+    final prevCount = _pendingIncomingCount;
+    _pendingIncomingCount = incoming.length;
+
+    if (incoming.isEmpty) {
+      final changed = _incomingRequest != null || prevCount != 0;
+      _incomingRequest = null;
+      if (changed) notifyListeners();
       return;
     }
-    final doc = snap.docs.first;
+
+    final doc = incoming.first;
     final newReq = IncomingIdeaRequest.fromFirestore(doc.id, doc.data());
-    if (newReq.requestId != _incomingRequest?.requestId) {
+    if (newReq.requestId != _incomingRequest?.requestId ||
+        prevCount != _pendingIncomingCount) {
       _incomingRequest = newReq;
       notifyListeners();
     }
