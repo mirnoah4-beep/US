@@ -1409,89 +1409,120 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
+          // Back arrow pinned top-left
+          Positioned(
+            top: 0,
+            left: 0,
+            child: GestureDetector(
+              onTap: _goBack,
+              child: const Icon(Icons.arrow_back_rounded,
+                  size: 18, color: Color(0xFF888888)),
+            ),
+          ),
+          // All content vertically centered as a group
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              GestureDetector(
-                onTap: _goBack,
-                child: const Icon(Icons.arrow_back_rounded, size: 18, color: Color(0xFF888888)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
+              Center(
                 child: Text(
-                  '${s.ideaSuggestTime} ${s.ideaSuggestTimeOptional}',
+                  widget.idea.title,
                   style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
                     color: Color(0xFF1A1A1A),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Georgia',
+                    height: 1.2,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: OutlinedButton(
-                    onPressed: () => _pickDate(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      side: const BorderSide(color: Color(0xFFE0D9D0)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      foregroundColor: const Color(0xFF555555),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    child: Text(dateLabel),
-                  ),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  s.ideaWhenWorksForYou,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppTheme.textSecondary),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: OutlinedButton(
-                    onPressed: () => _pickTime(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      side: const BorderSide(color: Color(0xFFE0D9D0)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      foregroundColor: const Color(0xFF555555),
-                      textStyle: const TextStyle(fontSize: 12),
+              const SizedBox(height: 8),
+              // Date + time buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 30,
+                      child: OutlinedButton(
+                        onPressed: () => _pickDate(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: Color(0xFFE0D9D0)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          foregroundColor: const Color(0xFF555555),
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.calendar_today_outlined,
+                                size: 13, color: Color(0xFFA32D2D)),
+                            const SizedBox(width: 4),
+                            Text(dateLabel),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: Text(timeLabel),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(
+                      height: 30,
+                      child: OutlinedButton(
+                        onPressed: () => _pickTime(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: Color(0xFFE0D9D0)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          foregroundColor: const Color(0xFF555555),
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.access_time_rounded,
+                                size: 13, color: Color(0xFFA32D2D)),
+                            const SizedBox(width: 4),
+                            Text(timeLabel),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Confirm send button
+              SizedBox(
+                height: 32,
+                child: FilledButton(
+                  onPressed: () => _onConfirmSend(context),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFA32D2D),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  child: Text(s.ideaConfirmSend),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 36,
-            child: FilledButton(
-              onPressed: () => _onConfirmSend(context),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFA32D2D),
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-              child: Text(s.ideaConfirmSend),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Center(
-            child: Text(
-              s.ideaSendWithoutTime,
-              style: const TextStyle(fontSize: 10, color: Color(0xFFAAAAAA)),
-              textAlign: TextAlign.center,
-            ),
           ),
         ],
       ),

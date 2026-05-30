@@ -105,6 +105,8 @@ class AppStrings {
   String get ideaConfirmSend => isNorwegian ? 'Bekreft og send' : 'Confirm and send';
   String get ideaSendWithoutTime =>
       isNorwegian ? 'Du kan sende uten å velge tidspunkt' : 'You can send without choosing a time';
+  String get ideaWhenWorksForYou =>
+      isNorwegian ? 'Når passer det?' : 'When works for you?';
   String ideaProposedAt(DateTime dt) {
     final day = planFullDayNames[dt.weekday - 1];
     final month = planMonthNamesShort[dt.month - 1];
