@@ -277,9 +277,16 @@ class _MainShellState extends State<MainShell> {
     // Init local notifications plugin + create Android channels
     await NotificationService().init();
 
-    // Foreground: FCM delivers silently — show a local heads-up notification
-    FirebaseMessaging.onMessage.listen((message) {
-      NotificationService().showFcmMessage(message);
+    // Foreground: no system banner — silently refresh so the stream fires and
+    // PendingIdeaCard mounts, which auto-opens the modal via its initState hook.
+    FirebaseMessaging.onMessage.listen((_) {
+      if (!mounted) return;
+      final appState = context.read<AppState>();
+      final coupleId = appState.coupleId;
+      final userId = appState.userId;
+      if (coupleId.isNotEmpty && userId.isNotEmpty) {
+        context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
+      }
     });
 
     // Tap: app was in background when notification arrived
@@ -297,14 +304,13 @@ class _MainShellState extends State<MainShell> {
       if (!mounted) return;
       final appState = context.read<AppState>();
       if (data['type'] == 'idea_request') {
-        appState.requestIdeaSheet();
         final coupleId = appState.coupleId;
         final userId = appState.userId;
         if (coupleId.isNotEmpty && userId.isNotEmpty) {
           context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
         }
+        appState.requestTabNavigation(3);
       }
-      appState.requestTabNavigation(0);
     });
   }
 

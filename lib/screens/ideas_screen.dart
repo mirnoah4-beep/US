@@ -441,6 +441,9 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
     _imageFuture = IdeaImageService.fetchCoverUrl(
       IdeaImageService.toId(widget.request.ideaTitle),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openModal(context);
+    });
   }
 
   Future<void> _accept() async {
@@ -493,22 +496,27 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
   }
 
   void _openModal(BuildContext context) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      useRootNavigator: false,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _IncomingIdeaSheet(
-        request: widget.request,
-        imageFuture: _imageFuture,
-        onAccept: () {
-          Navigator.pop(ctx);
-          _accept();
-        },
-        onDecline: () {
-          Navigator.pop(ctx);
-          _decline();
-        },
+      useRootNavigator: true,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        backgroundColor: Colors.transparent,
+        child: _IncomingIdeaSheet(
+          request: widget.request,
+          imageFuture: _imageFuture,
+          onAccept: () {
+            Navigator.pop(ctx);
+            _accept();
+          },
+          onDecline: () {
+            Navigator.pop(ctx);
+            _decline();
+          },
+        ),
       ),
     );
   }
@@ -687,28 +695,13 @@ class _IncomingIdeaSheet extends StatelessWidget {
     final req = request;
     final initial =
         req.senderName.isNotEmpty ? req.senderName[0].toUpperCase() : '?';
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFFAF7F4),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD3D1C7),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
           // Cover image with sender avatar overlay
           Stack(
             children: [
@@ -754,7 +747,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
           ),
           // Content
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 24 + bottomPad),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
