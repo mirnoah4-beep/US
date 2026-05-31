@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -844,18 +845,6 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
       }));
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final coupleId = context.read<AppState>().coupleId;
-      if (coupleId.isNotEmpty) {
-        context.read<WeeklyIdeasProvider>().init(coupleId);
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -870,6 +859,13 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
         .take(4)
         .toList();
     final appState = context.watch<AppState>();
+
+    // init() is idempotent — safe to call on every build.
+    // Calling here (not initState) ensures it fires once coupleId is available,
+    // which arrives asynchronously via Firestore after the first frame.
+    if (appState.coupleId.isNotEmpty) {
+      context.read<WeeklyIdeasProvider>().init(appState.coupleId);
+    }
 
     final sentTitle = provider.sentIdea?.titleNo;
     final isCustomPending = provider.sendState == IdeaSendState.waiting &&
@@ -1491,7 +1487,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Center(
-                child: Text(
+                child: AutoSizeText(
                   widget.idea.title(s.isNorwegian),
                   style: const TextStyle(
                     color: Color(0xFF1A1A1A),
@@ -1500,6 +1496,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                     fontFamily: 'Georgia',
                     height: 1.2,
                   ),
+                  minFontSize: 13,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1846,7 +1843,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                   children: [
                     badge,
                     const SizedBox(height: 6),
-                    Text(
+                    AutoSizeText(
                       widget.idea.title(isNo),
                       style: const TextStyle(
                         color: Color(0xFF1A1A1A),
@@ -1855,7 +1852,9 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                         fontFamily: 'Georgia',
                         height: 1.2,
                       ),
+                      minFontSize: 13,
                       maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(

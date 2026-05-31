@@ -63,6 +63,18 @@ const COLORS = {
   Sosialt:   { cardColor: '#FAEEDA', tagColor: '#FAC775', tagTextColor: '#633806' },
 };
 
+// ─── Renamed doc IDs (old → new) — old docs are deleted before writing ───────
+
+const RENAMES = {
+  'brettspillkveld': 'spillkveld',
+  'restaurantbesøk': 'spis_ute',
+  'vinsmakingskveld': 'vinsmaking',
+  'stjernetitting': 'se_stjerner',
+  'solnedgangstur': 'solnedgang',
+  'soloppgangstur': 'soloppgang',
+  'kortspillkveld': 'kortspill',
+};
+
 // ─── 50 ideas ─────────────────────────────────────────────────────────────────
 
 const IDEAS = [
@@ -107,7 +119,7 @@ const IDEAS = [
     iconName: 'park_outlined', season: 'sommer', effort: 'medium',
   },
   {
-    titleNo: 'Brettspillkveld', titleEn: 'Board game night',
+    titleNo: 'Spillkveld', titleEn: 'Game night',
     categoryNo: 'Hjemme', categoryEn: 'Home',
     metaNo: '1-2 timer', metaEn: '1-2 hours',
     descriptionNo: 'Finn frem et brettspill og konkurrer',
@@ -123,7 +135,7 @@ const IDEAS = [
     iconName: 'pedal_bike_outlined', season: 'sommer', effort: 'medium',
   },
   {
-    titleNo: 'Solnedgangstur', titleEn: 'Sunset walk',
+    titleNo: 'Solnedgang', titleEn: 'Sunset',
     categoryNo: 'Ute', categoryEn: 'Outside',
     metaNo: '45 min', metaEn: '45 min',
     descriptionNo: 'Gå ut og se solnedgangen sammen',
@@ -155,7 +167,7 @@ const IDEAS = [
     iconName: 'bakery_dining_outlined', season: null, effort: 'medium',
   },
   {
-    titleNo: 'Stjernetitting', titleEn: 'Stargazing',
+    titleNo: 'Se stjerner', titleEn: 'Stargazing',
     categoryNo: 'Ute', categoryEn: 'Outside',
     metaNo: '45 min', metaEn: '45 min',
     descriptionNo: 'Finn et mørkt sted og se på stjernene',
@@ -195,7 +207,7 @@ const IDEAS = [
     iconName: 'quiz_outlined', season: null, effort: 'low',
   },
   {
-    titleNo: 'Restaurantbesøk', titleEn: 'Restaurant visit',
+    titleNo: 'Spis ute', titleEn: 'Eat out',
     categoryNo: 'Ute', categoryEn: 'Outside',
     metaNo: '2 timer', metaEn: '2 hours',
     descriptionNo: 'Prøv en restaurant dere aldri har vært på',
@@ -307,7 +319,7 @@ const IDEAS = [
     iconName: 'music_note_outlined', season: null, effort: 'high',
   },
   {
-    titleNo: 'Kortspillkveld', titleEn: 'Card game night',
+    titleNo: 'Kortspill', titleEn: 'Card game',
     categoryNo: 'Hjemme', categoryEn: 'Home',
     metaNo: '1 time', metaEn: '1 hour',
     descriptionNo: 'Spill kort med en god drikke',
@@ -419,7 +431,7 @@ const IDEAS = [
     iconName: 'sports_esports_outlined', season: null, effort: 'low',
   },
   {
-    titleNo: 'Vinsmakingskveld', titleEn: 'Wine tasting night',
+    titleNo: 'Vinsmaking', titleEn: 'Wine tasting',
     categoryNo: 'Hjemme', categoryEn: 'Home',
     metaNo: '1 time', metaEn: '1 hour',
     descriptionNo: 'Kjøp tre viner og vurder dem sammen',
@@ -459,7 +471,7 @@ const IDEAS = [
     iconName: 'checklist_outlined', season: null, effort: 'low',
   },
   {
-    titleNo: 'Soloppgangstur', titleEn: 'Sunrise walk',
+    titleNo: 'Soloppgang', titleEn: 'Sunrise',
     categoryNo: 'Ute', categoryEn: 'Outside',
     metaNo: '1 time', metaEn: '1 hour',
     descriptionNo: 'Stå opp tidlig og se soloppgangen sammen',
@@ -492,6 +504,21 @@ async function main() {
     console.log('No broken docs found.');
   }
 
+  // Delete old docs from renamed titles to avoid stale duplicates.
+  const renamedToDelete = [];
+  for (const oldId of Object.keys(RENAMES)) {
+    const snap = await ideasRef.doc(oldId).get();
+    if (snap.exists) renamedToDelete.push(oldId);
+  }
+  if (renamedToDelete.length > 0) {
+    const delRenameBatch = db.batch();
+    renamedToDelete.forEach((id) => delRenameBatch.delete(ideasRef.doc(id)));
+    await delRenameBatch.commit();
+    console.log(`Deleted ${renamedToDelete.length} renamed old doc(s): ${renamedToDelete.join(', ')}`);
+  } else {
+    console.log('No old renamed docs found.');
+  }
+
   // Step 6: Batch-write all 50 ideas.
   const batch = db.batch();
   const written = [];
@@ -520,7 +547,7 @@ async function main() {
       season: idea.season,
       effort: idea.effort,
     };
-    batch.set(ideasRef.doc(id), doc);
+    batch.set(ideasRef.doc(id), doc, { merge: true });
     written.push(id);
   }
 

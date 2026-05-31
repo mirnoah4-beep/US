@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -814,7 +815,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 6),
-                Text(
+                AutoSizeText(
                   req.ideaTitle(isNo),
                   style: const TextStyle(
                     color: Color(0xFF1A1A1A),
@@ -822,6 +823,9 @@ class _IncomingIdeaSheet extends StatelessWidget {
                     fontFamily: 'Georgia',
                   ),
                   textAlign: TextAlign.center,
+                  minFontSize: 14,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (req.ideaMeta(isNo).isNotEmpty) ...[
                   const SizedBox(height: 4),
