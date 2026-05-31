@@ -1856,11 +1856,10 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
+      useRootNavigator: true,
+      builder: (dialogCtx) {
         var displayMonth = DateTime(
           (_proposedDate ?? today).year,
           (_proposedDate ?? today).month,
@@ -1869,47 +1868,39 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
         var selected = _proposedDate ?? today;
 
         return StatefulBuilder(
-          builder: (_, setSheetState) => Container(
-            decoration: const BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.divider,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
+          builder: (_, setDialogState) => Dialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            backgroundColor: AppTheme.background,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CalendarCard(
+                    displayMonth: displayMonth,
+                    selectedDate: selected,
+                    eventDates: const {},
+                    s: s,
+                    onPrevMonth: () => setDialogState(() {
+                      displayMonth = DateTime(
+                          displayMonth.year, displayMonth.month - 1, 1);
+                    }),
+                    onNextMonth: () => setDialogState(() {
+                      displayMonth = DateTime(
+                          displayMonth.year, displayMonth.month + 1, 1);
+                    }),
+                    onSelectDate: (date) {
+                      setDialogState(() => selected = date);
+                      setState(() => _proposedDate = date);
+                      Navigator.pop(dialogCtx);
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
-                CalendarCard(
-                  displayMonth: displayMonth,
-                  selectedDate: selected,
-                  eventDates: const {},
-                  s: s,
-                  onPrevMonth: () => setSheetState(() {
-                    displayMonth = DateTime(
-                        displayMonth.year, displayMonth.month - 1, 1);
-                  }),
-                  onNextMonth: () => setSheetState(() {
-                    displayMonth = DateTime(
-                        displayMonth.year, displayMonth.month + 1, 1);
-                  }),
-                  onSelectDate: (date) {
-                    setSheetState(() => selected = date);
-                    setState(() => _proposedDate = date);
-                    Navigator.pop(sheetCtx);
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         );
@@ -1926,28 +1917,21 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
     var selected = initial;
     final isNo = context.read<LanguageProvider>().isNorwegian;
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => Container(
-        height: 280,
-        decoration: const BoxDecoration(
-          color: AppTheme.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
+      useRootNavigator: true,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppTheme.background,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
-            Container(
-              width: 42,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.divider,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
+            SizedBox(
+              height: 200,
               child: CupertinoDatePicker(
                 mode: CupertinoDatePickerMode.time,
                 use24hFormat: true,
@@ -1956,12 +1940,12 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
                 width: double.infinity,
                 height: 46,
                 child: FilledButton(
-                  onPressed: () => Navigator.pop(sheetCtx),
+                  onPressed: () => Navigator.pop(dialogCtx),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFA32D2D),
                     shape: RoundedRectangleBorder(
