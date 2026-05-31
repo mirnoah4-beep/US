@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/already_pending_dialog.dart';
 import '../widgets/calendar_card.dart';
+import '../widgets/heart_confirm_dialog.dart';
 import '../widgets/relationship_battery_card.dart';
 import 'mediator_chat_screen.dart';
 import 'settings_screen.dart';
@@ -61,7 +63,12 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             const _RelationshipCounterCard(),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: _NextPlanPill(),
+            ),
+            const SizedBox(height: 6),
             RelationshipBatteryCard(
               percent: state.batteryPercent,
               statusLine: s.batteryStatus(state.batteryPercent),
@@ -754,6 +761,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   int _page = 0;
   bool _precaching = false;
   String _precachedKey = '';
+  bool _customAcceptedShown = false;
 
   Future<void> _precacheAllImages(
       BuildContext ctx, List<WeeklyIdea> ideas) =>
@@ -794,14 +802,37 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     final sentTitle = provider.sentIdea?.titleNo;
     final isCustomPending = provider.sendState == IdeaSendState.waiting &&
         !ideas.any((idea) => idea.titleNo == sentTitle);
-    if (sentTitle != null &&
-        !ideas.any((idea) => idea.titleNo == sentTitle) &&
-        (provider.sendState == IdeaSendState.accepted ||
-         provider.sendState == IdeaSendState.declined)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.read<WeeklyIdeasProvider>().resetSendState();
-      });
+    if (sentTitle != null && !ideas.any((idea) => idea.titleNo == sentTitle)) {
+      if (provider.sendState == IdeaSendState.declined) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.read<WeeklyIdeasProvider>().resetSendState();
+        });
+      } else if (provider.sendState == IdeaSendState.accepted && !_customAcceptedShown) {
+        _customAcceptedShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final nav = Navigator.of(context, rootNavigator: true);
+          final provRef = context.read<WeeklyIdeasProvider>();
+          final ls = context.read<LanguageProvider>().s;
+          final appState = context.read<AppState>();
+          final displayTitle = ls.ideaPartnerAcceptedTitle(
+              appState.partnerName, sentTitle);
+          nav.push(RawDialogRoute<void>(
+            pageBuilder: (ctx, anim, secAnim) => HeartConfirmDialog(
+              displayTitle: displayTitle,
+              date: provRef.acceptedPlanDate,
+              s: ls,
+            ),
+            barrierDismissible: true,
+            barrierColor: Colors.black.withValues(alpha: 0.35),
+            barrierLabel: 'Dismiss',
+            transitionDuration: Duration.zero,
+          ));
+          Future.delayed(const Duration(milliseconds: 2700), provRef.resetSendState);
+        });
+      }
     }
+    if (provider.sendState == IdeaSendState.idle) _customAcceptedShown = false;
 
     // Fix 4: surface send errors as a SnackBar.
     final sendError = provider.sendError;
@@ -969,6 +1000,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   String? _imageUrl;
   bool _urlWasKnownAtInit = false;
   bool _declinedShown = false;
+  bool _acceptedShown = false;
   late AnimationController _dotCtrl;
   late AnimationController _slideCtrl;
   bool _onTimePage = false;
@@ -1432,7 +1464,36 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
         context.read<WeeklyIdeasProvider>().resetSendState();
       });
     }
-    if (state == IdeaSendState.idle) _declinedShown = false;
+    if (state == IdeaSendState.accepted && !_acceptedShown) {
+      _acceptedShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final nav = Navigator.of(context, rootNavigator: true);
+        final provRef = context.read<WeeklyIdeasProvider>();
+        final ls = context.read<LanguageProvider>().s;
+        final displayTitle = ls.ideaPartnerAcceptedTitle(
+          widget.partnerName,
+          widget.idea.title(ls.isNorwegian),
+        );
+        nav.push(RawDialogRoute<void>(
+          pageBuilder: (ctx, anim, secAnim) => HeartConfirmDialog(
+            displayTitle: displayTitle,
+            date: provRef.acceptedPlanDate,
+            s: ls,
+          ),
+          barrierDismissible: true,
+          barrierColor: Colors.black.withValues(alpha: 0.35),
+          barrierLabel: 'Dismiss',
+          transitionDuration: Duration.zero,
+        ));
+        // Reset carousel state after overlay auto-dismisses.
+        Future.delayed(const Duration(milliseconds: 2700), provRef.resetSendState);
+      });
+    }
+    if (state == IdeaSendState.idle) {
+      _declinedShown = false;
+      _acceptedShown = false;
+    }
 
     // If state moved away from idle while on the time page, snap back.
     if (state != IdeaSendState.idle && _onTimePage) {
@@ -1779,6 +1840,100 @@ class _WriteOwnWaitingBar extends StatelessWidget {
 }
 
 // ─── Relationship duration counter ───────────────────────────────────────────
+
+// ─── Next plan pill ────────────────────────────────────────────────────────────
+
+class _NextPlanPill extends StatefulWidget {
+  const _NextPlanPill();
+
+  @override
+  State<_NextPlanPill> createState() => _NextPlanPillState();
+}
+
+class _NextPlanPillState extends State<_NextPlanPill> {
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
+  String? _nextActivity;
+  DateTime? _nextDate;
+  String _coupleId = '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final coupleId = Provider.of<AppState>(context, listen: false).coupleId;
+    if (coupleId != _coupleId && coupleId.isNotEmpty) {
+      _coupleId = coupleId;
+      _sub?.cancel();
+      _sub = FirestoreService.weeklyPlanStream(coupleId).listen(_onSnap);
+    }
+  }
+
+  void _onSnap(QuerySnapshot<Map<String, dynamic>> snap) {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final cutoff = now.add(const Duration(days: 14));
+    String? nearestActivity;
+    DateTime? nearestDate;
+
+    for (final doc in snap.docs) {
+      final d = doc.data();
+      final ts = d['date'] as Timestamp?;
+      if (ts == null) continue;
+      final dt = ts.toDate();
+      if (dt.isBefore(now)) continue;
+      if (dt.isAfter(cutoff)) continue;
+      if (nearestDate == null || dt.isBefore(nearestDate)) {
+        nearestDate = dt;
+        nearestActivity = d['activity'] as String? ?? '';
+      }
+    }
+
+    setState(() {
+      _nextActivity = nearestActivity;
+      _nextDate = nearestDate;
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_nextActivity == null || _nextDate == null) return const SizedBox.shrink();
+    final s = context.watch<LanguageProvider>().s;
+    final text = s.homePlanPillFormat(_nextActivity!, _nextDate!);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBEAF0),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFFA32D2D)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFFA32D2D),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Relationship counter ──────────────────────────────────────────────────────
 
 class _RelationshipCounterCard extends StatelessWidget {
   const _RelationshipCounterCard();

@@ -15,7 +15,7 @@ class AppStrings {
   String get greetingMorning => isNorwegian ? 'God morgen, dere to!' : 'Good morning, you two!';
   String get greetingAfternoon => isNorwegian ? 'God ettermiddag, dere to!' : 'Good afternoon, you two!';
   String get greetingEvening => isNorwegian ? 'God kveld, dere to!' : 'Good evening, you two!';
-  String get greetingNight => isNorwegian ? 'Fortsatt våkne, dere to? 🌙' : 'Still awake, you two? 🌙';
+  String get greetingNight => isNorwegian ? 'Fortsatt våkne, dere to?' : 'Still awake, you two?';
   String get homeInspirationQuote => isNorwegian ? 'Et lite kompliment kan lyse opp dagen.' : 'A small compliment can brighten the day.';
   String get homeTonightSection => isNorwegian ? 'Kveldens idé' : 'Tonight\'s idea';
   String get homeThisWeekSection => isNorwegian ? 'Denne uken' : 'This week';
@@ -129,6 +129,42 @@ class AppStrings {
     return isNorwegian
         ? 'Forslag: ${day.toLowerCase()} ${dt.day}. $month, $h:$m'
         : 'Suggested: $day, $month ${dt.day}, $h:$m';
+  }
+
+  String homePlanPillFormat(String activity, DateTime dt) {
+    final day = planFullDayNames[dt.weekday - 1];
+    final month = planMonthNamesShort[dt.month - 1];
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return isNorwegian
+        ? '$activity – ${day.substring(0, 3).toLowerCase()} ${dt.day}. $month, $h:$m'
+        : '$activity – ${day.substring(0, 3)} ${dt.day} $month, $h:$m';
+  }
+
+  String ideaAcceptedWithPlan(DateTime dt) {
+    final day = planFullDayNames[dt.weekday - 1];
+    final month = planMonthNamesShort[dt.month - 1];
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return isNorwegian
+        ? 'Lagt til i planen – ${day.substring(0, 3).toLowerCase()} ${dt.day}. $month, $h:$m'
+        : 'Added to plan – ${day.substring(0, 3)} ${dt.day} $month, $h:$m';
+  }
+
+  String ideaConfirmedTitle(String title) =>
+      isNorwegian ? '$title er avtalt!' : '$title is confirmed!';
+
+  String ideaPartnerAcceptedTitle(String partnerName, String title) =>
+      isNorwegian ? '$partnerName godkjente $title!' : '$partnerName accepted $title!';
+
+  String ideaConfirmedDateFmt(DateTime dt) {
+    final day = planFullDayNames[dt.weekday - 1];
+    final month = planMonthNamesShort[dt.month - 1];
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return isNorwegian
+        ? '${day.substring(0, 3)} ${dt.day}. $month, $h:$m'
+        : '${day.substring(0, 3)} $month ${dt.day}, $h:$m';
   }
 
   // ── Last Time Screen ────────────────────────────────────────────────────

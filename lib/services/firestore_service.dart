@@ -273,12 +273,13 @@ class FirestoreService {
     required String activity,
     required DateTime date,
     required String sentBy,
+    String status = 'pending',
   }) async {
     final ref = weeklyPlanRef(coupleId).doc();
     await ref.set({
       'activity': activity,
       'date': Timestamp.fromDate(date),
-      'status': 'pending',
+      'status': status,
       'sentBy': sentBy,
       'createdAt': FieldValue.serverTimestamp(),
     });

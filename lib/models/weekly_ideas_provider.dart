@@ -169,6 +169,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   WeeklyIdea? _sentIdea;
   String? _pendingRequestId;
   String? _sendError;
+  DateTime? _acceptedPlanDate;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _requestSub;
   IncomingIdeaRequest? _incomingRequest;
   int _pendingIncomingCount = 0;
@@ -184,6 +185,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   IdeaSendState get sendState => _sendState;
   WeeklyIdea? get sentIdea => _sentIdea;
   String? get sendError => _sendError;
+  DateTime? get acceptedPlanDate => _acceptedPlanDate;
   IncomingIdeaRequest? get incomingRequest => _incomingRequest;
   int get pendingIncomingCount => _pendingIncomingCount;
 
@@ -351,6 +353,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
 
     if (status == 'accepted') {
+      _acceptedPlanDate = (data['acceptedAt'] as Timestamp?)?.toDate();
       _sendState = IdeaSendState.accepted;
       _requestSub?.cancel();
       _requestSub = null;
@@ -373,6 +376,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     _sentIdea = null;
     _pendingRequestId = null;
     _sendError = null;
+    _acceptedPlanDate = null;
     _requestSub?.cancel();
     _requestSub = null;
     notifyListeners();
@@ -416,7 +420,12 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> respondToRequest(String coupleId, String requestId, bool accepted) async {
+  Future<void> respondToRequest(
+    String coupleId,
+    String requestId,
+    bool accepted, {
+    DateTime? planDate,
+  }) async {
     _incomingRequest = null;
     notifyListeners();
     try {
@@ -425,7 +434,11 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .doc(coupleId)
           .collection('ideaRequests')
           .doc(requestId)
-          .update({'status': accepted ? 'accepted' : 'declined'});
+          .update({
+        'status': accepted ? 'accepted' : 'declined',
+        if (accepted && planDate != null)
+          'acceptedAt': Timestamp.fromDate(planDate),
+      });
     } catch (e) {
       debugPrint('respondToRequest failed: $e');
     }
@@ -438,7 +451,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .collection('couples')
           .doc(coupleId)
           .collection('ideaRequests')
-          .where('status', isEqualTo: 'pending')
+          .where('status', whereIn: ['pending', 'accepted'])
           .get();
 
       final outgoing = snap.docs
@@ -447,21 +460,38 @@ class WeeklyIdeasProvider extends ChangeNotifier {
 
       if (outgoing.isEmpty) return;
 
-      final doc = outgoing.first;
-      final data = doc.data();
+      final pendingDocs = outgoing.where((d) => d.data()['status'] == 'pending').toList();
+      final acceptedDocs = outgoing.where((d) => d.data()['status'] == 'accepted').toList();
 
-      final sentAt = data['sentAt'] as Timestamp?;
-      if (sentAt != null && DateTime.now().difference(sentAt.toDate()).inHours >= 24) {
-        doc.reference.update({'status': 'expired'}).catchError((_) {});
-        return;
+      if (pendingDocs.isNotEmpty) {
+        final doc = pendingDocs.first;
+        final data = doc.data();
+
+        final sentAt = data['sentAt'] as Timestamp?;
+        if (sentAt != null && DateTime.now().difference(sentAt.toDate()).inHours >= 24) {
+          doc.reference.update({'status': 'expired'}).catchError((_) {});
+          return;
+        }
+
+        _pendingRequestId = doc.id;
+        _sentIdea = _ideaFromRequestData(data);
+        _sendState = IdeaSendState.waiting;
+        _requestSub?.cancel();
+        _requestSub = doc.reference.snapshots().listen(_onRequestSnapshot, onError: (_) {});
+        notifyListeners();
+      } else if (acceptedDocs.isNotEmpty) {
+        final doc = acceptedDocs.first;
+        final data = doc.data();
+        final acceptedAt = (data['acceptedAt'] as Timestamp?)?.toDate();
+        final sentAt = (data['sentAt'] as Timestamp?)?.toDate();
+        final refTime = acceptedAt ?? sentAt;
+        if (refTime != null && DateTime.now().difference(refTime).inHours >= 2) return;
+        _pendingRequestId = doc.id;
+        _sentIdea = _ideaFromRequestData(data);
+        _acceptedPlanDate = acceptedAt;
+        _sendState = IdeaSendState.accepted;
+        notifyListeners();
       }
-
-      _pendingRequestId = doc.id;
-      _sentIdea = _ideaFromRequestData(data);
-      _sendState = IdeaSendState.waiting;
-      _requestSub?.cancel();
-      _requestSub = doc.reference.snapshots().listen(_onRequestSnapshot, onError: (_) {});
-      notifyListeners();
     } catch (e) {
       debugPrint('checkOutgoingRequests failed: $e');
     }

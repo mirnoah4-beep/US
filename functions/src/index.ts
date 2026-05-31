@@ -58,6 +58,23 @@ export const onIdeaRequestCreated = onDocumentCreated(
   }
 );
 
+// Format a Firestore Timestamp as "fre 6. jun, 19:00" (NO) or "Fri Jun 6, 19:00" (EN)
+function formatPlanDate(ts: admin.firestore.Timestamp, isNorwegian: boolean): string {
+  const dt = ts.toDate();
+  const shortDaysNo = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'];
+  const shortDaysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const monthsNo = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
+  const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayIdx = (dt.getDay() + 6) % 7; // Mon=0
+  const monthIdx = dt.getMonth();
+  const day = dt.getDate();
+  const h = String(dt.getHours()).padStart(2, '0');
+  const m = String(dt.getMinutes()).padStart(2, '0');
+  return isNorwegian
+    ? `${shortDaysNo[dayIdx]} ${day}. ${monthsNo[monthIdx]}, ${h}:${m}`
+    : `${shortDaysEn[dayIdx]} ${monthsEn[monthIdx]} ${day}, ${h}:${m}`;
+}
+
 // Firestore trigger: FCM to sender when partner accepts/declines an idea request
 export const onIdeaRequestUpdated = onDocumentUpdated(
   { document: 'couples/{coupleId}/ideaRequests/{requestId}', region: 'europe-west1' },
@@ -85,18 +102,31 @@ export const onIdeaRequestUpdated = onDocumentUpdated(
       : null;
     const partnerName: string = partnerSnap?.data()?.displayName ?? 'Din partner';
 
+    // Look up sender's language preference for bilingual body.
+    const senderSnap = await admin.firestore().collection('users').doc(sentBy).get();
+    const language: string = senderSnap.data()?.language ?? 'no';
+    const isNorwegian = language !== 'en';
+
     if (wasAccepted) {
-      await sendToUser(sentBy,
-        `${partnerName} sa ja! 🎉`,
-        `"${ideaTitle}" — planlegg kvelden`,
-        { type: 'idea_accepted', coupleId, requestId },
-      );
+      // Include plan date/time if B wrote it back to the request doc.
+      const acceptedAt = after.acceptedAt as admin.firestore.Timestamp | undefined;
+      const proposedAt = after.proposedAt as admin.firestore.Timestamp | undefined;
+      const dateTs = acceptedAt ?? proposedAt;
+      const datePart = dateTs ? ` – ${formatPlanDate(dateTs, isNorwegian)}` : '';
+
+      const title = isNorwegian ? `${partnerName} sa ja! 🎉` : `${partnerName} said yes! 🎉`;
+      const body = isNorwegian
+        ? `${partnerName} godkjente «${ideaTitle}»${datePart}`
+        : `${partnerName} accepted «${ideaTitle}»${datePart}`;
+
+      await sendToUser(sentBy, title, body, { type: 'idea_accepted', coupleId, requestId });
     } else if (wasDeclined) {
-      await sendToUser(sentBy,
-        'Kanskje neste gang',
-        `${partnerName} takket nei til "${ideaTitle}"`,
-        { type: 'idea_declined', coupleId, requestId },
-      );
+      const title = isNorwegian ? 'Kanskje neste gang' : 'Maybe next time';
+      const body = isNorwegian
+        ? `${partnerName} takket nei til «${ideaTitle}»`
+        : `${partnerName} declined «${ideaTitle}»`;
+
+      await sendToUser(sentBy, title, body, { type: 'idea_declined', coupleId, requestId });
     }
   }
 );

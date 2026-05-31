@@ -323,6 +323,8 @@ class _MainShellState extends State<MainShell> {
           context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
         }
         appState.requestTabNavigation(3);
+      } else if (data['type'] == 'idea_accepted') {
+        appState.requestTabNavigation(3);
       }
     });
   }

@@ -4,6 +4,7 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,8 @@ import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/already_pending_dialog.dart';
+import '../widgets/calendar_card.dart';
+import '../widgets/heart_confirm_dialog.dart';
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
 
@@ -492,43 +495,172 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
   }
 
   Future<void> _accept() async {
+    // Capture everything from context before any await — respondToRequest()
+    // synchronously clears _incomingRequest + notifyListeners(), which causes
+    // PendingIdeaCard to be removed from the tree during the async gap, setting
+    // mounted=false. All context reads must happen before that point.
+    final nav = Navigator.of(context, rootNavigator: true);
     setState(() => _responding = true);
     final provider = context.read<WeeklyIdeasProvider>();
-    final appState = context.read<AppState>();
+    final coupleId = widget.coupleId;
     final s = context.read<LanguageProvider>().s;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final activity = widget.request.ideaTitle(s.isNorwegian);
 
-    await provider.respondToRequest(widget.coupleId, widget.request.requestId, true);
+    DateTime planDate;
 
-    if (!mounted) return;
+    if (widget.request.proposedAt != null) {
+      planDate = widget.request.proposedAt!;
+    } else {
+      // Show pickers while still mounted — before respondToRequest unmounts us.
+      final pickedDate = await _showDatePickerDialog();
+      if (!mounted) return;
+      if (pickedDate == null) return;
 
-    final picked = await showDatePicker(
+      final pickedTime = await _showTimePickerDialog();
+      if (!mounted) return;
+
+      planDate = DateTime(
+        pickedDate.year, pickedDate.month, pickedDate.day,
+        pickedTime.hour, pickedTime.minute,
+      );
+    }
+
+    // Run both writes in parallel. respondToRequest will unmount this widget
+    // as a side effect, but addPlan uses only captured values — no context
+    // needed — so it completes successfully regardless.
+    await Future.wait([
+      provider.respondToRequest(coupleId, widget.request.requestId, true, planDate: planDate),
+      FirestoreService.addPlan(
+        coupleId: coupleId,
+        activity: activity,
+        date: planDate,
+        sentBy: uid,
+        status: 'confirmed',
+      ),
+    ]);
+
+    // nav was captured from the root navigator before any await — safe to push
+    // even though this widget is now unmounted.
+    nav.push(RawDialogRoute<void>(
+      pageBuilder: (ctx, anim, secAnim) => HeartConfirmDialog(
+        displayTitle: s.ideaConfirmedTitle(activity),
+        date: planDate,
+        s: s,
+      ),
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      barrierLabel: 'Dismiss',
+      transitionDuration: Duration.zero,
+    ));
+  }
+
+  Future<DateTime?> _showDatePickerDialog() async {
+    final s = context.read<LanguageProvider>().s;
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    DateTime? result;
+
+    await showDialog<void>(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
-      helpText: s.ideaAddToPlanDialogTitle,
-      confirmText: s.ideaAddToPlanConfirm,
-      cancelText: s.ideaSkipPlan,
+      useRootNavigator: true,
+      builder: (dialogCtx) {
+        var displayMonth = DateTime(tomorrow.year, tomorrow.month, 1);
+        var selected = tomorrow;
+
+        return StatefulBuilder(
+          builder: (_, setDs) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: const Color(0xFFFAF7F4),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CalendarCard(
+                    displayMonth: displayMonth,
+                    selectedDate: selected,
+                    eventDates: const {},
+                    s: s,
+                    onPrevMonth: () => setDs(() {
+                      displayMonth = DateTime(displayMonth.year, displayMonth.month - 1, 1);
+                    }),
+                    onNextMonth: () => setDs(() {
+                      displayMonth = DateTime(displayMonth.year, displayMonth.month + 1, 1);
+                    }),
+                    onSelectDate: (date) {
+                      result = date;
+                      Navigator.pop(dialogCtx);
+                    },
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogCtx),
+                    child: Text(
+                      s.ideaSkipPlan,
+                      style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
 
-    if (!mounted) return;
+    return result;
+  }
 
-    if (picked != null) {
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      await FirestoreService.addPlan(
-        coupleId: appState.coupleId,
-        activity: widget.request.ideaTitle(s.isNorwegian),
-        date: picked,
-        sentBy: uid,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(s.ideaDoneAddedPlan),
-        backgroundColor: const Color(0xFF3B6D11),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-    }
+  Future<TimeOfDay> _showTimePickerDialog() async {
+    final now = DateTime.now();
+    var selected = DateTime(now.year, now.month, now.day, 19, 0);
+    final isNo = context.read<LanguageProvider>().isNorwegian;
+
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: const Color(0xFFFAF7F4),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 200,
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.time,
+                use24hFormat: true,
+                initialDateTime: selected,
+                onDateTimeChanged: (dt) => selected = dt,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFA32D2D),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    isNo ? 'Ferdig' : 'Done',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return TimeOfDay(hour: selected.hour, minute: selected.minute);
   }
 
   Future<void> _decline() async {
@@ -1307,3 +1439,4 @@ class _FilterChip extends StatelessWidget {
     );
   }
 }
+
