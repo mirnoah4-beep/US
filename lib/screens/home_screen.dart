@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:auto_size_text/auto_size_text.dart';
@@ -34,10 +35,19 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 120),
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 120),
           children: [
             _buildTopBar(context),
             const SizedBox(height: 18),
+            Text(
+              s.homeFormattedDate(DateTime.now()),
+              style: const TextStyle(
+                color: AppTheme.textSubtle,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
               _timeGreeting(s),
               style: const TextStyle(
@@ -49,10 +59,8 @@ class HomeScreen extends StatelessWidget {
                 height: 1.15,
               ),
             ),
-            const SizedBox(height: 4),
-            _buildDateAndDurationLine(s, state),
             const SizedBox(height: 18),
-            _buildInspirationCard(s),
+            const _RelationshipCounterCard(),
             const SizedBox(height: 14),
             RelationshipBatteryCard(
               percent: state.batteryPercent,
@@ -79,43 +87,6 @@ class HomeScreen extends StatelessWidget {
     if (hour >= 12 && hour < 17) return s.greetingAfternoon;
     if (hour >= 17 && hour < 22) return s.greetingEvening;
     return s.greetingNight;
-  }
-
-  Widget _buildDateAndDurationLine(AppStrings s, AppState state) {
-    final now = DateTime.now();
-    final dateStr = s.homeFormattedDate(now);
-    final since = state.togetherSince;
-
-    if (since == null) {
-      return Text(
-        dateStr,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-        ),
-      );
-    }
-
-    int years = now.year - since.year;
-    int months = now.month - since.month;
-    if (now.day < since.day) months--;
-    if (months < 0) { years--; months += 12; }
-
-    return Row(
-      children: [
-        const Icon(Icons.favorite, size: 11, color: AppTheme.accentRose),
-        const SizedBox(width: 5),
-        Text(
-          '${s.homeDurationLine(years, months)} · $dateStr',
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _sectionLabel(String text) {
@@ -167,53 +138,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildInspirationCard(s) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppTheme.accentRose.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.format_quote_rounded,
-              color: AppTheme.accentRose,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              s.homeInspirationQuote,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1850,6 +1774,59 @@ class _WriteOwnWaitingBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Relationship duration counter ───────────────────────────────────────────
+
+class _RelationshipCounterCard extends StatelessWidget {
+  const _RelationshipCounterCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final since = context.watch<AppState>().togetherSince;
+
+    if (since == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    int years = now.year - since.year;
+    int months = now.month - since.month;
+    int days = now.day - since.day;
+
+    if (days < 0) {
+      days += DateTime(now.year, now.month, 0).day;
+      months--;
+    }
+    if (months < 0) { months += 12; years--; }
+
+    const muted = TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+      color: AppTheme.textSubtle,
+      height: 1.5,
+    );
+    const number = TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.w500,
+      color: Color(0xFFA32D2D),
+      height: 1.5,
+    );
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '${s.homeCounterLabel} ', style: muted),
+          TextSpan(text: '$years ', style: number),
+          TextSpan(text: '${s.homeCounterYrs} ', style: muted),
+          TextSpan(text: '$months ', style: number),
+          TextSpan(text: '${s.homeCounterMos} ', style: muted),
+          TextSpan(text: '$days ', style: number),
+          TextSpan(text: s.homeCounterDays, style: muted),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }

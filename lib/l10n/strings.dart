@@ -12,9 +12,9 @@ class AppStrings {
   String get navPlan => isNorwegian ? 'Plan' : 'Plan';
 
   // ── Home Screen ─────────────────────────────────────────────────────────
-  String get greetingMorning => isNorwegian ? 'God morgen, dere to! 👋' : 'Good morning, you two! 👋';
-  String get greetingAfternoon => isNorwegian ? 'God ettermiddag, dere to! 👋' : 'Good afternoon, you two! 👋';
-  String get greetingEvening => isNorwegian ? 'God kveld, dere to! 👋' : 'Good evening, you two! 👋';
+  String get greetingMorning => isNorwegian ? 'God morgen, dere to!' : 'Good morning, you two!';
+  String get greetingAfternoon => isNorwegian ? 'God ettermiddag, dere to!' : 'Good afternoon, you two!';
+  String get greetingEvening => isNorwegian ? 'God kveld, dere to!' : 'Good evening, you two!';
   String get greetingNight => isNorwegian ? 'Fortsatt våkne, dere to? 🌙' : 'Still awake, you two? 🌙';
   String get homeInspirationQuote => isNorwegian ? 'Et lite kompliment kan lyse opp dagen.' : 'A small compliment can brighten the day.';
   String get homeTonightSection => isNorwegian ? 'Kveldens idé' : 'Tonight\'s idea';
@@ -49,6 +49,13 @@ class AppStrings {
     if (months == 0) return '$yStr together';
     return '$yStr and $months ${months == 1 ? "month" : "months"} together';
   }
+  String get homeCounterLabel => isNorwegian ? 'Sammen i' : 'Together for';
+  String get homeCounterYrs => isNorwegian ? 'år' : 'years';
+  String get homeCounterMos => isNorwegian ? 'mnd' : 'months';
+  String get homeCounterDays => isNorwegian ? 'dager' : 'days';
+  String get homeCounterHrs => isNorwegian ? 'TIMER' : 'HRS';
+  String get homeCounterMin => 'MIN';
+  String get homeCounterSec => isNorwegian ? 'SEK' : 'SEC';
   String homeWaiting(String dots) => isNorwegian ? 'Krysser fingrene... S tenker$dots' : 'Fingers crossed... S is thinking$dots';
   String get homeWalkTogether => isNorwegian ? 'Gå tur sammen' : 'Walk together';
   String get homeDateNight => isNorwegian ? 'Datenatt' : 'Date night';
