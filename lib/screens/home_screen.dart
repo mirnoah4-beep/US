@@ -1010,153 +1010,11 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   }
 
   void _openWriteOwnSheet(BuildContext context, AppStrings s) {
-    final controller = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => AnimatedPadding(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
-        child: SingleChildScrollView(
-          keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: AppTheme.background,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.divider,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  s.homeWriteOwnSheetTitle,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  s.homeWriteOwnSheetSubtitle,
-                  style: const TextStyle(
-                      color: AppTheme.textSecondary, fontSize: 14),
-                ),
-                const SizedBox(height: 18),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  minLines: 3,
-                  maxLines: 5,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: AppTheme.white,
-                    hintText: s.homeWriteOwnHint,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final text = controller.text.trim();
-                      if (text.isEmpty) return;
-                      final appState = context.read<AppState>();
-                      final provider = context.read<WeeklyIdeasProvider>();
-                      final ls = context.read<LanguageProvider>().s;
-                      if (provider.sendState == IdeaSendState.waiting) {
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          useRootNavigator: true,
-                          builder: (ctx) => AlreadyPendingDialog(
-                            pendingTitle: provider.sentIdea?.title(ls.isNorwegian) ?? '',
-                            s: ls,
-                          ),
-                        );
-                        if (confirmed != true || !context.mounted) return;
-                        final ok = await provider.cancelForReplacement(appState.coupleId);
-                        if (!context.mounted) return;
-                        if (!ok) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(ls.isNorwegian
-                                ? 'Noe gikk galt – prøv igjen'
-                                : 'Something went wrong – try again'),
-                            backgroundColor: AppTheme.textPrimary,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ));
-                          return;
-                        }
-                      }
-                      provider.sendIdea(
-                        WeeklyIdea(
-                          titleNo: text,
-                          titleEn: text,
-                          categoryNo: '',
-                          categoryEn: '',
-                          metaNo: '',
-                          metaEn: '',
-                          descriptionNo: text,
-                          descriptionEn: text,
-                          cardColor: Colors.white,
-                          tagColor: const Color(0xFFFCF0EC),
-                          tagTextColor: const Color(0xFFA32D2D),
-                          icon: Icons.edit_outlined,
-                          buttonColor: const Color(0xFFA32D2D),
-                        ),
-                        appState.coupleId,
-                        appState.userId,
-                        appState.displayName,
-                        partnerId: appState.partnerId,
-                        coverImageUrl: null,
-                      );
-                      if (context.mounted) Navigator.pop(sheetCtx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFA32D2D),
-                      foregroundColor: AppTheme.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      s.homeSendIdea,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      builder: (_) => const _WriteOwnSheet(),
     );
   }
 }
@@ -1990,6 +1848,386 @@ class _WriteOwnWaitingBar extends StatelessWidget {
               child: const Icon(Icons.close, color: Color(0xFFA32D2D), size: 18),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Write-own bottom sheet ───────────────────────────────────────────────────
+
+class _WriteOwnSheet extends StatefulWidget {
+  const _WriteOwnSheet();
+
+  @override
+  State<_WriteOwnSheet> createState() => _WriteOwnSheetState();
+}
+
+class _WriteOwnSheetState extends State<_WriteOwnSheet> {
+  final _ctrl = TextEditingController();
+  DateTime? _proposedDate;
+  TimeOfDay? _proposedTime;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final s = context.read<LanguageProvider>().s;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        var displayMonth = DateTime(
+          (_proposedDate ?? today).year,
+          (_proposedDate ?? today).month,
+          1,
+        );
+        var selected = _proposedDate ?? today;
+
+        return StatefulBuilder(
+          builder: (_, setSheetState) => Container(
+            decoration: const BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.divider,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                CalendarCard(
+                  displayMonth: displayMonth,
+                  selectedDate: selected,
+                  eventDates: const {},
+                  s: s,
+                  onPrevMonth: () => setSheetState(() {
+                    displayMonth = DateTime(
+                        displayMonth.year, displayMonth.month - 1, 1);
+                  }),
+                  onNextMonth: () => setSheetState(() {
+                    displayMonth = DateTime(
+                        displayMonth.year, displayMonth.month + 1, 1);
+                  }),
+                  onSelectDate: (date) {
+                    setSheetState(() => selected = date);
+                    setState(() => _proposedDate = date);
+                    Navigator.pop(sheetCtx);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickTime() async {
+    final now = DateTime.now();
+    final initial = _proposedTime != null
+        ? DateTime(now.year, now.month, now.day,
+            _proposedTime!.hour, _proposedTime!.minute)
+        : DateTime(now.year, now.month, now.day, now.hour, now.minute);
+    var selected = initial;
+    final isNo = context.read<LanguageProvider>().isNorwegian;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        height: 280,
+        decoration: const BoxDecoration(
+          color: AppTheme.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.divider,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.time,
+                use24hFormat: true,
+                initialDateTime: initial,
+                onDateTimeChanged: (dt) => selected = dt,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFA32D2D),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    isNo ? 'Ferdig' : 'Done',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) {
+      setState(() => _proposedTime =
+          TimeOfDay(hour: selected.hour, minute: selected.minute));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final dateLabel = _proposedDate != null
+        ? '${_proposedDate!.day}.${_proposedDate!.month}'
+        : s.ideaDatePlaceholder;
+    final timeLabel = _proposedTime != null
+        ? _proposedTime!.format(context)
+        : s.ideaTimePlaceholder;
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.divider,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Text(
+                s.homeWriteOwnSheetTitle,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                s.homeWriteOwnSheetSubtitle,
+                style: const TextStyle(
+                    color: AppTheme.textSecondary, fontSize: 14),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: _ctrl,
+                autofocus: true,
+                minLines: 3,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppTheme.white,
+                  hintText: s.homeWriteOwnHint,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                s.ideaWhenWorksForYou,
+                style: const TextStyle(
+                    fontSize: 12, color: AppTheme.textSubtle),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 36,
+                      child: OutlinedButton(
+                        onPressed: _pickDate,
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: Color(0xFFE0D9D0)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          foregroundColor: const Color(0xFF555555),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.calendar_today_outlined,
+                                size: 14, color: Color(0xFFA32D2D)),
+                            const SizedBox(width: 5),
+                            Text(dateLabel),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 36,
+                      child: OutlinedButton(
+                        onPressed: _pickTime,
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: Color(0xFFE0D9D0)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          foregroundColor: const Color(0xFF555555),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.access_time_rounded,
+                                size: 14, color: Color(0xFFA32D2D)),
+                            const SizedBox(width: 5),
+                            Text(timeLabel),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final text = _ctrl.text.trim();
+                    if (text.isEmpty) return;
+                    final appState = context.read<AppState>();
+                    final provider = context.read<WeeklyIdeasProvider>();
+                    final ls = context.read<LanguageProvider>().s;
+                    if (provider.sendState == IdeaSendState.waiting) {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        useRootNavigator: true,
+                        builder: (ctx) => AlreadyPendingDialog(
+                          pendingTitle:
+                              provider.sentIdea?.title(ls.isNorwegian) ?? '',
+                          s: ls,
+                        ),
+                      );
+                      if (confirmed != true || !context.mounted) return;
+                      final ok = await provider
+                          .cancelForReplacement(appState.coupleId);
+                      if (!context.mounted) return;
+                      if (!ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(ls.isNorwegian
+                              ? 'Noe gikk galt – prøv igjen'
+                              : 'Something went wrong – try again'),
+                          backgroundColor: AppTheme.textPrimary,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ));
+                        return;
+                      }
+                    }
+                    DateTime? proposedAt;
+                    if (_proposedDate != null) {
+                      final d = _proposedDate!;
+                      final t =
+                          _proposedTime ?? const TimeOfDay(hour: 20, minute: 0);
+                      proposedAt =
+                          DateTime(d.year, d.month, d.day, t.hour, t.minute);
+                    }
+                    provider.sendIdea(
+                      WeeklyIdea(
+                        titleNo: text,
+                        titleEn: text,
+                        categoryNo: '',
+                        categoryEn: '',
+                        metaNo: '',
+                        metaEn: '',
+                        descriptionNo: text,
+                        descriptionEn: text,
+                        cardColor: Colors.white,
+                        tagColor: const Color(0xFFFCF0EC),
+                        tagTextColor: const Color(0xFFA32D2D),
+                        icon: Icons.edit_outlined,
+                        buttonColor: const Color(0xFFA32D2D),
+                      ),
+                      appState.coupleId,
+                      appState.userId,
+                      appState.displayName,
+                      partnerId: appState.partnerId,
+                      coverImageUrl: null,
+                      proposedAt: proposedAt,
+                    );
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFA32D2D),
+                    foregroundColor: AppTheme.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    s.homeSendIdea,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
