@@ -1229,7 +1229,10 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
     final s = context.read<LanguageProvider>().s;
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null || !context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    // Capture messenger before any await — ScaffoldMessenger survives widget
+    // disposal, so success/error feedback fires even if the card is rebuilt.
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(
       content: Text(s.adminUploading),
       duration: const Duration(seconds: 30),
       behavior: SnackBarBehavior.floating,
@@ -1237,18 +1240,17 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
     try {
       final ideaId = IdeaImageService.toId(widget.idea.titleNo);
       final url = await IdeaImageService.uploadCover(ideaId, picked);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
         content: Text(s.adminUploadSuccess),
         behavior: SnackBarBehavior.floating,
         backgroundColor: const Color(0xFF3B6D11),
       ));
+      if (!context.mounted) return;
       setState(() => _imageUrl = url);
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
         content: Text('Upload failed: $e'),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.red,

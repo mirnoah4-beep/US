@@ -968,27 +968,25 @@ class _IdeaCardState extends State<_IdeaCard> with SingleTickerProviderStateMixi
     final s = context.read<LanguageProvider>().s;
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null || !context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(
       content: Text(s.adminUploading),
       duration: const Duration(seconds: 30),
       behavior: SnackBarBehavior.floating,
     ));
-
     try {
       final url = await IdeaImageService.uploadCover(widget.idea.id, picked);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
         content: Text(s.adminUploadSuccess),
         behavior: SnackBarBehavior.floating,
         backgroundColor: const Color(0xFF3B6D11),
       ));
+      if (!context.mounted) return;
       setState(() => _imageFuture = Future.value(url));
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
         content: Text('Upload failed: $e'),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.red,
