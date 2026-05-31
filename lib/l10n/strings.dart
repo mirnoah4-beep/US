@@ -472,6 +472,9 @@ class AppStrings {
   String get planUpcomingSection => isNorwegian ? 'Kommende' : 'Upcoming';
   String get planConfirmedBadge => isNorwegian ? 'Avtalt' : 'Confirmed';
   String get planPendingBadge => isNorwegian ? 'Venter' : 'Pending';
+  String get planCancelConfirmTitle => isNorwegian ? 'Vil du avlyse denne daten?' : 'Cancel this date?';
+  String get planCancelButton => isNorwegian ? 'Avlys' : 'Cancel date';
+  String get planKeepButton => isNorwegian ? 'Behold' : 'Keep';
   String get planSheetTitle => isNorwegian ? 'Planlegg en date' : 'Plan a date';
   String get planSheetSub => isNorwegian ? 'Hva vil dere gjøre?' : 'What do you want to do?';
   String get planSendProposal => isNorwegian ? 'Send forslag til partner' : 'Send proposal to partner';

@@ -292,13 +292,24 @@ class _MainShellState extends State<MainShell> {
 
     // Foreground: no system banner — silently refresh so the stream fires and
     // PendingIdeaCard mounts, which auto-opens the modal via its initState hook.
-    FirebaseMessaging.onMessage.listen((_) {
+    FirebaseMessaging.onMessage.listen((message) {
       if (!mounted) return;
       final appState = context.read<AppState>();
       final coupleId = appState.coupleId;
       final userId = appState.userId;
       if (coupleId.isNotEmpty && userId.isNotEmpty) {
         context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
+      }
+      if (message.data['type'] == 'plan_cancelled') {
+        final body = message.notification?.body ?? '';
+        if (body.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(body),
+            backgroundColor: AppTheme.textPrimary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ));
+        }
       }
     });
 

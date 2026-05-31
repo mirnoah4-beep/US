@@ -108,6 +108,11 @@ class _PlanScreenState extends State<PlanScreen> {
     await FirestoreService.confirmPlan(_coupleId, id);
   }
 
+  Future<void> _deletePlan(String id) async {
+    if (_coupleId.isEmpty) return;
+    await FirestoreService.deletePlan(_coupleId, id);
+  }
+
   Set<DateTime> get _eventDateSet => _plannedDates
       .map((d) => DateTime(d.date.year, d.date.month, d.date.day))
       .toSet();
@@ -196,6 +201,7 @@ class _PlanScreenState extends State<PlanScreen> {
               dates: _upcomingDates,
               s: s,
               onConfirm: _confirmDate,
+              onDelete: _deletePlan,
             ),
             const SizedBox(height: 24),
             _SectionLabel(s.planCoupleGameSection),
@@ -253,8 +259,14 @@ class _UpcomingCard extends StatelessWidget {
   final List<_PlannedDate> dates;
   final AppStrings s;
   final ValueChanged<String> onConfirm;
+  final Future<void> Function(String id) onDelete;
 
-  const _UpcomingCard({required this.dates, required this.s, required this.onConfirm});
+  const _UpcomingCard({
+    required this.dates,
+    required this.s,
+    required this.onConfirm,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +277,8 @@ class _UpcomingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE0D9D0)),
       ),
-      child: dates.isEmpty ? _buildEmpty() : _buildList(),
+      clipBehavior: Clip.hardEdge,
+      child: dates.isEmpty ? _buildEmpty() : _buildList(context),
     );
   }
 
@@ -285,14 +298,89 @@ class _UpcomingCard extends StatelessWidget {
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(BuildContext context) {
     return Column(
       children: [
         for (int i = 0; i < dates.length; i++) ...[
-          _UpcomingRow(date: dates[i], s: s, onConfirm: () => onConfirm(dates[i].id)),
+          Dismissible(
+            key: ValueKey(dates[i].id),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (_) async {
+              final result = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => _CancelPlanDialog(date: dates[i], s: s),
+              );
+              return result == true;
+            },
+            onDismissed: (_) => onDelete(dates[i].id),
+            background: const SizedBox.shrink(),
+            secondaryBackground: Container(
+              color: const Color(0xFFD32F2F),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(Icons.delete_rounded, color: Colors.white, size: 24),
+            ),
+            child: _UpcomingRow(date: dates[i], s: s, onConfirm: () => onConfirm(dates[i].id)),
+          ),
           if (i < dates.length - 1)
             const Divider(height: 1, thickness: 0.5, color: Color(0xFFF1EFE8), indent: 16, endIndent: 16),
         ],
+      ],
+    );
+  }
+}
+
+// ─── Cancel plan confirmation dialog ─────────────────────────────────────────
+
+class _CancelPlanDialog extends StatelessWidget {
+  final _PlannedDate date;
+  final AppStrings s;
+
+  const _CancelPlanDialog({required this.date, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFFFAF7F4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        s.planCancelConfirmTitle,
+        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
+      ),
+      content: Text(
+        '${s.planActivityLabel(date.activity)}\n${s.planFormatDate(date.date)}',
+        style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary, height: 1.5),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1A1A1A),
+                  side: const BorderSide(color: Color(0xFFE0D9D0)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(s.planKeepButton, style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFC1544A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(s.planCancelButton, style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

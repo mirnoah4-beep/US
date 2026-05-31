@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { generateForCouple, getWeekNumber } from './generateWeeklyIdeas';
 
 admin.initializeApp();
@@ -155,6 +155,37 @@ export const onWeeklyPlanCreated = onDocumentCreated(
       `"${activity}" — bekreft for å låse inn`,
       { type: 'plan_created', coupleId, planId },
     );
+  }
+);
+
+// Firestore trigger: FCM to partner when a plan is cancelled (doc deleted)
+export const onWeeklyPlanDeleted = onDocumentDeleted(
+  { document: 'couples/{coupleId}/weeklyPlan/{planId}', region: 'europe-west1' },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+    const coupleId: string = event.params.coupleId;
+    const sentBy: string = data.sentBy ?? '';
+    const activity: string = data.activity ?? '';
+    const dateTs = data.date as admin.firestore.Timestamp | undefined;
+
+    const senderSnap = await admin.firestore().collection('users').doc(sentBy).get();
+    const senderName: string = senderSnap.data()?.displayName ?? 'Din partner';
+    const language: string = senderSnap.data()?.language ?? 'no';
+    const isNorwegian = language !== 'en';
+
+    const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
+    if (!coupleSnap.exists) return;
+    const members: string[] = coupleSnap.data()?.members ?? [];
+    const partnerId = members.find((id) => id !== sentBy);
+    if (!partnerId) return;
+
+    const datePart = dateTs ? ` – ${formatPlanDate(dateTs, isNorwegian)}` : '';
+    const body = isNorwegian
+      ? `avlyste ${activity}${datePart}`
+      : `cancelled ${activity}${datePart}`;
+
+    await sendToUser(partnerId, senderName, body, { type: 'plan_cancelled', coupleId });
   }
 );
 
