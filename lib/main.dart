@@ -5,7 +5,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart' hide ChangeNotifierProvider, Provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
@@ -51,7 +51,7 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(
-    ProviderScope(
+    riverpod.ProviderScope(
       child: MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AppState()),
@@ -201,7 +201,19 @@ class _CoupleGateState extends State<_CoupleGate> {
           return const SplashScreen();
         }
 
-        if (couple.isActive) return const MainShell();
+        if (couple.isActive) {
+          context.read<WeeklyIdeasProvider>().init(widget.coupleId);
+          return Consumer<WeeklyIdeasProvider>(
+            builder: (ctx, ideasProvider, _) {
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 500),
+                child: ideasProvider.initialized
+                    ? const MainShell()
+                    : const SplashScreen(),
+              );
+            },
+          );
+        }
 
         // Pending couple — not reachable in normal flow (coupleId is only
         // written when active), but handle defensively.

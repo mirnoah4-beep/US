@@ -1859,25 +1859,26 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      durationText,
-                      style: TextStyle(
-                        color: AppTheme.textSubtle,
-                        fontSize: isPending ? 11.0 : 12.0,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (isPending) ...[
-                      const SizedBox(height: 6),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: AnimatedBuilder(
-                          animation: _dotCtrl,
-                          builder: (context, child) => Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(3, (i) {
+                    if (isPending)
+                      AnimatedBuilder(
+                        animation: _dotCtrl,
+                        builder: (context, child) => Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                durationText,
+                                style: const TextStyle(
+                                  color: AppTheme.textSubtle,
+                                  fontSize: 11.0,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            ...List.generate(3, (i) {
                               final start = i / 3.0;
                               final end = (i + 1) / 3.0;
                               final v = _dotCtrl.value;
@@ -1890,8 +1891,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                                 child: Container(
                                   width: 5,
                                   height: 5,
-                                  margin:
-                                      EdgeInsets.only(right: i < 2 ? 4 : 0),
+                                  margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
                                   decoration: const BoxDecoration(
                                     color: Color(0xFFA32D2D),
                                     shape: BoxShape.circle,
@@ -1899,10 +1899,20 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                                 ),
                               );
                             }),
-                          ),
+                          ],
                         ),
+                      )
+                    else
+                      Text(
+                        durationText,
+                        style: const TextStyle(
+                          color: AppTheme.textSubtle,
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
                     const Spacer(),
                     button,
                   ],

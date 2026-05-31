@@ -8,11 +8,25 @@ class SplashScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F4),
       body: Center(
-        child: Image.asset(
-          'assets/logo/us_wordmark.png',
-          width: 100,
-          color: const Color(0xFFC1544A),
-          colorBlendMode: BlendMode.srcIn,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/logo/us_wordmark.png',
+              width: 100,
+              color: const Color(0xFFC1544A),
+              colorBlendMode: BlendMode.srcIn,
+            ),
+            const SizedBox(height: 32),
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Color(0xFFA32D2D),
+                strokeWidth: 2,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -174,8 +174,11 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   int _pendingIncomingCount = 0;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _incomingSub;
 
+  bool _initialized = false;
+
   WeeklyIdeasDoc? get doc => _doc;
   bool get loading => _loading;
+  bool get initialized => _initialized;
   List<WeeklyIdea> get ideas => _doc?.ideas ?? [];
   bool get isAiGenerated => _doc?.isAiGenerated ?? false;
   IdeaSendState get sendState => _sendState;
@@ -186,10 +189,11 @@ class WeeklyIdeasProvider extends ChangeNotifier {
 
   void clearSendError() { _sendError = null; }
 
-  // Call once from the HomeScreen widget tree.
+  // Call once coupleId is known — idempotent.
   Future<void> init(String coupleId) async {
     if (_coupleId == coupleId && _sub != null) return;
     _coupleId = coupleId;
+    _initialized = false;
     _sub?.cancel();
 
     try {
@@ -204,17 +208,23 @@ class WeeklyIdeasProvider extends ChangeNotifier {
             onError: (Object e) {
               debugPrint('WeeklyIdeasProvider stream error: $e');
               _loading = false;
+              _initialized = true;
               notifyListeners();
             },
           );
     } catch (e) {
-      // Firebase not yet initialized — feature unavailable until config added
       debugPrint('WeeklyIdeasProvider: Firebase unavailable: $e');
+      _initialized = true;
+      notifyListeners();
     }
   }
 
   void _onSnapshot(DocumentSnapshot<Map<String, dynamic>> snap) {
     if (!snap.exists || snap.data() == null) {
+      if (!_initialized) {
+        _initialized = true;
+        notifyListeners();
+      }
       _triggerGenerationIfNeeded();
       return;
     }
@@ -224,6 +234,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     // Fetch all cover URLs in parallel BEFORE notifying so carousel cards
     // sync-seed _imageUrl immediately and never render without a URL.
     _prefetchImageUrls(newDoc.ideas.take(4).toList()).whenComplete(() {
+      _initialized = true;
       if (!newDoc.isStale) _loading = false;
       notifyListeners();
     });
