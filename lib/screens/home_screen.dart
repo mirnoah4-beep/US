@@ -22,16 +22,25 @@ import '../widgets/already_pending_dialog.dart';
 import '../widgets/calendar_card.dart';
 import '../widgets/heart_confirm_dialog.dart';
 import '../widgets/relationship_battery_card.dart';
+import 'couple_setup_screen.dart';
 import 'mediator_chat_screen.dart';
 import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _bannerDismissed = false;
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final s = context.watch<LanguageProvider>().s;
+    final hasPartner = state.partnerId.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -62,6 +71,13 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
+            if (!hasPartner && !_bannerDismissed) ...[
+              _InviteBanner(
+                onTap: () => _openInviteFlow(context, state.userId),
+                onDismiss: () => setState(() => _bannerDismissed = true),
+              ),
+              const SizedBox(height: 8),
+            ],
             const _RelationshipCounterCard(),
             const SizedBox(height: 8),
             const Align(
@@ -83,6 +99,17 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 22),
             _buildResolveCard(context, s),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _openInviteFlow(BuildContext context, String userId) {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => CoupleSetupScreen(
+          currentUserId: userId,
+          onCoupleActive: () {},
         ),
       ),
     );
@@ -285,6 +312,97 @@ class HomeScreen extends StatelessWidget {
   void _openSettings(BuildContext context) {
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+}
+
+// ─── Invite banner (shown to solo users until partner connects) ──────────────
+
+class _InviteBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  const _InviteBanner({required this.onTap, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFCF0EC),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: const Color(0xFFA32D2D).withValues(alpha: 0.18),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFA32D2D),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person_add_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.inviteBannerTitle,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        s.inviteBannerSubtitle,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textMuted,
+                  size: 20,
+                ),
+                GestureDetector(
+                  onTap: onDismiss,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.fromLTRB(6, 6, 0, 6),
+                    child: Icon(Icons.close, color: AppTheme.textMuted, size: 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -930,6 +1048,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                   userId: appState.userId,
                   displayName: appState.displayName,
                   partnerName: appState.partnerName,
+                  hasPartner: appState.partnerId.isNotEmpty,
                 ),
               ),
             ),
@@ -965,6 +1084,15 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   }
 
   void _openWriteOwnSheet(BuildContext context, AppStrings s) {
+    if (context.read<AppState>().partnerId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(s.soloSendDisabledHint),
+        backgroundColor: AppTheme.textPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -982,6 +1110,7 @@ class _IdeaPageCard extends StatefulWidget {
   final String userId;
   final String displayName;
   final String partnerName;
+  final bool hasPartner;
 
   const _IdeaPageCard({
     required this.idea,
@@ -989,6 +1118,7 @@ class _IdeaPageCard extends StatefulWidget {
     required this.userId,
     required this.displayName,
     required this.partnerName,
+    required this.hasPartner,
   });
 
   @override
@@ -1604,6 +1734,35 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      } else if (!widget.hasPartner) {
+        button = GestureDetector(
+          onTap: () {
+            final ls = context.read<LanguageProvider>().s;
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(ls.soloSendDisabledHint),
+              backgroundColor: AppTheme.textPrimary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ));
+          },
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppTheme.textMuted.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              s.soloSendDisabledHint,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

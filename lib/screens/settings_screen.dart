@@ -192,6 +192,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     rootNav.pop();
     try { await GoogleSignIn().signOut(); } catch (_) {}
     await FirebaseAuth.instance.signOut();
+    rootNav.popUntil((route) => route.isFirst);
   }
 
   Future<bool> _reauth(BuildContext context, User user, dynamic s) async {

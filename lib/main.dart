@@ -129,12 +129,10 @@ class AuthGate extends StatelessWidget {
 
             final coupleId = userData.coupleId;
 
-            // No couple — go to setup.
+            // No couple yet — let them in with static fallback data.
+            // The invite banner on HomeScreen guides them to connect a partner.
             if (coupleId == null || coupleId.isEmpty) {
-              return CoupleSetupScreen(
-                currentUserId: user.uid,
-                onCoupleActive: () {},
-              );
+              return const MainShell();
             }
 
             // Has coupleId — verify the couple's status.

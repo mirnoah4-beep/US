@@ -783,4 +783,12 @@ class AppStrings {
   List<String> get remindersDayAbbreviations => isNorwegian
       ? ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø']
       : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+  // ── Solo / invite banner ────────────────────────────────────────────────
+  String get inviteBannerTitle =>
+      isNorwegian ? 'Inviter partneren din' : 'Invite your partner';
+  String get inviteBannerSubtitle =>
+      isNorwegian ? 'Send en kode for å komme i gang sammen' : 'Send a code to get started together';
+  String get soloSendDisabledHint =>
+      isNorwegian ? 'Koble med partner først' : 'Connect with partner first';
 }
