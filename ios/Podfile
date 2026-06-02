@@ -28,7 +28,7 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -39,5 +39,18 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    end
+  end
+
+  # Flutter Firebase plugin pods import <Firebase/Firebase.h> — a non-modular
+  # header. Clang rejects this inside "framework module" declarations.
+  # Downgrading all firebase_* and cloud_* module maps to plain "module"
+  # removes that restriction without affecting runtime behaviour.
+  Dir.glob("#{installer.sandbox.root}/Target Support Files/{firebase_*,cloud_*}/*.modulemap") do |modulemap|
+    content = File.read(modulemap)
+    patched = content.gsub(/\bframework module\b/, 'module')
+    File.write(modulemap, patched) if patched != content
   end
 end
