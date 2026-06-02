@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              _timeGreeting(s),
+              _timeGreeting(s, state.displayName, state.partnerName),
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 26,
@@ -115,12 +115,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _timeGreeting(AppStrings s) {
+  String _timeGreeting(AppStrings s, String name, String partnerName) {
+    final names = s.greetingNames(name, partnerName);
     final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) return s.greetingMorning;
-    if (hour >= 12 && hour < 17) return s.greetingAfternoon;
-    if (hour >= 17 && hour < 22) return s.greetingEvening;
-    return s.greetingNight;
+    if (hour >= 5 && hour < 12) return s.greetingMorning(names);
+    if (hour >= 12 && hour < 17) return s.greetingAfternoon(names);
+    if (hour >= 17 && hour < 22) return s.greetingEvening(names);
+    return s.greetingNight(names);
   }
 
   Widget _sectionLabel(String text) {

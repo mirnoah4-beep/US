@@ -12,10 +12,16 @@ class AppStrings {
   String get navPlan => isNorwegian ? 'Plan' : 'Plan';
 
   // ── Home Screen ─────────────────────────────────────────────────────────
-  String get greetingMorning => isNorwegian ? 'God morgen, dere to!' : 'Good morning, you two!';
-  String get greetingAfternoon => isNorwegian ? 'God ettermiddag, dere to!' : 'Good afternoon, you two!';
-  String get greetingEvening => isNorwegian ? 'God kveld, dere to!' : 'Good evening, you two!';
-  String get greetingNight => isNorwegian ? 'Fortsatt våkne, dere to?' : 'Still awake, you two?';
+  String greetingNames(String name, String partnerName) {
+    if (name.isEmpty || partnerName.isEmpty) {
+      return isNorwegian ? 'dere to' : 'you two';
+    }
+    return isNorwegian ? '$name og $partnerName' : '$name and $partnerName';
+  }
+  String greetingMorning(String names) => isNorwegian ? 'God morgen, $names!' : 'Good morning, $names!';
+  String greetingAfternoon(String names) => isNorwegian ? 'God ettermiddag, $names!' : 'Good afternoon, $names!';
+  String greetingEvening(String names) => isNorwegian ? 'God kveld, $names!' : 'Good evening, $names!';
+  String greetingNight(String names) => isNorwegian ? 'Fortsatt våkne, $names?' : 'Still awake, $names?';
   String get homeInspirationQuote => isNorwegian ? 'Et lite kompliment kan lyse opp dagen.' : 'A small compliment can brighten the day.';
   String get homeTonightSection => isNorwegian ? 'Kveldens idé' : 'Tonight\'s idea';
   String get homeThisWeekSection => isNorwegian ? 'Denne uken' : 'This week';
@@ -29,8 +35,9 @@ class AppStrings {
   String homeFormattedDate(DateTime date) {
     final day = planFullDayNames[date.weekday - 1];
     final month = planMonthNamesShort[date.month - 1];
+    final dayNo = day[0].toUpperCase() + day.substring(1).toLowerCase();
     return isNorwegian
-        ? '${day.toLowerCase()} ${date.day}. $month'
+        ? '$dayNo ${date.day}. $month'
         : '$day, $month ${date.day}';
   }
   String homeDurationLine(int years, int months) {
