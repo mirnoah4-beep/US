@@ -998,7 +998,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
               ),
             ),
             const Spacer(),
-            if (ideas.isNotEmpty && imagesReady)
+            if (ideas.isNotEmpty && (imagesReady || appState.coupleId.isEmpty))
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(ideas.length, (i) {
@@ -1019,7 +1019,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           ],
         ),
         const SizedBox(height: 10),
-        if (!imagesReady)
+        if (!imagesReady && appState.coupleId.isNotEmpty)
           const SizedBox(height: 160)
         else if (ideas.isEmpty)
           Padding(
