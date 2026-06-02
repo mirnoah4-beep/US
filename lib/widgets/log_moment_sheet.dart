@@ -153,6 +153,8 @@ class _LogMomentSheetState extends State<LogMomentSheet> {
           TextField(
             controller: _customController,
             maxLines: 2,
+            maxLength: 100,
+            buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
             decoration: InputDecoration(
               hintText: s.logCustomHint,
               hintStyle: const TextStyle(color: Color(0xFFB4B2A9), fontSize: 14),

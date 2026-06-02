@@ -612,6 +612,8 @@ class _MediatorChatScreenState extends State<MediatorChatScreen>
                     controller: _inputCtrl,
                     enabled: _inputEnabled,
                     maxLines: null,
+                    maxLength: 500,
+                    buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
                     style: const TextStyle(

@@ -518,6 +518,8 @@ class _PlanDateSheetState extends State<_PlanDateSheet> {
             TextField(
               controller: _customCtrl,
               maxLines: 2,
+              maxLength: 100,
+              buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
               decoration: InputDecoration(
                 hintText: s.planCustomHint,
                 hintStyle: const TextStyle(color: Color(0xFFB4B2A9), fontSize: 14),

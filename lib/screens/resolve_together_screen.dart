@@ -679,6 +679,8 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
                 enabled: _inputEnabled,
                 minLines: 1,
                 maxLines: 4,
+                maxLength: 500,
+                buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 15,

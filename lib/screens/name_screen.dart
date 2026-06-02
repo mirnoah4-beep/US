@@ -79,6 +79,8 @@ class _NameScreenState extends State<NameScreen> {
                 autofocus: true,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.done,
+                maxLength: 30,
+                buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _save(),
                 style: const TextStyle(

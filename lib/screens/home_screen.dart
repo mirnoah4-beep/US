@@ -791,6 +791,8 @@ class _TonightCardState extends State<_TonightCard>
                     autofocus: true,
                     minLines: 3,
                     maxLines: 5,
+                    maxLength: 200,
+                    buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: AppTheme.white,
@@ -2343,6 +2345,8 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
                 autofocus: true,
                 minLines: 3,
                 maxLines: 5,
+                maxLength: 200,
+                buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: AppTheme.white,

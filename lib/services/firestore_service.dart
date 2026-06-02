@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/couple_model.dart';
 import '../models/invite_model.dart';
@@ -179,11 +180,8 @@ class FirestoreService {
 
         return JoinSuccess(invite.coupleId);
       });
-    } catch (e, stack) {
-      print('=== joinByCode UNEXPECTED ERROR ===');
-      print('Type: ${e.runtimeType}');
-      print('Error: $e');
-      print('Stack: $stack');
+    } catch (e) {
+      debugPrint('joinByCode failed: $e');
       return JoinFailure(JoinFailureReason.networkError, e.toString());
     }
   }

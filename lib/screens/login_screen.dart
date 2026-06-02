@@ -98,11 +98,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'E-post'),
                 keyboardType: TextInputType.emailAddress,
+                maxLength: 254,
+                buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
               ),
               TextField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: 'Passord'),
                 obscureText: true,
+                maxLength: 128,
+                buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
               ),
               const SizedBox(height: 16),
               FilledButton(
@@ -122,9 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         password: _passwordController.text,
                       );
                       Navigator.pop(ctx);
-                    } catch (e) {
-                      print('Error: $e');
-                    }
+                    } catch (_) {}
                   }
                 },
                 style: FilledButton.styleFrom(
@@ -198,10 +200,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           await _handleAuthSuccess(userCredential.user!);
                         }
                       } catch (e) {
-                        final details = e is PlatformException
-                            ? 'code: ${e.code} | ${e.message}'
-                            : '$e';
-                        print('Google Sign-In feil: $details');
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

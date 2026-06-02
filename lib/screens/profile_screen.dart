@@ -290,6 +290,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? TextField(
                     controller: _nameController,
                     autofocus: true,
+                    maxLength: 30,
+                    buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,

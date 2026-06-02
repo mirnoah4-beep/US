@@ -520,7 +520,6 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   Future<void> checkIncomingRequests(String coupleId, String userId) async {
     _incomingSub?.cancel();
     _incomingUserId = userId;
-    debugPrint('=== checkIncomingRequests called coupleId=$coupleId userId=$userId');
     try {
       // Single-field query avoids composite index requirement.
       // Filter out own requests client-side in _onIncomingSnapshot.
@@ -531,20 +530,18 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .where('status', isEqualTo: 'pending')
           .snapshots()
           .listen(_onIncomingSnapshot, onError: (Object e) {
-            debugPrint('=== INCOMING STREAM ERROR: $e');
+            debugPrint('WeeklyIdeasProvider incoming stream error: $e');
           });
     } catch (e) {
-      debugPrint('=== checkIncomingRequests THREW: $e');
+      debugPrint('WeeklyIdeasProvider checkIncomingRequests failed: $e');
     }
   }
 
   void _onIncomingSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
-    debugPrint('=== INCOMING SNAPSHOT fired: ${snap.docs.length} total pending docs');
     // Filter out requests sent by the current user (client-side to avoid composite index).
     final incoming = snap.docs
         .where((d) => (d.data()['sentBy'] as String?) != _incomingUserId)
         .toList();
-    debugPrint('=== INCOMING after filter: ${incoming.length} docs for userId=$_incomingUserId');
 
     final prevCount = _pendingIncomingCount;
     _pendingIncomingCount = incoming.length;

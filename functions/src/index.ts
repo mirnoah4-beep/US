@@ -194,9 +194,20 @@ export const onWeeklyPlanDeleted = onDocumentDeleted(
 export const generateWeeklyIdeasNow = onCall(
   { region: 'europe-west1' },
   async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
     const coupleId: unknown = request.data?.coupleId;
     if (typeof coupleId !== 'string' || !coupleId) {
       throw new HttpsError('invalid-argument', 'coupleId is required');
+    }
+    const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
+    if (!coupleSnap.exists) {
+      throw new HttpsError('not-found', 'Couple not found');
+    }
+    const members: string[] = coupleSnap.data()?.members ?? [];
+    if (!members.includes(request.auth.uid)) {
+      throw new HttpsError('permission-denied', 'Not a member of this couple');
     }
     await generateForCouple(coupleId);
     return { success: true };
