@@ -4,7 +4,11 @@ service cloud.firestore {
 
     // ── Users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth.uid == userId
+        || (resource.data.coupleId != null
+            && request.auth.uid in get(
+                 /databases/$(database)/documents/couples/$(resource.data.coupleId)
+               ).data.members);
       allow create, delete: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId ||
         // Cross-user coupleId writes are allowed for two operations only:
@@ -66,9 +70,19 @@ service cloud.firestore {
 
     // ── Invites ───────────────────────────────────────────────────────────────
     // Any authenticated user can read (look up by code) and create.
-    // Delete needed by creator (cancelInvite) and joiner (joinByCode).
+    // Delete: creator, couple members, or anyone while couple is still pending
+    // (joinByCode transaction sees pre-transaction state where status == 'pending').
     match /invites/{inviteCode} {
-      allow read, create, delete: if request.auth != null;
+      allow read, create: if request.auth != null;
+      allow delete: if request.auth != null && (
+        request.auth.uid == resource.data.fromUserId
+        || request.auth.uid in get(
+             /databases/$(database)/documents/couples/$(resource.data.coupleId)
+           ).data.members
+        || get(
+             /databases/$(database)/documents/couples/$(resource.data.coupleId)
+           ).data.status == 'pending'
+      );
     }
 
     // ── Ideas ─────────────────────────────────────────────────────────────────

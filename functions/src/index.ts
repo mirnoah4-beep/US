@@ -3,6 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { generateForCouple, getWeekNumber } from './generateWeeklyIdeas';
+import OpenAI from 'openai';
 
 admin.initializeApp();
 
@@ -199,5 +200,30 @@ export const generateWeeklyIdeasNow = onCall(
     }
     await generateForCouple(coupleId);
     return { success: true };
+  }
+);
+
+// Callable proxy for OpenAI — keeps the API key out of the client binary
+export const callOpenAI = onCall(
+  { region: 'europe-west1', secrets: ['OPENAI_API_KEY'] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
+    const messages: unknown = request.data?.messages;
+    const maxTokens: unknown = request.data?.maxTokens;
+    if (!Array.isArray(messages) || messages.length === 0) {
+      throw new HttpsError('invalid-argument', 'messages must be a non-empty array');
+    }
+    if (typeof maxTokens !== 'number' || maxTokens < 1 || maxTokens > 1000) {
+      throw new HttpsError('invalid-argument', 'maxTokens must be a number between 1 and 1000');
+    }
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: maxTokens,
+      messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
+    });
+    return { reply: completion.choices[0].message.content ?? '' };
   }
 );

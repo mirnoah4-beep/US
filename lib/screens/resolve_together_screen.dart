@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-import '../config/secrets.dart';
 import '../models/language_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -173,34 +171,21 @@ class _ResolveTogetherScreenState extends State<ResolveTogetherScreen>
   Future<void> _callApi(
       String p1, String p2, bool isNorwegian) async {
     try {
-      final res = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $kOpenAiApiKey',
-        },
-        body: jsonEncode({
-          'model': 'gpt-4o-mini',
-          'max_tokens': 400,
-          'messages': [
-            {
-              'role': 'system',
-              'content': _buildSystemPrompt(isNorwegian)
-            },
-            {
-              'role': 'user',
-              'content':
-                  '$_p1Name sier: "$p1"\n\n$_p2Name sier: "$p2"',
-            },
-          ],
-        }),
-      );
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('callOpenAI');
+      final result = await callable.call({
+        'messages': [
+          {'role': 'system', 'content': _buildSystemPrompt(isNorwegian)},
+          {
+            'role': 'user',
+            'content': '$_p1Name sier: "$p1"\n\n$_p2Name sier: "$p2"',
+          },
+        ],
+        'maxTokens': 400,
+      });
       if (!mounted) return;
       final s = context.read<LanguageProvider>().s;
-      final reply = res.statusCode == 200
-          ? (jsonDecode(res.body)['choices'][0]['message']
-                  ['content'] as String)
-          : s.resolveError;
+      final reply = (result.data['reply'] as String?) ?? s.resolveError;
       setState(() {
         _tomTyping = false;
         _msgs.add(_Msg(isAi: true, text: reply));

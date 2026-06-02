@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-import '../config/secrets.dart';
 import '../models/app_state.dart';
 import '../theme/app_theme.dart';
 
@@ -43,7 +41,6 @@ class _MediatorChatScreenState extends State<MediatorChatScreen>
   bool _typing = false;
   bool _chipsVisible = false;
   bool _inputEnabled = false;
-  http.Client? _httpClient;
 
   final _inputCtrl = TextEditingController();
   final _scroll = ScrollController();
@@ -70,7 +67,6 @@ class _MediatorChatScreenState extends State<MediatorChatScreen>
 
   @override
   void dispose() {
-    _httpClient?.close();
     _inputCtrl.dispose();
     _scroll.dispose();
     _dotCtrl.dispose();
@@ -146,35 +142,24 @@ class _MediatorChatScreenState extends State<MediatorChatScreen>
   }
 
   Future<void> _streamResponse() async {
-    _httpClient = http.Client();
     try {
-      final response = await _httpClient!.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $kOpenAiApiKey',
-        },
-        body: jsonEncode({
-          'model': 'gpt-4o-mini',
-          'max_tokens': 300,
-          'messages': [
-            {'role': 'system', 'content': _systemPrompt()},
-            ..._buildHistory(),
-          ],
-        }),
-      );
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('callOpenAI');
+      final result = await callable.call({
+        'messages': [
+          {'role': 'system', 'content': _systemPrompt()},
+          ..._buildHistory(),
+        ],
+        'maxTokens': 300,
+      });
       if (!mounted) return;
-      final String reply;
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-        reply = decoded['choices'][0]['message']['content'] as String? ??
-            'Beklager, noe gikk galt. Prøv igjen.';
-      } else {
-        reply = 'Beklager, noe gikk galt. Prøv igjen.';
-      }
+      final reply = (result.data['reply'] as String? ?? '').trim();
       setState(() {
         _typing = false;
-        _msgs.add(_ChatMsg(sender: _Sender.ai, text: reply.trim()));
+        _msgs.add(_ChatMsg(
+          sender: _Sender.ai,
+          text: reply.isNotEmpty ? reply : 'Beklager, noe gikk galt. Prøv igjen.',
+        ));
       });
     } catch (_) {
       if (!mounted) return;
@@ -185,8 +170,6 @@ class _MediatorChatScreenState extends State<MediatorChatScreen>
             text: 'Kunne ikke koble til. Sjekk internettforbindelsen.'));
       });
     } finally {
-      _httpClient?.close();
-      _httpClient = null;
       if (mounted) {
         setState(() => _inputEnabled = true);
         _scrollDown();
