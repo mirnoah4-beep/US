@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -16,6 +17,7 @@ import 'models/reminders_provider.dart';
 import 'models/user_model.dart';
 import 'models/weekly_ideas_provider.dart';
 import 'screens/couple_setup_screen.dart';
+import 'screens/email_verification_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/ideas_screen.dart';
 import 'screens/last_time_screen.dart';
@@ -36,11 +38,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // TODO: Re-enable App Check before launch:
-  // await FirebaseAppCheck.instance.activate(
-  //   androidProvider: AndroidProvider.playIntegrity,
-  //   appleProvider: AppleProvider.appleAttest,
-  // );
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+  );
 
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
   PlatformDispatcher.instance.onError = (error, stack) {
@@ -121,6 +122,12 @@ class AuthGate extends StatelessWidget {
             }
 
             final userData = UserModel.fromFirestore(userDoc);
+
+            // Email verification gate — only for new email/password registrations.
+            // Existing users and federated (Google/Apple) users never have this flag.
+            if (userData.needsEmailVerification) {
+              return EmailVerificationScreen(user: user);
+            }
 
             // No name yet — must set before anything else.
             if (userData.displayName.isEmpty) {

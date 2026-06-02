@@ -798,4 +798,22 @@ class AppStrings {
       isNorwegian ? 'Send en kode for å komme i gang sammen' : 'Send a code to get started together';
   String get soloSendDisabledHint =>
       isNorwegian ? 'Koble med partner først' : 'Connect with partner first';
+
+  // ── Email Verification ──────────────────────────────────────────────────
+  String get emailVerifyTitle =>
+      isNorwegian ? 'Bekreft e-posten din' : 'Verify your email';
+  String emailVerifySubtitle(String email) => isNorwegian
+      ? 'Vi sendte en lenke til $email. Klikk på den for å bekrefte kontoen din.'
+      : 'We sent a link to $email. Click it to verify your account.';
+  String get emailVerifyResend =>
+      isNorwegian ? 'Send på nytt' : 'Resend email';
+  String get emailVerifyCheckAgain =>
+      isNorwegian ? 'Jeg har bekreftet' : 'I\'ve verified';
+  String get emailVerifyResent =>
+      isNorwegian ? 'E-post sendt!' : 'Email sent!';
+  String get emailVerifyNotYet => isNorwegian
+      ? 'Ikke bekreftet ennå. Sjekk innboksen og prøv igjen.'
+      : 'Not verified yet. Check your inbox and try again.';
+  String get emailVerifySignOut =>
+      isNorwegian ? 'Logg ut' : 'Sign out';
 }

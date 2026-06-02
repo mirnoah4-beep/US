@@ -15,12 +15,13 @@ class FirestoreService {
   static DocumentReference<Map<String, dynamic>> userRef(String uid) =>
       _db.collection('users').doc(uid);
 
-  static Future<void> ensureUserDoc(User user) async {
+  static Future<void> ensureUserDoc(User user, {bool needsEmailVerification = false}) async {
     final snap = await userRef(user.uid).get();
-    if (!snap.exists) await createUser(user);
+    if (!snap.exists) await createUser(user, needsEmailVerification: needsEmailVerification);
   }
 
-  static Future<void> createUser(User user) => userRef(user.uid).set({
+  static Future<void> createUser(User user, {bool needsEmailVerification = false}) =>
+      userRef(user.uid).set({
         'uid': user.uid,
         'displayName': user.displayName ?? '',
         'email': user.email ?? '',
@@ -29,6 +30,7 @@ class FirestoreService {
         'language': 'no',
         'fcmToken': null,
         'createdAt': FieldValue.serverTimestamp(),
+        'needsEmailVerification': needsEmailVerification,
       });
 
   static Future<void> updateUser(String uid, Map<String, dynamic> data) =>

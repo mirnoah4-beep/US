@@ -9,6 +9,7 @@ class UserModel {
   final String language;
   final String? fcmToken;
   final DateTime? createdAt;
+  final bool needsEmailVerification;
 
   const UserModel({
     required this.uid,
@@ -19,6 +20,7 @@ class UserModel {
     this.language = 'no',
     this.fcmToken,
     this.createdAt,
+    this.needsEmailVerification = false,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -32,6 +34,7 @@ class UserModel {
       language: d['language'] as String? ?? 'no',
       fcmToken: d['fcmToken'] as String?,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      needsEmailVerification: d['needsEmailVerification'] as bool? ?? false,
     );
   }
 

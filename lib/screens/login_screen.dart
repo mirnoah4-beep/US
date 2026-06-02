@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _handleAuthSuccess(User user) async {
+  Future<void> _handleAuthSuccess(User user, {bool needsEmailVerification = false}) async {
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (_) {}
 
-    await FirestoreService.ensureUserDoc(user);
+    await FirestoreService.ensureUserDoc(user, needsEmailVerification: needsEmailVerification);
     // AuthGate stream handles all navigation from here.
   }
 
@@ -121,11 +121,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.pop(ctx);
                   } catch (e) {
                     try {
-                      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
                         email: _emailController.text,
                         password: _passwordController.text,
                       );
-                      Navigator.pop(ctx);
+                      final newUser = cred.user!;
+                      await newUser.sendEmailVerification();
+                      await _handleAuthSuccess(newUser, needsEmailVerification: true);
+                      if (ctx.mounted) Navigator.pop(ctx);
                     } catch (_) {}
                   }
                 },
