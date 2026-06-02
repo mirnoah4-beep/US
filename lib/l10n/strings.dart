@@ -565,6 +565,19 @@ class AppStrings {
   String get settingsSignOutSub => isNorwegian ? 'Logg ut av kontoen din' : 'Sign out of your account';
   String get settingsSubscription => isNorwegian ? 'Abonnement' : 'Subscription';
   String get settingsSubscriptionSub => isNorwegian ? 'Administrer planen din' : 'Manage your plan';
+  String get settingsDeleteAccount => isNorwegian ? 'Slett konto' : 'Delete account';
+  String get deleteAccountTitle => isNorwegian ? 'Er du sikker?' : 'Are you sure?';
+  String get deleteAccountBody => isNorwegian
+      ? 'Dette sletter kontoen din, all data, og kan ikke angres.'
+      : 'This will delete your account, all data, and cannot be undone.';
+  String get deleteAccountConfirm => isNorwegian ? 'Slett konto' : 'Delete account';
+  String get deleteAccountCancel => isNorwegian ? 'Avbryt' : 'Cancel';
+  String get deleteAccountError => isNorwegian ? 'Noe gikk galt. Prøv igjen.' : 'Something went wrong. Try again.';
+  String get deleteAccountReauthTitle => isNorwegian ? 'Bekreft identitet' : 'Confirm identity';
+  String get deleteAccountReauthBody => isNorwegian
+      ? 'Du må logge inn på nytt for å slette kontoen.'
+      : 'You need to sign in again to delete your account.';
+  String get deleteAccountReauthButton => isNorwegian ? 'Logg inn på nytt' : 'Sign in again';
   String get settingsLanguagePickerTitle => isNorwegian ? 'Velg språk' : 'Choose language';
   String get languageSub => isNorwegian ? 'Velg appens språk' : 'Choose app language';
   String get settingsDittForhold => isNorwegian ? 'DITT FORHOLD' : 'YOUR RELATIONSHIP';

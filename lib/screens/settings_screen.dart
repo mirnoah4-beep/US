@@ -3,10 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../models/app_state.dart';
 import '../models/language_provider.dart';
 import '../services/firestore_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import 'lifestyle_setup_screen.dart';
 import 'our_relationship_screen.dart';
@@ -136,6 +138,160 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _deleteAccount(BuildContext context) async {
+    final s = context.read<LanguageProvider>().s;
+    final appState = context.read<AppState>();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final coupleId = appState.coupleId;
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _DeleteAccountDialog(s: s),
+    );
+    if (confirmed != true || !mounted) return;
+
+    showDialog<void>(
+      context: context, // ignore: use_build_context_synchronously
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    await StorageService.deleteUserFiles(uid);
+    try {
+      await FirestoreService.deleteUserData(uid, coupleId.isNotEmpty ? coupleId : null);
+    } catch (_) {}
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await user.delete();
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'requires-recent-login') {
+          rootNav.pop();
+          if (!mounted) return;
+          final reauthed = await _reauth(context, user, s); // ignore: use_build_context_synchronously
+          if (!reauthed || !mounted) return;
+          showDialog<void>(
+            context: context, // ignore: use_build_context_synchronously
+            barrierDismissible: false,
+            builder: (_) => const Center(child: CircularProgressIndicator()),
+          );
+          try {
+            await user.delete();
+          } catch (_) {
+            rootNav.pop();
+            messenger.showSnackBar(SnackBar(content: Text(s.deleteAccountError)));
+            return;
+          }
+        }
+      }
+    }
+
+    rootNav.pop();
+    try { await GoogleSignIn().signOut(); } catch (_) {}
+    await FirebaseAuth.instance.signOut();
+  }
+
+  Future<bool> _reauth(BuildContext context, User user, dynamic s) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          s.deleteAccountReauthTitle,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1A1A1A),
+          ),
+        ),
+        content: Text(
+          s.deleteAccountReauthBody,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF888780),
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF5F5E5A),
+                    side: const BorderSide(color: Color(0xFFE0D9D0)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(s.deleteAccountCancel),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFA32D2D),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(s.deleteAccountReauthButton),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+
+    try {
+      final providerId = user.providerData
+          .firstWhere(
+            (p) => p.providerId == 'google.com' || p.providerId == 'apple.com',
+            orElse: () => user.providerData.first,
+          )
+          .providerId;
+
+      if (providerId == 'google.com') {
+        final googleSignIn = GoogleSignIn(clientId: '196627223703-a8odmf7vek1bmff7k6vrcin33motbks5.apps.googleusercontent.com');
+        await googleSignIn.signOut();
+        final account = await googleSignIn.signIn();
+        if (account == null) return false;
+        final auth = await account.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: auth.accessToken,
+          idToken: auth.idToken,
+        );
+        await user.reauthenticateWithCredential(credential);
+      } else {
+        final credential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+        final oAuth = OAuthProvider('apple.com').credential(
+          idToken: credential.identityToken,
+          accessToken: credential.authorizationCode,
+        );
+        await user.reauthenticateWithCredential(oAuth);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
@@ -164,6 +320,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSection2(context, s),
             const SizedBox(height: 12),
             _buildSection3(context, s),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: () => _deleteAccount(context),
+                child: Text(
+                  s.settingsDeleteAccount,
+                  style: const TextStyle(
+                    color: Color(0xFFA32D2D),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -662,6 +832,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+}
+
+class _DeleteAccountDialog extends StatelessWidget {
+  final dynamic s;
+  const _DeleteAccountDialog({required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppTheme.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        s.deleteAccountTitle,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF1A1A1A),
+          letterSpacing: -0.3,
+        ),
+      ),
+      content: Text(
+        s.deleteAccountBody,
+        style: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFF888780),
+          height: 1.4,
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF5F5E5A),
+                  side: const BorderSide(color: Color(0xFFE0D9D0)),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(s.deleteAccountCancel),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFA32D2D),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(s.deleteAccountConfirm),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _SettingsCard extends StatelessWidget {

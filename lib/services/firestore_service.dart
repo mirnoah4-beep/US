@@ -294,4 +294,34 @@ class FirestoreService {
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> weeklyPlanStream(String coupleId) =>
       weeklyPlanRef(coupleId).orderBy('date').snapshots();
+
+  static Future<void> deleteUserData(String uid, String? coupleId) async {
+    await userRef(uid).delete();
+
+    if (coupleId == null || coupleId.isEmpty) return;
+
+    final cRef = _db.collection('couples').doc(coupleId);
+    final coupleSnap = await cRef.get();
+    if (!coupleSnap.exists) return;
+
+    final members = List<String>.from(coupleSnap.data()?['members'] ?? []);
+
+    if (members.length <= 1) {
+      final inviteCode = coupleSnap.data()?['inviteCode'] as String?;
+      if (inviteCode != null) {
+        await _db.collection('invites').doc(inviteCode).delete().catchError((_) {});
+      }
+      const subcollections = ['weeklyIdeas', 'weeklyPlan', 'ideaRequests', 'lastTime', 'settings'];
+      for (final sub in subcollections) {
+        final snap = await cRef.collection(sub).get();
+        if (snap.docs.isEmpty) continue;
+        final batch = _db.batch();
+        for (final doc in snap.docs) batch.delete(doc.reference);
+        await batch.commit();
+      }
+      await cRef.delete();
+    } else {
+      await cRef.update({'members': FieldValue.arrayRemove([uid])});
+    }
+  }
 }
