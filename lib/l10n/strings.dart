@@ -800,6 +800,25 @@ class AppStrings {
   String get soloSendDisabledHint =>
       isNorwegian ? 'Koble med partner først' : 'Connect with partner first';
 
+  // ── Solo Preview ────────────────────────────────────────────────────────
+  String get soloPreviewSection =>
+      isNorwegian ? 'Hva venter på dere' : 'What\'s waiting for you';
+  String get soloPreviewIdeasTitle =>
+      isNorwegian ? 'Date-ideer' : 'Date ideas';
+  String get soloPreviewIdeasSub =>
+      isNorwegian ? 'Nye ideer hver uke' : 'New ideas every week';
+  String get soloPreviewPlanTitle =>
+      isNorwegian ? 'Planlegg sammen' : 'Plan together';
+  String get soloPreviewPlanSub =>
+      isNorwegian ? 'Send og godkjenn dates' : 'Send and approve dates';
+  String get soloPreviewMemoriesTitle =>
+      isNorwegian ? 'Bygg minner' : 'Build memories';
+  String get soloPreviewMemoriesSub =>
+      isNorwegian ? 'Samle deres felles historie' : 'Collect your shared history';
+  String get soloPreviewStreakTitle => 'Streak';
+  String get soloPreviewStreakSub =>
+      isNorwegian ? 'Hold date-serien gående' : 'Keep the date streak going';
+
   // ── Email Verification ──────────────────────────────────────────────────
   String get emailVerifyTitle =>
       isNorwegian ? 'Bekreft e-posten din' : 'Verify your email';

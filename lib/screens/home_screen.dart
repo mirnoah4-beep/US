@@ -96,6 +96,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
             ],
             const _WeeklyIdeasCarousel(),
+            if (!hasPartner) ...[
+              const SizedBox(height: 20),
+              _SoloPreviewGrid(s: s),
+            ],
             if (hasPartner) ...[
               const SizedBox(height: 16),
               _sectionLabel(s.homeThisWeekSection),
@@ -2690,5 +2694,131 @@ class _WeekCard extends StatelessWidget {
       ),
     ),  // Container
     );  // GestureDetector
+  }
+}
+
+// ── _SoloPreviewGrid ───────────────────────────────────────────────────────────
+
+class _SoloPreviewGrid extends StatelessWidget {
+  final AppStrings s;
+  const _SoloPreviewGrid({required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      _PreviewCardData(
+        title: s.soloPreviewIdeasTitle,
+        subtitle: s.soloPreviewIdeasSub,
+        icon: Icons.favorite_rounded,
+        bg: const Color(0xFFFBEAF0),
+        iconColor: const Color(0xFFA32D2D),
+      ),
+      _PreviewCardData(
+        title: s.soloPreviewPlanTitle,
+        subtitle: s.soloPreviewPlanSub,
+        icon: Icons.calendar_today_rounded,
+        bg: const Color(0xFFEAF3DE),
+        iconColor: const Color(0xFF27500A),
+      ),
+      _PreviewCardData(
+        title: s.soloPreviewMemoriesTitle,
+        subtitle: s.soloPreviewMemoriesSub,
+        icon: Icons.photo_library_rounded,
+        bg: const Color(0xFFE6F1FB),
+        iconColor: const Color(0xFF185FA5),
+      ),
+      _PreviewCardData(
+        title: s.soloPreviewStreakTitle,
+        subtitle: s.soloPreviewStreakSub,
+        icon: Icons.local_fire_department_rounded,
+        bg: const Color(0xFFFAEEDA),
+        iconColor: const Color(0xFFBA7517),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          s.soloPreviewSection,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.35,
+          children: cards.map((data) => _PreviewCard(data: data)).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _PreviewCardData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color bg;
+  final Color iconColor;
+  const _PreviewCardData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.bg,
+    required this.iconColor,
+  });
+}
+
+class _PreviewCard extends StatelessWidget {
+  final _PreviewCardData data;
+  const _PreviewCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.7,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: data.bg,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(data.icon, color: data.iconColor, size: 26),
+              const SizedBox(height: 8),
+              Text(
+                data.title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                data.subtitle,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
