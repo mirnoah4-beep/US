@@ -13,6 +13,7 @@ import 'firebase_options.dart';
 import 'models/app_state.dart';
 import 'models/couple_model.dart';
 import 'models/language_provider.dart';
+import 'models/memories_provider.dart';
 import 'models/reminders_provider.dart';
 import 'models/user_model.dart';
 import 'models/weekly_ideas_provider.dart';
@@ -58,6 +59,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => AppState()),
           ChangeNotifierProvider(create: (_) => LanguageProvider()),
           ChangeNotifierProvider(create: (_) => WeeklyIdeasProvider()),
+          ChangeNotifierProvider(create: (_) => MemoriesProvider()),
           ChangeNotifierProvider(create: (_) => RemindersProvider()),
         ],
         child: const UsApp(),
@@ -208,6 +210,7 @@ class _CoupleGateState extends State<_CoupleGate> {
 
         if (couple.isActive) {
           context.read<WeeklyIdeasProvider>().init(widget.coupleId);
+          context.read<MemoriesProvider>().init(widget.coupleId);
           return Consumer<WeeklyIdeasProvider>(
             builder: (ctx, ideasProvider, _) {
               return AnimatedSwitcher(

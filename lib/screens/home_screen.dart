@@ -13,17 +13,20 @@ import '../l10n/strings.dart';
 
 import '../models/app_state.dart';
 import '../models/language_provider.dart';
+import '../models/memories_provider.dart';
+import '../models/memory_model.dart';
 import '../models/weekly_idea.dart';
 import '../models/weekly_ideas_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/add_memory_sheet.dart';
 import '../widgets/already_pending_dialog.dart';
 import '../widgets/calendar_card.dart';
 import '../widgets/heart_confirm_dialog.dart';
 import '../widgets/relationship_battery_card.dart';
 import 'couple_setup_screen.dart';
-import 'mediator_chat_screen.dart';
+import 'memories_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -41,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final state = context.watch<AppState>();
     final s = context.watch<LanguageProvider>().s;
     final hasPartner = state.partnerId.isNotEmpty;
+    final memProv = context.watch<MemoriesProvider>();
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -101,12 +105,25 @@ class _HomeScreenState extends State<HomeScreen> {
               _SoloPreviewGrid(s: s),
             ],
             if (hasPartner) ...[
-              const SizedBox(height: 16),
-              _sectionLabel(s.homeThisWeekSection),
+              const SizedBox(height: 20),
+              if (memProv.pendingPrompt != null)
+                _MemoryPromptCard(
+                  prompt: memProv.pendingPrompt!,
+                  coupleId: state.coupleId,
+                  userId: state.userId,
+                  onDismiss: () =>
+                      memProv.dismissPrompt(memProv.pendingPrompt!.planId),
+                ),
+              if (memProv.pendingPrompt != null) const SizedBox(height: 16),
+              _buildMemoriesHeader(context, s, memProv.streakCount),
               const SizedBox(height: 10),
-              _buildThisWeekGrid(context, state, s),
-              const SizedBox(height: 22),
-              _buildResolveCard(context, s),
+              if (memProv.memories.isEmpty)
+                _MemoriesEmptyCard(s: s)
+              else
+                _MemoriesPreview(
+                  memories: memProv.memories,
+                  s: s,
+                ),
             ],
           ],
         ),
@@ -132,18 +149,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (hour >= 12 && hour < 17) return s.greetingAfternoon(names);
     if (hour >= 17 && hour < 22) return s.greetingEvening(names);
     return s.greetingNight(names);
-  }
-
-  Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: AppTheme.textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0,
-      ),
-    );
   }
 
   Widget _buildTopBar(BuildContext context) {
@@ -186,143 +191,575 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildThisWeekGrid(BuildContext context, AppState state, s) {
-    final walkDone = state.weeklyWalks >= AppState.weeklyWalkGoal;
-    final dateDone = state.weeklyDates >= AppState.weeklyDateGoal;
-    final phoneDone = state.weeklyPhoneFreeTalks >= AppState.weeklyPhoneFreeTalkGoal;
-
-    void goToLastTime(String? momentId) =>
-        context.read<AppState>().requestTabNavigation(1, highlightId: momentId);
-
-    return Column(
+  Widget _buildMemoriesHeader(
+      BuildContext context, AppStrings s, int streakCount) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        IntrinsicHeight(
-          child: Row(
-            children: [
-              Expanded(
-                child: _WeekCard(
-                  icon: Icons.directions_walk,
-                  title: s.homeWalkTogether,
-                  subtitle: walkDone ? s.homeDoneThisWeek : s.homeWeeklyGoal,
-                  done: walkDone,
-                  onTap: () => goToLastTime('walk'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _WeekCard(
-                  icon: Icons.favorite_border,
-                  title: s.homeDateNight,
-                  subtitle: dateDone ? s.homeDoneThisWeek : s.homeWeeklyGoal,
-                  done: dateDone,
-                  onTap: () => goToLastTime('date_night'),
-                ),
-              ),
-            ],
+        Text(
+          s.memoriesSection,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 10),
-        IntrinsicHeight(
-          child: Row(
-            children: [
-              Expanded(
-                child: _WeekCard(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  title: s.homePhoneFreeTalk,
-                  subtitle: phoneDone ? s.homeDoneThisWeek : s.homeWeeklyGoal,
-                  done: phoneDone,
-                  onTap: () => goToLastTime('phone_free'),
+        if (streakCount > 0) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAEEDA),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.local_fire_department_rounded,
+                    size: 12, color: Color(0xFFBA7517)),
+                const SizedBox(width: 3),
+                Text(
+                  '$streakCount',
+                  style: const TextStyle(
+                    color: Color(0xFFBA7517),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _WeekCard(
-                  icon: Icons.star_outline_rounded,
-                  title: s.homeSendNote,
-                  subtitle: s.homeWeeklyGoal,
-                  done: false,
-                  onTap: () => goToLastTime('send_note'),
-                ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        ],
+        const Spacer(),
+        GestureDetector(
+          onTap: () => Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute(builder: (_) => const MemoriesScreen()),
+          ),
+          child: Text(
+            s.memoriesSeeAll,
+            style: const TextStyle(
+              color: Color(0xFFA32D2D),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildResolveCard(BuildContext context, s) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const MediatorChatScreen()),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.textPrimary.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppTheme.accentRose.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.handshake_outlined,
-                color: AppTheme.accentRose,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    s.homeResolveTitle,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    s.homeResolveSubtitle,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppTheme.textMuted,
-              size: 22,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _openSettings(BuildContext context) {
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+}
+
+// ─── Memory prompt card ──────────────────────────────────────────────────────
+
+class _MemoryPromptCard extends StatelessWidget {
+  final MemoryPrompt prompt;
+  final String coupleId;
+  final String userId;
+  final VoidCallback onDismiss;
+
+  const _MemoryPromptCard({
+    required this.prompt,
+    required this.coupleId,
+    required this.userId,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final displayActivity = s.planActivityLabel(prompt.activity);
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFCF0EC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: const Color(0xFFA32D2D).withValues(alpha: 0.18)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded,
+                  color: Color(0xFFA32D2D), size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  s.memoriesPromptTitle(displayActivity),
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onDismiss,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: const Icon(Icons.close,
+                      color: AppTheme.textMuted, size: 16),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => AddMemorySheet(
+                          coupleId: coupleId,
+                          createdBy: userId,
+                          activity: displayActivity,
+                          onDone: onDismiss,
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFA32D2D),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(
+                      s.memoriesAddMemory,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    onPressed: onDismiss,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                      side: BorderSide(
+                          color: AppTheme.textMuted.withValues(alpha: 0.4)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(
+                      s.memoriesSkip,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Memories empty card ──────────────────────────────────────────────────────
+
+class _MemoriesEmptyCard extends StatelessWidget {
+  final AppStrings s;
+  const _MemoriesEmptyCard({required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.photo_library_outlined,
+              size: 36, color: AppTheme.textMuted),
+          const SizedBox(height: 10),
+          Text(
+            s.memoriesEmpty,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            s.memoriesEmptySub,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Memories preview (featured + strip) ─────────────────────────────────────
+
+class _MemoriesPreview extends StatelessWidget {
+  final List<MemoryModel> memories;
+  final AppStrings s;
+  const _MemoriesPreview({required this.memories, required this.s});
+
+  void _openMemory(BuildContext context, AppState state, MemoryModel memory) {
+    final s = context.read<LanguageProvider>().s;
+    if (memory.imageUrl == null) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => AddMemorySheet(
+          coupleId: state.coupleId,
+          createdBy: state.userId,
+          activity: s.readableActivity(memory.activity),
+          memoryId: memory.id,
+          initialNote: memory.note,
+        ),
+      );
+    } else {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (_) => _MemoryDetailInline(memory: memory, s: s),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final featured = memories.first;
+    final rest = memories.skip(1).take(3).toList();
+    final appState = context.read<AppState>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Featured card
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _openMemory(context, appState, featured),
+          child: Container(
+            height: featured.imageUrl != null ? 140.0 : null,
+            decoration: BoxDecoration(
+              color: AppTheme.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.divider, width: 0.5),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.textPrimary.withValues(alpha: 0.06),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: featured.imageUrl != null
+                ? _FeaturedWithImage(memory: featured, s: s)
+                : _FeaturedNoImage(memory: featured, s: s),
+          ),
+        ),
+        if (rest.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 48,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: rest.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (ctx, i) => GestureDetector(
+                onTap: () => _openMemory(context, appState, rest[i]),
+                child: Container(
+                  width: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8D5C0),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: rest[i].imageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: rest[i].imageUrl!,
+                          fit: BoxFit.cover,
+                          fadeInDuration:
+                              const Duration(milliseconds: 200),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.photo_camera_rounded,
+                            color: Color(0xFF993C1D),
+                            size: 16,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _FeaturedWithImage extends StatelessWidget {
+  final MemoryModel memory;
+  final AppStrings s;
+  const _FeaturedWithImage({required this.memory, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CachedNetworkImage(
+          imageUrl: memory.imageUrl!,
+          fit: BoxFit.cover,
+          fadeInDuration: const Duration(milliseconds: 200),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [Color(0xCC000000), Colors.transparent],
+                stops: [0.0, 0.65],
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(14, 24, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  s.readableActivity(memory.activity),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Georgia',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  s.memoriesRelativeDate(memory.createdAt),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeaturedNoImage extends StatelessWidget {
+  final MemoryModel memory;
+  final AppStrings s;
+  const _FeaturedNoImage({required this.memory, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Image placeholder area
+        Container(
+          height: 140,
+          color: const Color(0xFFE8D5C0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.photo_camera_rounded,
+                  color: Color(0xFF993C1D), size: 28),
+              const SizedBox(height: 6),
+              Text(
+                s.memoriesAddPhoto,
+                style: const TextStyle(
+                  color: Color(0xFFA32D2D),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Text area
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Expanded(
+                    child: Text(
+                      s.readableActivity(memory.activity),
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Georgia',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    s.memoriesRelativeDate(memory.createdAt),
+                    style: const TextStyle(
+                        color: AppTheme.textSubtle, fontSize: 12),
+                  ),
+                ],
+              ),
+              if (memory.note.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  memory.note,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Memory detail (inline wrapper — reuses MemoriesScreen detail) ────────────
+
+class _MemoryDetailInline extends StatelessWidget {
+  final MemoryModel memory;
+  final AppStrings s;
+  const _MemoryDetailInline({required this.memory, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (memory.imageUrl != null)
+            CachedNetworkImage(
+              imageUrl: memory.imageUrl!,
+              fit: BoxFit.cover,
+              fadeInDuration: const Duration(milliseconds: 300),
+            )
+          else
+            const Center(
+              child: Icon(Icons.photo_library_outlined,
+                  color: Colors.white38, size: 72),
+            ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black87, Colors.transparent],
+                  stops: [0.0, 0.6],
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 40, 24, 48),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    s.readableActivity(memory.activity),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'Georgia',
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    s.memoriesRelativeDate(memory.createdAt),
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13),
+                  ),
+                  if (memory.note.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      memory.note,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2599,102 +3036,6 @@ class _CardDiagonalClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(_CardDiagonalClipper old) => false;
-}
-
-// ─── Week card ──────────────────────────────────────────────────────────────
-
-class _WeekCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool done;
-  final VoidCallback? onTap;
-
-  const _WeekCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.done,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = done ? AppTheme.heatGreenText : AppTheme.textSecondary;
-    final iconBg = done
-        ? AppTheme.heatGreenBg
-        : AppTheme.textSecondary.withValues(alpha: 0.10);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 18),
-              ),
-              const Spacer(),
-              if (done)
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: AppTheme.heatGreenBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    color: AppTheme.heatGreenText,
-                    size: 14,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: TextStyle(
-              color: done ? AppTheme.heatGreenText : AppTheme.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ],
-      ),
-    ),  // Container
-    );  // GestureDetector
-  }
 }
 
 // ── _SoloPreviewGrid ───────────────────────────────────────────────────────────

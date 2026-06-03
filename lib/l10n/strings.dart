@@ -819,6 +819,57 @@ class AppStrings {
   String get soloPreviewStreakSub =>
       isNorwegian ? 'Hold date-serien gående' : 'Keep the date streak going';
 
+  // ── Memories ────────────────────────────────────────────────────────────
+  String get memoriesSection => isNorwegian ? 'Minner' : 'Memories';
+  String get memoriesSeeAll => isNorwegian ? 'Se alle' : 'See all';
+  String get memoriesEmpty => isNorwegian ? 'Ingen minner ennå' : 'No memories yet';
+  String get memoriesEmptySub =>
+      isNorwegian ? 'Fullfør en date for å lage deres første minne' : 'Complete a date to create your first memory';
+  String memoriesRelativeDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(d).inDays;
+    if (isNorwegian) {
+      if (diff == 0) return 'i dag';
+      if (diff == 1) return 'i går';
+      return '$diff dager siden';
+    }
+    if (diff == 0) return 'today';
+    if (diff == 1) return 'yesterday';
+    return '$diff days ago';
+  }
+  String memoriesPromptTitle(String activity) =>
+      isNorwegian ? 'Hvordan var $activity?' : 'How was $activity?';
+  String get memoriesAddMemory => isNorwegian ? 'Legg til minne' : 'Add memory';
+  String get memoriesSkip => isNorwegian ? 'Hopp over' : 'Skip';
+  String get memoriesSheetTitle => isNorwegian ? 'Nytt minne' : 'New memory';
+  String get memoriesSheetHint => isNorwegian ? 'Skriv et minne...' : 'Write a memory...';
+  String get memoriesAddPhoto => isNorwegian ? 'Legg til bilde' : 'Add photo';
+  String get memoriesSave => isNorwegian ? 'Lagre' : 'Save';
+  String get memoriesUploadError => isNorwegian ? 'Noe gikk galt. Prøv igjen.' : 'Something went wrong. Please try again.';
+  String get memoriesDeleteButton => isNorwegian ? 'Slett minne' : 'Delete memory';
+  String get memoriesDeleteTitle => isNorwegian ? 'Slette minne?' : 'Delete memory?';
+  String get memoriesDeleteBody => isNorwegian ? 'Dette kan ikke angres.' : 'This cannot be undone.';
+  String get memoriesDeleteConfirm => isNorwegian ? 'Slett' : 'Delete';
+  String get memoriesDeleteCancel => isNorwegian ? 'Avbryt' : 'Cancel';
+  String get memoriesTimelineTitle => isNorwegian ? 'Minner' : 'Memories';
+  String get memoriesTimelineEmpty => isNorwegian ? 'Ingen minner ennå' : 'No memories yet';
+  String get memoriesTimelineEmptySub =>
+      isNorwegian ? 'Datene dine vil dukke opp her' : 'Your dates will appear here';
+
+  String readableActivity(String raw) {
+    final translated = planActivityLabel(raw);
+    if (translated != raw) return translated;
+    if (raw.contains('_')) {
+      final words = raw.split('_');
+      if (words.isEmpty || words.first.isEmpty) return raw;
+      final first = '${words.first[0].toUpperCase()}${words.first.substring(1).toLowerCase()}';
+      return [first, ...words.skip(1)].join(' ');
+    }
+    return raw;
+  }
+
   // ── Email Verification ──────────────────────────────────────────────────
   String get emailVerifyTitle =>
       isNorwegian ? 'Bekreft e-posten din' : 'Verify your email';

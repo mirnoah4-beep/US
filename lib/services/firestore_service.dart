@@ -295,6 +295,52 @@ class FirestoreService {
   static Stream<QuerySnapshot<Map<String, dynamic>>> weeklyPlanStream(String coupleId) =>
       weeklyPlanRef(coupleId).orderBy('date').snapshots();
 
+  // ── Memories ────────────────────────────────────────────────────────────────
+
+  static CollectionReference<Map<String, dynamic>> memoriesRef(String coupleId) =>
+      _db.collection('couples').doc(coupleId).collection('memories');
+
+  static Stream<QuerySnapshot<Map<String, dynamic>>> memoriesStream(String coupleId) =>
+      memoriesRef(coupleId).orderBy('createdAt', descending: true).snapshots();
+
+  static Future<String> addMemory({
+    required String coupleId,
+    required String activity,
+    required String note,
+    required String createdBy,
+  }) async {
+    final ref = memoriesRef(coupleId).doc();
+    await ref.set({
+      'activity': activity,
+      'note': note,
+      'createdBy': createdBy,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  static Future<void> updateMemoryImageUrl(
+    String coupleId,
+    String docId,
+    String url,
+  ) =>
+      memoriesRef(coupleId).doc(docId).update({'imageUrl': url});
+
+  static Future<void> updateMemory(
+    String coupleId,
+    String docId, {
+    String? note,
+    String? imageUrl,
+  }) {
+    final data = <String, dynamic>{};
+    if (note != null) data['note'] = note;
+    if (imageUrl != null) data['imageUrl'] = imageUrl;
+    return memoriesRef(coupleId).doc(docId).update(data);
+  }
+
+  static Future<void> deleteMemory(String coupleId, String docId) =>
+      memoriesRef(coupleId).doc(docId).delete();
+
   static Future<void> deleteUserData(String uid, String? coupleId) async {
     await userRef(uid).delete();
 
@@ -311,7 +357,7 @@ class FirestoreService {
       if (inviteCode != null) {
         await _db.collection('invites').doc(inviteCode).delete().catchError((_) {});
       }
-      const subcollections = ['weeklyIdeas', 'weeklyPlan', 'ideaRequests', 'lastTime', 'settings'];
+      const subcollections = ['weeklyIdeas', 'weeklyPlan', 'ideaRequests', 'lastTime', 'settings', 'memories'];
       for (final sub in subcollections) {
         final snap = await cRef.collection(sub).get();
         if (snap.docs.isEmpty) continue;
