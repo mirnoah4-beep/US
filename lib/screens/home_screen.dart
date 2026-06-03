@@ -67,14 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
               _timeGreeting(s, state.displayName, state.partnerName),
               style: const TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 26,
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'Georgia',
                 letterSpacing: -0.5,
                 height: 1.15,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 6),
             if (!hasPartner && !_bannerDismissed) ...[
               _InviteBanner(
                 onTap: () => _openInviteFlow(context, state.userId),
@@ -2566,13 +2566,13 @@ class _RelationshipCounterCard extends StatelessWidget {
     if (months < 0) { months += 12; years--; }
 
     const muted = TextStyle(
-      fontSize: 13,
+      fontSize: 11,
       fontWeight: FontWeight.w400,
       color: AppTheme.textSubtle,
       height: 1.5,
     );
     const number = TextStyle(
-      fontSize: 24,
+      fontSize: 22,
       fontWeight: FontWeight.w500,
       color: Color(0xFFA32D2D),
       height: 1.5,
@@ -2582,15 +2582,15 @@ class _RelationshipCounterCard extends StatelessWidget {
       TextSpan(
         children: [
           TextSpan(text: '${s.homeCounterLabel} ', style: muted),
-          TextSpan(text: '$years ', style: number),
-          TextSpan(text: '${s.homeCounterYrs} ', style: muted),
-          TextSpan(text: '$months ', style: number),
-          TextSpan(text: '${s.homeCounterMos} ', style: muted),
-          TextSpan(text: '$days ', style: number),
-          TextSpan(text: s.homeCounterDays, style: muted),
+          TextSpan(text: '$years', style: number),
+          TextSpan(text: ' ${s.homeCounterYrs}  ', style: muted),
+          TextSpan(text: '$months', style: number),
+          TextSpan(text: ' ${s.homeCounterMos}  ', style: muted),
+          TextSpan(text: '$days', style: number),
+          TextSpan(text: ' ${s.homeCounterDays}', style: muted),
         ],
       ),
-      textAlign: TextAlign.center,
+      textAlign: TextAlign.start,
     );
   }
 }
