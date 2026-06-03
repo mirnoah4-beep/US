@@ -257,8 +257,7 @@ class LastTimeScreen extends StatelessWidget {
           _ActivityRow(
             moment: moments[i],
             s: s,
-            onTap: () => _openLogSheet(context, state,
-                preSelected: moments[i].id),
+            onTap: () => _confirmAndLog(context, s, state, moments[i]),
           ),
           const Divider(height: 1, color: AppTheme.divider,
               indent: 20, endIndent: 20),
@@ -294,6 +293,67 @@ class LastTimeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmAndLog(BuildContext context, AppStrings s,
+      AppState state, MomentItem moment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFFFAF7F4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          s.momentTitle(moment.id),
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1A1A1A),
+          ),
+        ),
+        content: Text(
+          s.lastTimeLogConfirm,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppTheme.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary,
+                    side: const BorderSide(color: AppTheme.divider),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(s.lastTimeLogCancel),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFA32D2D),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(s.lastTimeLogConfirmButton),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) state.logMoment(moment.id);
   }
 
   void _openLogSheet(BuildContext context, AppState state,
@@ -465,8 +525,7 @@ class _ActivityRow extends StatelessWidget {
               _timeLabel(),
               style: TextStyle(
                 fontSize: 12,
-                fontWeight:
-                    isRecent ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: isRecent ? FontWeight.w600 : FontWeight.w400,
                 color: isRecent
                     ? const Color(0xFFA32D2D)
                     : AppTheme.textMuted,

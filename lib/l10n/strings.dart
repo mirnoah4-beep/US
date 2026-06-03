@@ -218,7 +218,7 @@ class AppStrings {
       const nb = {
         'went_out': 'Gikk ut',
         'home_date': 'Hjemmedate',
-        'game': 'Game night',
+        'game': 'Spillkveld',
         'date_night': 'Datenatt',
         'phone_free': 'Telefonsfri',
         'custom': 'Annet',
@@ -235,6 +235,9 @@ class AppStrings {
     };
     return en[id] ?? id;
   }
+  String get lastTimeLogConfirm => isNorwegian ? 'Vil du logge dette øyeblikket?' : 'Log this moment?';
+  String get lastTimeLogConfirmButton => isNorwegian ? 'Logg' : 'Log';
+  String get lastTimeLogCancel => isNorwegian ? 'Avbryt' : 'Cancel';
 
   // ── Relationship Battery Card ───────────────────────────────────────────
   String get batteryTitle => isNorwegian ? 'Relasjonsladning' : 'Relationship battery';

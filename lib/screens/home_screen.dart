@@ -1512,13 +1512,13 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
         else
           SizedBox(
             width: double.infinity,
-            height: 42,
             child: OutlinedButton(
               onPressed: () => _openWriteOwnSheet(context, s),
               style: OutlinedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFFFFF),
                 foregroundColor: const Color(0xFFA32D2D),
                 side: const BorderSide(color: Color(0xFFA32D2D), width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
