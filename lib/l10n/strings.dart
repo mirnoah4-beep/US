@@ -13,9 +13,10 @@ class AppStrings {
 
   // ── Home Screen ─────────────────────────────────────────────────────────
   String greetingNames(String name, String partnerName) {
-    if (name.isEmpty || partnerName.isEmpty) {
+    if (name.isEmpty && partnerName.isEmpty) {
       return isNorwegian ? 'dere to' : 'you two';
     }
+    if (partnerName.isEmpty) return name;
     return isNorwegian ? '$name og $partnerName' : '$name and $partnerName';
   }
   String greetingMorning(String names) => isNorwegian ? 'God morgen, $names!' : 'Good morning, $names!';
