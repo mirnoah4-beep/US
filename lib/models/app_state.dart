@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import 'date_idea.dart';
 import 'moment_item.dart';
+import '../services/firestore_service.dart';
 
 class AppState extends ChangeNotifier {
   // ── Auth + identity ────────────────────────────────────────────────────────
@@ -45,6 +46,43 @@ class AppState extends ChangeNotifier {
 
   // ── Subscription ───────────────────────────────────────────────────────────
   String subscriptionTier = 'premium';
+
+  // ── LastTime derived data ──────────────────────────────────────────────────
+  Map<String, DateTime> _lastTimestamps = {};
+  int _streakRecord = 0;
+  int _momentsTotal = 0;
+
+  int get streakRecord => _streakRecord;
+  int get momentsTotal => _lastTimestamps.length;
+
+  int get momentsThisMonthCount {
+    final now = DateTime.now();
+    return _lastTimestamps.values
+        .where((ts) => ts.year == now.year && ts.month == now.month)
+        .length;
+  }
+
+  int get momentsThisWeekCount {
+    final now = DateTime.now();
+    final weekStart = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+    return _lastTimestamps.values.where((ts) => !ts.isBefore(weekStart)).length;
+  }
+
+  Set<int> get activeDaysThisWeek {
+    final now = DateTime.now();
+    final weekStart = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 7));
+    final active = <int>{};
+    for (final ts in _lastTimestamps.values) {
+      final day = DateTime(ts.year, ts.month, ts.day);
+      if (!day.isBefore(weekStart) && day.isBefore(weekEnd)) {
+        active.add(ts.weekday);
+      }
+    }
+    return active;
+  }
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   int weeklyDates = 0;
@@ -163,8 +201,10 @@ class AppState extends ChangeNotifier {
              proposedBy: proposalMap['proposedBy'] as String? ?? '')
           : null;
       final newDisconnectRequestedBy = d['disconnectRequestedBy'] as String?;
+      final newStreakRecord = d['streakRecord'] as int? ?? 0;
 
       bool changed = false;
+      if (newStreakRecord != _streakRecord) { _streakRecord = newStreakRecord; changed = true; }
       if (newPartnerId != _partnerId) {
         _partnerId = newPartnerId;
         changed = true;
@@ -249,10 +289,11 @@ class AppState extends ChangeNotifier {
       if (!snap.exists) return;
       final d = snap.data()!;
       final newParentMode = d['parentMode'] as bool? ?? false;
-      if (newParentMode != hasChildren) {
-        hasChildren = newParentMode;
-        notifyListeners();
-      }
+      final newTotal = d['momentsThisMonth'] as int? ?? 0;
+      bool changed = false;
+      if (newParentMode != hasChildren) { hasChildren = newParentMode; changed = true; }
+      if (newTotal != _momentsTotal) { _momentsTotal = newTotal; changed = true; }
+      if (changed) notifyListeners();
     }, onError: (Object e) => debugPrint('[AppState] settingsStream error: $e'));
   }
 
@@ -264,19 +305,21 @@ class AppState extends ChangeNotifier {
         .collection('lastTime')
         .snapshots()
         .listen((snap) {
-      bool changed = false;
+      final newTimestamps = <String, DateTime>{};
       for (final doc in snap.docs) {
         final activityId = doc.id;
         final ts = doc.data()['lastDone'] as Timestamp?;
         if (ts == null) continue;
-        final daysAgo = DateTime.now().difference(ts.toDate()).inDays;
+        final dt = ts.toDate();
+        newTimestamps[activityId] = dt;
+        final daysAgo = DateTime.now().difference(dt).inDays;
         final idx = moments.indexWhere((m) => m.id == activityId);
         if (idx != -1 && moments[idx].daysAgo != daysAgo) {
           moments[idx] = moments[idx].copyWith(daysAgo: daysAgo);
-          changed = true;
         }
       }
-      if (changed) notifyListeners();
+      _lastTimestamps = newTimestamps;
+      notifyListeners();
     }, onError: (Object e) => debugPrint('[AppState] lastTimeStream error: $e'));
   }
 
@@ -365,6 +408,18 @@ class AppState extends ChangeNotifier {
       if (momentId == 'walk') weeklyWalks++;
       if (momentId == 'phone_free') weeklyPhoneFreeTalks++;
     }
+    // Optimistic timestamp update for weekly strip and stats
+    _lastTimestamps[momentId] = DateTime.now();
+
+    // Update streak record if current streak beats it
+    final newStreak = streakWeeks;
+    if (newStreak > _streakRecord) {
+      _streakRecord = newStreak;
+      if (_coupleId.isNotEmpty) {
+        FirestoreService.updateStreakRecord(_coupleId, _streakRecord).catchError((_) {});
+      }
+    }
+
     notifyListeners();
     // Firestore write (fire and forget)
     if (_coupleId.isNotEmpty) {

@@ -176,8 +176,8 @@ class AppStrings {
   }
 
   // ── Last Time Screen ────────────────────────────────────────────────────
-  String get lastTimeTitle => isNorwegian ? 'Sist gang' : 'Last time';
-  String get lastTimeSubtitle => isNorwegian ? 'Når gjorde dere dette sist?' : 'When did you last do this together?';
+  String get lastTimeTitle => isNorwegian ? 'Sist gang' : 'Last Time';
+  String get lastTimeSubtitle => isNorwegian ? 'Deres felles øyeblikk' : 'Your shared moments';
   String get lastTime07 => isNorwegian ? '0–7 dager' : '0–7 days';
   String get lastTime814 => isNorwegian ? '8–14 dager' : '8–14 days';
   String get lastTime15 => isNorwegian ? '15+ dager' : '15+ days';
@@ -188,6 +188,22 @@ class AppStrings {
       ? '$weeks uke${weeks == 1 ? '' : 'r'} på rad'
       : '$weeks week${weeks == 1 ? '' : 's'} in a row';
   String get lastTimeLogButton => isNorwegian ? 'Vi gjorde noe!' : 'We did something!';
+  String get lastTimeInARow => isNorwegian ? 'på rad' : 'in a row';
+  String lastTimeStreakWeeks(int n) =>
+      isNorwegian ? '${n == 1 ? 'uke' : 'uker'}' : '${n == 1 ? 'week' : 'weeks'}';
+  String lastTimeRecord(int n) => isNorwegian
+      ? 'Rekord: $n ${n == 1 ? 'uke' : 'uker'}'
+      : 'Record: $n ${n == 1 ? 'week' : 'weeks'}';
+  String get lastTimeTotalStat => isNorwegian ? 'totalt' : 'total';
+  String get lastTimeMonthStat => isNorwegian ? 'denne mnd' : 'this month';
+  String get lastTimeWeekStat => isNorwegian ? 'denne uke' : 'this week';
+  String get lastTimeToday => isNorwegian ? 'i dag' : 'today';
+  String get lastTimeYesterday => isNorwegian ? 'i går' : 'yesterday';
+  String lastTimeDaysAgoLabel(int n) =>
+      isNorwegian ? '$n d siden' : '$n d ago';
+  List<String> get lastTimeDayAbbrevs => isNorwegian
+      ? ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø']
+      : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
   // ── Log Moment Sheet ────────────────────────────────────────────────────
   String get logTitle => isNorwegian ? 'Logg et øyeblikk' : 'Log a moment';

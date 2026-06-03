@@ -204,6 +204,9 @@ class FirestoreService {
     });
   }
 
+  static Future<void> updateStreakRecord(String coupleId, int record) =>
+      coupleRef(coupleId).update({'streakRecord': record});
+
   static Future<void> requestDisconnect(String coupleId, String userId) =>
       coupleRef(coupleId).update({'disconnectRequestedBy': userId});
 
