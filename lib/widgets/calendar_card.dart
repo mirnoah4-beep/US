@@ -125,6 +125,7 @@ class CalendarCard extends StatelessWidget {
     }
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: isPast ? null : () => onSelectDate(date),
       child: Column(
         mainAxisSize: MainAxisSize.min,

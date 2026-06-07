@@ -802,6 +802,7 @@ class _LocalCalendarCard extends StatelessWidget {
     }
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: isPast ? null : () => onSelectDate(date),
       child: SizedBox(
         height: 50,
