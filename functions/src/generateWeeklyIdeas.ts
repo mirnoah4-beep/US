@@ -52,10 +52,14 @@ export async function generateForCouple(coupleId: string): Promise<void> {
     ideas = await callOpenAI(buildPrompt(ctx));
     generatedBy = 'ai';
 
-    // FCM: notify both partners
-    const tokens: string[] = [data.fcmToken1, data.fcmToken2].filter(
-      (t): t is string => typeof t === 'string' && t.length > 0
+    // FCM: notify both partners — tokens live on user docs, not the couple doc
+    const members: string[] = data.members ?? [];
+    const userSnaps = await Promise.all(
+      members.map((uid) => firestore.collection('users').doc(uid).get())
     );
+    const tokens: string[] = userSnaps
+      .map((s) => s.data()?.fcmToken)
+      .filter((t): t is string => typeof t === 'string' && t.length > 0);
     if (tokens.length > 0) {
       await admin.messaging().sendEachForMulticast({
         tokens,
@@ -141,10 +145,10 @@ async function buildContext(
     ? recentTitles.join(', ')
     : 'Ingen nylige ideer.';
 
-  // Lifestyle preferences
+  // Lifestyle preferences — written by the app to settings/main
   const lifestyleSnap = await firestore
     .collection('couples').doc(coupleId)
-    .collection('lifestyle').doc('data').get();
+    .collection('settings').doc('main').get();
   const lifestyle: LifestyleData | null = lifestyleSnap.exists
     ? (lifestyleSnap.data() as LifestyleData)
     : null;
