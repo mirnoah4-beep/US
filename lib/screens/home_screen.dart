@@ -421,7 +421,7 @@ class _MemoriesEmptyCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           GestureDetector(
-            onTap: () => context.read<AppState>().pendingTabIndex = 2,
+            onTap: () => context.read<AppState>().requestTabNavigation(2),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
               decoration: BoxDecoration(
