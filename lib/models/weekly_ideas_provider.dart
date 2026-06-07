@@ -192,7 +192,18 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   void clearSendError() { _sendError = null; }
 
   // Call once coupleId is known — idempotent.
+  // Accepts an empty coupleId for solo (no-partner) users: prefetches image URLs
+  // for whatever ideas are currently loaded (fallback) so the carousel can show
+  // images without waiting for a couple to be established.
   Future<void> init(String coupleId) async {
+    if (coupleId.isEmpty) {
+      if (_initialized) return;
+      await _prefetchImageUrls(ideas.take(4).toList());
+      _initialized = true;
+      notifyListeners();
+      return;
+    }
+
     if (_coupleId == coupleId && _sub != null) return;
     _coupleId = coupleId;
     _initialized = false;

@@ -1381,9 +1381,8 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     // init() is idempotent — safe to call on every build.
     // Calling here (not initState) ensures it fires once coupleId is available,
     // which arrives asynchronously via Firestore after the first frame.
-    if (appState.coupleId.isNotEmpty) {
-      context.read<WeeklyIdeasProvider>().init(appState.coupleId);
-    }
+    // Passing an empty coupleId is safe: init() handles the solo case.
+    context.read<WeeklyIdeasProvider>().init(appState.coupleId);
 
     final sentTitle = provider.sentIdea?.titleNo;
     final isCustomPending = provider.sendState == IdeaSendState.waiting &&
@@ -1467,7 +1466,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
               ),
             ),
             const Spacer(),
-            if (ideas.isNotEmpty && (imagesReady || appState.coupleId.isEmpty))
+            if (ideas.isNotEmpty && imagesReady)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(ideas.length, (i) {
@@ -1488,7 +1487,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           ],
         ),
         const SizedBox(height: 10),
-        if (!imagesReady && appState.coupleId.isNotEmpty)
+        if (!imagesReady)
           const SizedBox(height: 185)
         else if (ideas.isEmpty)
           Padding(
