@@ -164,7 +164,7 @@ class _ActivitySheetState extends State<ActivitySheet>
                         : ((1.0 - t) / 0.35).clamp(0.0, 1.0),
                     child: Icon(
                       Icons.favorite_rounded,
-                      color: const Color(0xFFC1544A),
+                      color: AppTheme.accentRose,
                       size: 60.0 + t * 60.0,
                     ),
                   ),

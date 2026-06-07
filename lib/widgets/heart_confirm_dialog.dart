@@ -76,7 +76,7 @@ class _HeartConfirmDialogState extends State<HeartConfirmDialog>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.favorite, size: 48, color: Color(0xFFA32D2D)),
+                const Icon(Icons.favorite, size: 48, color: AppTheme.accentRose),
                 const SizedBox(height: 16),
                 Text(
                   widget.displayTitle,

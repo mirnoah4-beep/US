@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             s.memoriesSeeAll,
             style: const TextStyle(
-              color: Color(0xFFA32D2D),
+              color: AppTheme.accentRose,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -279,7 +279,7 @@ class _MemoryPromptCard extends StatelessWidget {
         color: const Color(0xFFFCF0EC),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: const Color(0xFFA32D2D).withValues(alpha: 0.18)),
+            color: AppTheme.accentRose.withValues(alpha: 0.18)),
       ),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
@@ -288,7 +288,7 @@ class _MemoryPromptCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.auto_awesome_rounded,
-                  color: Color(0xFFA32D2D), size: 18),
+                  color: AppTheme.accentRose, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -332,7 +332,7 @@ class _MemoryPromptCard extends StatelessWidget {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFA32D2D),
+                      backgroundColor: AppTheme.accentRose,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -431,7 +431,7 @@ class _MemoriesEmptyCard extends StatelessWidget {
               child: Text(
                 s.planAMoment,
                 style: const TextStyle(
-                  color: Color(0xFFA32D2D),
+                  color: AppTheme.accentRose,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -630,7 +630,7 @@ class _FeaturedNoImage extends StatelessWidget {
               Text(
                 s.memoriesAddPhoto,
                 style: const TextStyle(
-                  color: Color(0xFFA32D2D),
+                  color: AppTheme.accentRose,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -804,7 +804,7 @@ class _InviteBanner extends StatelessWidget {
             color: const Color(0xFFFCF0EC),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: const Color(0xFFA32D2D).withValues(alpha: 0.18),
+              color: AppTheme.accentRose.withValues(alpha: 0.18),
             ),
           ),
           child: Padding(
@@ -815,7 +815,7 @@ class _InviteBanner extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFA32D2D),
+                    color: AppTheme.accentRose,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -1478,7 +1478,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                     margin: const EdgeInsets.only(left: 5),
                     decoration: BoxDecoration(
                       color: i == _page
-                          ? const Color(0xFFA32D2D)
+                          ? AppTheme.accentRose
                           : const Color(0xFFDDDDDD),
                       shape: BoxShape.circle,
                     ),
@@ -1535,8 +1535,8 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
               onPressed: () => _openWriteOwnSheet(context, s),
               style: OutlinedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFFFFF),
-                foregroundColor: const Color(0xFFA32D2D),
-                side: const BorderSide(color: Color(0xFFA32D2D), width: 1.5),
+                foregroundColor: AppTheme.accentRose,
+                side: const BorderSide(color: AppTheme.accentRose, width: 1.5),
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1797,7 +1797,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                   child: FilledButton(
                     onPressed: () => Navigator.pop(sheetCtx),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFA32D2D),
+                      backgroundColor: AppTheme.accentRose,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
@@ -1945,7 +1945,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.calendar_today_outlined,
-                                size: 13, color: Color(0xFFA32D2D)),
+                                size: 13, color: AppTheme.accentRose),
                             const SizedBox(width: 4),
                             Text(dateLabel),
                           ],
@@ -1971,7 +1971,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.access_time_rounded,
-                                size: 13, color: Color(0xFFA32D2D)),
+                                size: 13, color: AppTheme.accentRose),
                             const SizedBox(width: 4),
                             Text(timeLabel),
                           ],
@@ -1988,7 +1988,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                 child: FilledButton(
                   onPressed: () => _onConfirmSend(context),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
@@ -2140,7 +2140,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
           child: Text(
             widget.idea.category(isNo),
             style: const TextStyle(
-              color: Color(0xFFA32D2D),
+              color: AppTheme.accentRose,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -2175,12 +2175,12 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
             decoration: BoxDecoration(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(99),
-              border: Border.all(color: const Color(0xFFA32D2D)),
+              border: Border.all(color: AppTheme.accentRose),
             ),
             child: Text(
               s.ideaCancel,
               style: const TextStyle(
-                color: Color(0xFFA32D2D),
+                color: AppTheme.accentRose,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -2243,7 +2243,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
-              color: const Color(0xFFA32D2D),
+              color: AppTheme.accentRose,
               borderRadius: BorderRadius.circular(99),
             ),
             child: Text(
@@ -2386,7 +2386,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                                   height: 5,
                                   margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
                                   decoration: const BoxDecoration(
-                                    color: Color(0xFFA32D2D),
+                                    color: AppTheme.accentRose,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -2461,7 +2461,7 @@ class _WriteOwnWaitingBar extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFA32D2D), width: 1.5),
+          border: Border.all(color: AppTheme.accentRose, width: 1.5),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: Row(
@@ -2469,7 +2469,7 @@ class _WriteOwnWaitingBar extends StatelessWidget {
             Text(
               s.homeWriteOwnWaiting(partnerName),
               style: const TextStyle(
-                color: Color(0xFFA32D2D),
+                color: AppTheme.accentRose,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -2480,7 +2480,7 @@ class _WriteOwnWaitingBar extends StatelessWidget {
             GestureDetector(
               onTap: () =>
                   context.read<WeeklyIdeasProvider>().cancelPendingIdea(coupleId),
-              child: const Icon(Icons.close, color: Color(0xFFA32D2D), size: 18),
+              child: const Icon(Icons.close, color: AppTheme.accentRose, size: 18),
             ),
           ],
         ),
@@ -2564,13 +2564,13 @@ class _NextPlanPillState extends State<_NextPlanPill> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFFA32D2D)),
+          const Icon(Icons.calendar_today_outlined, size: 13, color: AppTheme.accentRose),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               text,
               style: const TextStyle(
-                color: Color(0xFFA32D2D),
+                color: AppTheme.accentRose,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -2828,7 +2828,7 @@ class _RelationshipCounterCard extends StatelessWidget {
     const number = TextStyle(
       fontSize: 22,
       fontWeight: FontWeight.w500,
-      color: Color(0xFFA32D2D),
+      color: AppTheme.accentRose,
       height: 1.5,
     );
 
@@ -2965,7 +2965,7 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
                 child: FilledButton(
                   onPressed: () => Navigator.pop(dialogCtx),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -3085,7 +3085,7 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.calendar_today_outlined,
-                                size: 14, color: Color(0xFFA32D2D)),
+                                size: 14, color: AppTheme.accentRose),
                             const SizedBox(width: 5),
                             Text(dateLabel),
                           ],
@@ -3111,7 +3111,7 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.access_time_rounded,
-                                size: 14, color: Color(0xFFA32D2D)),
+                                size: 14, color: AppTheme.accentRose),
                             const SizedBox(width: 5),
                             Text(timeLabel),
                           ],
@@ -3179,9 +3179,9 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
                         descriptionEn: text,
                         cardColor: Colors.white,
                         tagColor: const Color(0xFFFCF0EC),
-                        tagTextColor: const Color(0xFFA32D2D),
+                        tagTextColor: AppTheme.accentRose,
                         icon: Icons.edit_outlined,
-                        buttonColor: const Color(0xFFA32D2D),
+                        buttonColor: AppTheme.accentRose,
                       ),
                       appState.coupleId,
                       appState.userId,
@@ -3193,7 +3193,7 @@ class _WriteOwnSheetState extends State<_WriteOwnSheet> {
                     if (context.mounted) Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     foregroundColor: AppTheme.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -3264,7 +3264,7 @@ class _BouncingDotsState extends State<_BouncingDots>
               height: 5,
               margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
               decoration: const BoxDecoration(
-                color: Color(0xFFA32D2D),
+                color: AppTheme.accentRose,
                 shape: BoxShape.circle,
               ),
             ),
@@ -3306,7 +3306,7 @@ class _SoloPreviewGrid extends StatelessWidget {
         subtitle: s.soloPreviewIdeasSub,
         icon: Icons.favorite_rounded,
         bg: const Color(0xFFFBEAF0),
-        iconColor: const Color(0xFFA32D2D),
+        iconColor: AppTheme.accentRose,
       ),
       _PreviewCardData(
         title: s.soloPreviewPlanTitle,

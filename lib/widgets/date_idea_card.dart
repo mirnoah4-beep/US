@@ -83,7 +83,7 @@ class _DateIdeaCardState extends State<DateIdeaCard>
       ),
     ]).animate(_sendController);
     _sendBg = ColorTween(
-      begin: const Color(0xFFC1544A),
+      begin: AppTheme.accentRose,
       end: const Color(0xFF3B6D11),
     ).animate(CurvedAnimation(
       parent: _sendController,
@@ -139,7 +139,7 @@ class _DateIdeaCardState extends State<DateIdeaCard>
         opacity: (1.0 - t).clamp(0.0, 1.0),
         child: const Icon(
           Icons.favorite_rounded,
-          color: Color(0xFFC1544A),
+          color: AppTheme.accentRose,
           size: 10,
         ),
       ),
@@ -259,7 +259,7 @@ class _DateIdeaCardState extends State<DateIdeaCard>
                       ? (_sendController.isAnimating
                           ? _sendBg.value!
                           : const Color(0xFF3B6D11))
-                      : const Color(0xFFC1544A);
+                      : AppTheme.accentRose;
                   return Transform.scale(
                     scale: _sendController.isAnimating ? _sendScale.value : 1.0,
                     child: Transform.rotate(

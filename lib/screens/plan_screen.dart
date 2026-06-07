@@ -150,7 +150,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFFA32D2D),
+                  color: AppTheme.accentRose,
                   letterSpacing: 0.6,
                 ),
               ),
@@ -186,7 +186,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 icon: const Icon(Icons.add),
                 label: Text(s.planDateButton),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFC1544A),
+                  backgroundColor: AppTheme.accentRose,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
@@ -372,7 +372,7 @@ class _CancelPlanDialog extends StatelessWidget {
               child: FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFC1544A),
+                  backgroundColor: AppTheme.accentRose,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -397,7 +397,7 @@ class _UpcomingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isConfirmed = date.status == 'confirmed';
     final squareBg = isConfirmed ? const Color(0xFFFAECE7) : const Color(0xFFFAEEDA);
-    final dayColor = isConfirmed ? const Color(0xFFC1544A) : const Color(0xFF854F0B);
+    final dayColor = isConfirmed ? AppTheme.accentRose : const Color(0xFF854F0B);
     final monthColor = isConfirmed ? const Color(0xFF993C1D) : const Color(0xFF854F0B);
     final badgeBg = isConfirmed ? const Color(0xFFEAF3DE) : const Color(0xFFFAEEDA);
     final badgeText = isConfirmed ? const Color(0xFF3B6D11) : const Color(0xFF633806);
@@ -528,7 +528,7 @@ class _PlanDateSheetState extends State<_PlanDateSheet> {
                 contentPadding: const EdgeInsets.all(13),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0D9D0))),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0D9D0))),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFC1544A))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentRose)),
               ),
             ),
           ],
@@ -538,7 +538,7 @@ class _PlanDateSheetState extends State<_PlanDateSheet> {
             child: FilledButton(
               onPressed: _selected != null ? () => widget.onConfirm(_selected!) : null,
               style: FilledButton.styleFrom(
-                backgroundColor: _selected != null ? const Color(0xFFC1544A) : const Color(0xFFE0D9D0),
+                backgroundColor: _selected != null ? AppTheme.accentRose : const Color(0xFFE0D9D0),
                 foregroundColor: _selected != null ? Colors.white : const Color(0xFFB4B2A9),
                 textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -587,13 +587,13 @@ class _PlanDateSheetState extends State<_PlanDateSheet> {
           color: isSelected ? const Color(0xFFFAECE7) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFFC1544A) : const Color(0xFFE0D9D0),
+            color: isSelected ? AppTheme.accentRose : const Color(0xFFE0D9D0),
             width: 1.5,
           ),
         ),
         child: Row(
           children: [
-            Icon(act.icon, size: 22, color: isSelected ? const Color(0xFFC1544A) : AppTheme.textSubtle),
+            Icon(act.icon, size: 22, color: isSelected ? AppTheme.accentRose : AppTheme.textSubtle),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -653,7 +653,7 @@ class _CoupleGameCard extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const CoupleGameScreen()),
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFC1544A),
+              backgroundColor: AppTheme.accentRose,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),

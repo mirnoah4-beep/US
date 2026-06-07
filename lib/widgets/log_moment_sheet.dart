@@ -171,7 +171,7 @@ class _LogMomentSheetState extends State<LogMomentSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFC1544A)),
+                borderSide: const BorderSide(color: AppTheme.accentRose),
               ),
             ),
           ),
@@ -183,7 +183,7 @@ class _LogMomentSheetState extends State<LogMomentSheet> {
             onPressed: _selected != null ? _handleLog : null,
             style: FilledButton.styleFrom(
               backgroundColor: _selected != null
-                  ? const Color(0xFFC1544A)
+                  ? AppTheme.accentRose
                   : const Color(0xFFE0D9D0),
               foregroundColor: _selected != null
                   ? Colors.white
@@ -246,7 +246,7 @@ class _LogMomentSheetState extends State<LogMomentSheet> {
           color: isSelected ? const Color(0xFFFAECE7) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFFC1544A) : const Color(0xFFE0D9D0),
+            color: isSelected ? AppTheme.accentRose : const Color(0xFFE0D9D0),
             width: 1.5,
           ),
         ),
@@ -254,7 +254,7 @@ class _LogMomentSheetState extends State<LogMomentSheet> {
           children: [
             Icon(
               opt.icon,
-              color: isSelected ? const Color(0xFFC1544A) : AppTheme.textSubtle,
+              color: isSelected ? AppTheme.accentRose : AppTheme.textSubtle,
               size: 18,
             ),
             const SizedBox(width: 8),

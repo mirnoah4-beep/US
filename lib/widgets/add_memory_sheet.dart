@@ -334,10 +334,10 @@ class _AddMemorySheetState extends State<AddMemorySheet> {
                 child: ElevatedButton(
                   onPressed: _saving ? null : () => _save(s),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     foregroundColor: AppTheme.white,
                     disabledBackgroundColor:
-                        const Color(0xFFA32D2D).withValues(alpha: 0.5),
+                        AppTheme.accentRose.withValues(alpha: 0.5),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -367,7 +367,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> {
                     child: Text(
                       s.memoriesDeleteButton,
                       style: const TextStyle(
-                        color: Color(0xFFA32D2D),
+                        color: AppTheme.accentRose,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),

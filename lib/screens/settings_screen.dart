@@ -57,7 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: const Icon(
                   Icons.logout,
-                  color: Color(0xFFA32D2D),
+                  color: AppTheme.accentRose,
                   size: 26,
                 ),
               ),
@@ -87,7 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: FilledButton(
                   onPressed: () => Navigator.pop(ctx, true),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -239,7 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: FilledButton(
                   onPressed: () => Navigator.pop(ctx, true),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
@@ -328,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Text(
                   s.settingsDeleteAccount,
                   style: const TextStyle(
-                    color: Color(0xFFA32D2D),
+                    color: AppTheme.accentRose,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -445,18 +445,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     placeholder: (_, _) => const Icon(
                                       Icons.person,
                                       size: 20,
-                                      color: Color(0xFFC1544A),
+                                      color: AppTheme.accentRose,
                                     ),
                                     errorWidget: (_, _, _) => const Icon(
                                       Icons.person,
                                       size: 20,
-                                      color: Color(0xFFC1544A),
+                                      color: AppTheme.accentRose,
                                     ),
                                   )
                                 : const Icon(
                                     Icons.person,
                                     size: 20,
-                                    color: Color(0xFFC1544A),
+                                    color: AppTheme.accentRose,
                                   ),
                           ),
                         ),
@@ -549,7 +549,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Icon(
               Icons.workspace_premium_outlined,
               size: 20,
-              color: Color(0xFFC1544A),
+              color: AppTheme.accentRose,
             ),
           ),
           const SizedBox(width: 12),
@@ -602,7 +602,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         _NavRow(
           iconData: Icons.person_outline,
-          iconColor: const Color(0xFFC1544A),
+          iconColor: AppTheme.accentRose,
           iconBg: const Color(0xFFFAECE7),
           title: s.settingsProfile,
           subtitle: s.settingsProfileSub,
@@ -651,7 +651,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const _RowDivider(),
         _NavRow(
           iconData: Icons.notifications_none,
-          iconColor: const Color(0xFFC1544A),
+          iconColor: AppTheme.accentRose,
           iconBg: const Color(0xFFFAECE7),
           title: s.settingsReminders,
           subtitle: s.settingsRemindersSub,
@@ -710,7 +710,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         _NavRow(
           iconData: Icons.logout,
-          iconColor: const Color(0xFFA32D2D),
+          iconColor: AppTheme.accentRose,
           iconBg: const Color(0xFFFCEBEB),
           title: s.settingsSignOut,
           subtitle: s.settingsSignOutSub,
@@ -719,7 +719,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const _RowDivider(),
         _NavRow(
           iconData: Icons.workspace_premium_outlined,
-          iconColor: const Color(0xFFC1544A),
+          iconColor: AppTheme.accentRose,
           iconBg: Colors.white,
           title: s.settingsSubscription,
           subtitle: s.settingsSubscriptionSub,
@@ -812,7 +812,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(
               Icons.language_outlined,
-              color: isSelected ? const Color(0xFFC1544A) : const Color(0xFF888780),
+              color: isSelected ? AppTheme.accentRose : const Color(0xFF888780),
               size: 20,
             ),
             const SizedBox(width: 12),
@@ -826,7 +826,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Spacer(),
             if (isSelected)
-              const Icon(Icons.check_circle, color: Color(0xFFC1544A), size: 20),
+              const Icon(Icons.check_circle, color: AppTheme.accentRose, size: 20),
           ],
         ),
       ),
@@ -883,7 +883,7 @@ class _DeleteAccountDialog extends StatelessWidget {
               child: FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFA32D2D),
+                  backgroundColor: AppTheme.accentRose,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(
@@ -1041,7 +1041,7 @@ class _ToggleRow extends StatelessWidget {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeThumbColor: const Color(0xFFC1544A),
+        activeThumbColor: AppTheme.accentRose,
         inactiveThumbColor: Colors.white,
         inactiveTrackColor: const Color(0xFFE0D9D0),
         trackOutlineColor:

@@ -390,9 +390,9 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
             child: OutlinedButton(
               onPressed: _isAnyLoading ? null : _cancelInvite,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFA32D2D),
+                foregroundColor: AppTheme.accentRose,
                 side:
-                    const BorderSide(color: Color(0xFFA32D2D), width: 1.5),
+                    const BorderSide(color: AppTheme.accentRose, width: 1.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -403,7 +403,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFFA32D2D),
+                        color: AppTheme.accentRose,
                       ),
                     )
                   : const Text(

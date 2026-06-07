@@ -18,7 +18,7 @@ class _ConfettiBurstState extends State<ConfettiBurst>
   final _random = Random();
 
   static const _colors = [
-    Color(0xFFC1544A),
+    Color(0xFF8B2E42),
     Color(0xFFEAF3DE),
     Color(0xFFFAEEDA),
     Color(0xFFF5C4B3),

@@ -33,7 +33,7 @@ class WeeklyIdea {
     required this.descriptionEn,
     this.subtitleNo = '',
     this.subtitleEn = '',
-    this.buttonColor = const Color(0xFFC1544A),
+    this.buttonColor = const Color(0xFF8B2E42),
   });
 
   String title(bool isNorwegian) => isNorwegian
@@ -84,7 +84,7 @@ class WeeklyIdea {
       descriptionEn: tryStr(['descriptionEn', 'description', 'desc']),
       subtitleNo: tryStr(['subtitleNo']),
       subtitleEn: tryStr(['subtitleEn']),
-      buttonColor: _hexColor(json['buttonColor'] as String? ?? '#C1544A'),
+      buttonColor: _hexColor(json['buttonColor'] as String? ?? '#8B2E42'),
     );
   }
 

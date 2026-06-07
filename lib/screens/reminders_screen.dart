@@ -39,7 +39,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
   Widget _themed(BuildContext ctx, Widget? child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
-            primary: Color(0xFFC1544A),
+            primary: AppTheme.accentRose,
             onPrimary: Colors.white,
             surface: Colors.white,
             onSurface: Color(0xFF2C2420),
@@ -90,7 +90,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       _ToggleRow(
         icon: Icons.notifications_none,
         iconBg: const Color(0xFFFAECE7),
-        iconColor: const Color(0xFFC1544A),
+        iconColor: AppTheme.accentRose,
         title: s.remindersEveningTitle,
         subtitle: s.remindersEveningSub,
         value: r.eveningEnabled,
@@ -314,7 +314,7 @@ class _ToggleRow extends StatelessWidget {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeThumbColor: const Color(0xFFC1544A),
+        activeThumbColor: AppTheme.accentRose,
         inactiveThumbColor: Colors.white,
         inactiveTrackColor: const Color(0xFFE0D9D0),
         trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
@@ -377,7 +377,7 @@ class _TimeRow extends StatelessWidget {
         child: Text(
           timeLabel,
           style: const TextStyle(
-            color: Color(0xFFC1544A),
+            color: AppTheme.accentRose,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
@@ -413,11 +413,11 @@ class _DayPickerRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: sel ? const Color(0xFFC1544A) : Colors.white,
+                color: sel ? AppTheme.accentRose : Colors.white,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: sel
-                      ? const Color(0xFFC1544A)
+                      ? AppTheme.accentRose
                       : const Color(0xFFE0D9D0),
                 ),
               ),

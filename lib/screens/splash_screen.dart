@@ -14,7 +14,7 @@ class SplashScreen extends StatelessWidget {
             Image.asset(
               'assets/logo/us_wordmark.png',
               width: 100,
-              color: const Color(0xFFC1544A),
+              color: const Color(0xFF8B2E42),
               colorBlendMode: BlendMode.srcIn,
             ),
             const SizedBox(height: 32),
@@ -22,7 +22,7 @@ class SplashScreen extends StatelessWidget {
               width: 20,
               height: 20,
               child: CircularProgressIndicator(
-                color: Color(0xFFA32D2D),
+                color: Color(0xFF8B2E42),
                 strokeWidth: 2,
               ),
             ),

@@ -216,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? const Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFFC1544A),
+                          color: AppTheme.accentRose,
                         ),
                       )
                     : avatarUrl != null && avatarUrl.isNotEmpty
@@ -228,7 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             placeholder: (_, _) => const Center(
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFFC1544A),
+                                color: AppTheme.accentRose,
                               ),
                             ),
                             errorWidget: (_, _, _) => Center(
@@ -237,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: const TextStyle(
                                   fontSize: 32,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFFC1544A),
+                                  color: AppTheme.accentRose,
                                 ),
                               ),
                             ),
@@ -248,7 +248,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: const TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFFC1544A),
+                                color: AppTheme.accentRose,
                               ),
                             ),
                           ),
@@ -263,7 +263,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC1544A),
+                  color: AppTheme.accentRose,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
@@ -281,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _CardIcon(
             icon: Icons.person_outline,
-            color: const Color(0xFFC1544A),
+            color: AppTheme.accentRose,
             bg: const Color(0xFFFAECE7),
           ),
           const SizedBox(width: 12),
@@ -329,7 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ? TextButton(
                   onPressed: () => _saveName(uid),
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFC1544A),
+                    foregroundColor: AppTheme.accentRose,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,

@@ -104,7 +104,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                     child: const Text(
                       'OK',
                       style: TextStyle(
-                        color: Color(0xFFC1544A),
+                        color: AppTheme.accentRose,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -220,7 +220,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
             height: 8,
             decoration: BoxDecoration(
               color: reached
-                  ? const Color(0xFFC1544A)
+                  ? AppTheme.accentRose
                   : const Color(0xFFE0D9D0),
               shape: BoxShape.circle,
             ),
@@ -346,7 +346,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: _parentMode
-                ? const Color(0xFFC1544A)
+                ? AppTheme.accentRose
                 : const Color(0xFFE0D9D0),
             width: 1.5,
           ),
@@ -387,7 +387,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
             Switch(
               value: _parentMode,
               onChanged: (v) => setState(() => _parentMode = v),
-              activeColor: const Color(0xFFC1544A),
+              activeColor: AppTheme.accentRose,
               inactiveThumbColor: Colors.white,
               inactiveTrackColor: const Color(0xFFE0D9D0),
               trackOutlineColor:
@@ -523,7 +523,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                 onPressed: () => Navigator.popUntil(
                     context, (route) => route.isFirst),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFC1544A),
+                  backgroundColor: AppTheme.accentRose,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -563,7 +563,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
-                ? const Color(0xFFC1544A)
+                ? AppTheme.accentRose
                 : const Color(0xFFE0D9D0),
             width: 1.5,
           ),
@@ -580,7 +580,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                         height: 36,
                         decoration: BoxDecoration(
                           color: selected
-                              ? const Color(0xFFC1544A)
+                              ? AppTheme.accentRose
                                   .withValues(alpha: 0.12)
                               : const Color(0xFFF1EFE8),
                           borderRadius: BorderRadius.circular(10),
@@ -588,7 +588,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                         child: Icon(icon,
                             size: 20,
                             color: selected
-                                ? const Color(0xFFC1544A)
+                                ? AppTheme.accentRose
                                 : AppTheme.textSubtle),
                       ),
                       const Spacer(),
@@ -602,7 +602,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: selected
-                          ? const Color(0xFFC1544A)
+                          ? AppTheme.accentRose
                           : const Color(0xFF2C2420),
                     ),
                   ),
@@ -619,7 +619,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                     height: 40,
                     decoration: BoxDecoration(
                       color: selected
-                          ? const Color(0xFFC1544A)
+                          ? AppTheme.accentRose
                               .withValues(alpha: 0.12)
                           : const Color(0xFFF1EFE8),
                       borderRadius: BorderRadius.circular(12),
@@ -627,7 +627,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                     child: Icon(icon,
                         size: 22,
                         color: selected
-                            ? const Color(0xFFC1544A)
+                            ? AppTheme.accentRose
                             : AppTheme.textSubtle),
                   ),
                   const SizedBox(width: 14),
@@ -641,7 +641,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                             color: selected
-                                ? const Color(0xFFC1544A)
+                                ? AppTheme.accentRose
                                 : const Color(0xFF2C2420),
                           ),
                         ),
@@ -667,11 +667,11 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: selected ? const Color(0xFFC1544A) : Colors.transparent,
+        color: selected ? AppTheme.accentRose : Colors.transparent,
         shape: BoxShape.circle,
         border: Border.all(
           color: selected
-              ? const Color(0xFFC1544A)
+              ? AppTheme.accentRose
               : const Color(0xFFD3D1C7),
           width: 1.5,
         ),
@@ -726,7 +726,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
       child: FilledButton(
         onPressed: _next,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFC1544A),
+          backgroundColor: AppTheme.accentRose,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -744,7 +744,7 @@ class _LifestyleSetupScreenState extends State<LifestyleSetupScreen> {
       child: FilledButton(
         onPressed: _saving ? null : _saveAndFinish,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFC1544A),
+          backgroundColor: AppTheme.accentRose,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(

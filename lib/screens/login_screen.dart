@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   }
                 },
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFC1544A)),
+                    backgroundColor: const Color(0xFF8B2E42)),
                 child: const Text('Logg inn / Opprett konto'),
               ),
             ],
@@ -160,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Image.asset(
                       'assets/logo/us_wordmark.png',
                       width: 140,
-                      color: const Color(0xFFC1544A),
+                      color: const Color(0xFF8B2E42),
                       colorBlendMode: BlendMode.srcIn,
                     ),
                     const SizedBox(height: 20),
@@ -221,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () => _showEmailLogin(context),
                     child: const Text(
                       'Logg inn med e-post',
-                      style: TextStyle(color: Color(0xFFC1544A)),
+                      style: TextStyle(color: Color(0xFF8B2E42)),
                     ),
                   ),
                   if (isIOS) ...[
@@ -266,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Vilkår for bruk',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFFC1544A),
+                                color: Color(0xFF8B2E42),
                               ),
                             ),
                           ),
@@ -279,7 +279,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Personvernerklæring',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFFC1544A),
+                                color: Color(0xFF8B2E42),
                               ),
                             ),
                           ),
@@ -336,7 +336,7 @@ class _AuthButton extends StatelessWidget {
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Color(0xFFC1544A),
+                  color: Color(0xFF8B2E42),
                 ),
               )
             : child,

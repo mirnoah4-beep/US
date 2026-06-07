@@ -645,7 +645,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                 child: FilledButton(
                   onPressed: () => Navigator.pop(dialogCtx),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
@@ -755,7 +755,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                       Text(
                         s.ideaFromLabel(req.senderName),
                         style: const TextStyle(
-                          color: Color(0xFFA32D2D),
+                          color: AppTheme.accentRose,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -786,7 +786,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                         Text(
                           s.ideaProposedAt(req.proposedAt!),
                           style: const TextStyle(
-                            color: Color(0xFFA32D2D),
+                            color: AppTheme.accentRose,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -805,7 +805,7 @@ class _PendingIdeaCardState extends State<PendingIdeaCard> {
                 child: FilledButton(
                   onPressed: _responding ? null : _accept,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFC1544A),
+                    backgroundColor: AppTheme.accentRose,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 10),
@@ -919,7 +919,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
                   width: 28,
                   height: 28,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFC1544A),
+                    color: AppTheme.accentRose,
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
@@ -984,7 +984,7 @@ class _IncomingIdeaSheet extends StatelessWidget {
                       child: FilledButton(
                         onPressed: onAccept,
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFC1544A),
+                          backgroundColor: AppTheme.accentRose,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1352,7 +1352,7 @@ class _IdeaDetailSheet extends StatelessWidget {
             child: FilledButton(
               onPressed: onSend,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFC1544A),
+                backgroundColor: AppTheme.accentRose,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: const Color(0xFFD4A090),
                 disabledForegroundColor: Colors.white70,
@@ -1369,8 +1369,8 @@ class _IdeaDetailSheet extends StatelessWidget {
             child: OutlinedButton(
               onPressed: onSave,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFC1544A), width: 1.5),
-                foregroundColor: const Color(0xFFC1544A),
+                side: const BorderSide(color: AppTheme.accentRose, width: 1.5),
+                foregroundColor: AppTheme.accentRose,
                 textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 minimumSize: const Size.fromHeight(48),
@@ -1420,10 +1420,10 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFFC1544A) : Colors.white,
+          color: active ? AppTheme.accentRose : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: active ? const Color(0xFFC1544A) : const Color(0xFFE0D9D0),
+            color: active ? AppTheme.accentRose : const Color(0xFFE0D9D0),
             width: 1,
           ),
         ),

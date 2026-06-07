@@ -210,6 +210,13 @@ class AppStrings {
   List<String> get lastTimeDayAbbrevs => isNorwegian
       ? ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø']
       : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  String get momentsTitle => isNorwegian ? 'Øyeblikk' : 'Moments';
+  String get momentsSubtitle => isNorwegian ? 'Deres rytme sammen' : 'Your rhythm together';
+  String get choosingEachOther => isNorwegian ? 'med å velge hverandre' : 'of choosing each other';
+  String get bestRhythm => isNorwegian ? 'Beste rytme' : 'Best rhythm';
+  String get momentsCountLabel => isNorwegian ? 'øyeblikk' : 'moments';
+  String get recentMoments => isNorwegian ? 'Nylige øyeblikk' : 'Recent moments';
+  String get addMoment => isNorwegian ? 'Legg til øyeblikk' : 'Add a moment';
 
   // ── Log Moment Sheet ────────────────────────────────────────────────────
   String get logTitle => isNorwegian ? 'Logg et øyeblikk' : 'Log a moment';

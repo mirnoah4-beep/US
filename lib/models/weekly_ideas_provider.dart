@@ -27,7 +27,7 @@ final _kStaticFallback = WeeklyIdeasDoc(
       icon: Icons.coffee_outlined,
       descriptionNo: 'Sett dere ned uten telefoner og trekk et kort hver.',
       descriptionEn: 'Sit down without phones and draw a card each.',
-      buttonColor: Color(0xFFC1544A),
+      buttonColor: Color(0xFF8B2E42),
     ),
     WeeklyIdea(
       titleNo: 'Kveldstur',

@@ -12,7 +12,7 @@ import '../theme/app_theme.dart';
 
 const _kPurpleBg = Color(0xFFEEEDFE);
 const _kPurple = Color(0xFF534AB7);
-const _kNoahBubble = Color(0xFFC1544A);
+const _kNoahBubble = AppTheme.accentRose;
 const _kSarahBubble = Color(0xFF3B6D11);
 const _kBorder = Color(0xFFE0D9D0);
 

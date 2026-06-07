@@ -34,7 +34,7 @@ class AlreadyPendingDialog extends StatelessWidget {
               ),
               child: const Icon(
                 Icons.access_time_rounded,
-                color: Color(0xFFA32D2D),
+                color: AppTheme.accentRose,
                 size: 24,
               ),
             ),
@@ -65,7 +65,7 @@ class AlreadyPendingDialog extends StatelessWidget {
               child: FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFA32D2D),
+                  backgroundColor: AppTheme.accentRose,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   textStyle: const TextStyle(

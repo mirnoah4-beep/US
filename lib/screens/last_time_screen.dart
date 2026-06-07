@@ -10,6 +10,12 @@ import '../models/moment_item.dart';
 import '../theme/app_theme.dart';
 import '../widgets/log_moment_sheet.dart';
 
+// Palette aliases — all derive from the single AppTheme.accentRose source of truth.
+const _kBurgundy   = AppTheme.accentRose;
+const _kRoseLight  = AppTheme.accentRoseLight;
+const _kCreamBadge = Color(0xFFFAEEF2);
+const _kBrownBadge = Color(0xFF6B2B3E);
+
 class LastTimeScreen extends StatelessWidget {
   const LastTimeScreen({super.key});
 
@@ -36,13 +42,13 @@ class LastTimeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(s),
-              const SizedBox(height: 20),
-              Center(child: _buildFlameRing(s, streak, record, progress)),
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
+              Center(child: _buildStreakBlock(s, streak, record, progress)),
+              const SizedBox(height: 24),
               _buildWeeklyStrip(s, state.activeDaysThisWeek),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
               _buildStatsRow(s, state),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
               _buildActivityList(context, s, state, moments),
               const SizedBox(height: 16),
             ],
@@ -57,24 +63,26 @@ class LastTimeScreen extends StatelessWidget {
 
   Widget _buildHeader(AppStrings s) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      padding: const EdgeInsets.fromLTRB(22, 28, 22, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            s.lastTimeTitle,
+            s.momentsTitle,
             style: const TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 22,
+              fontSize: 26,
               fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
-            s.lastTimeSubtitle,
+            s.momentsSubtitle,
             style: const TextStyle(
               color: AppTheme.textMuted,
-              fontSize: 13,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -82,28 +90,27 @@ class LastTimeScreen extends StatelessWidget {
     );
   }
 
-  // ── Flame ring ──────────────────────────────────────────────────────────────
+  // ── Streak block ─────────────────────────────────────────────────────────────
 
-  Widget _buildFlameRing(
+  Widget _buildStreakBlock(
       AppStrings s, int streak, int record, double progress) {
     return Column(
       children: [
         SizedBox(
-          width: 100,
-          height: 100,
+          width: 96,
+          height: 96,
           child: Stack(
             alignment: Alignment.center,
             children: [
               CustomPaint(
-                size: const Size(100, 100),
+                size: const Size(96, 96),
                 painter: _RingPainter(progress: progress),
               ),
-              const Icon(Icons.local_fire_department_rounded,
-                  size: 36, color: Color(0xFFC04E28)),
+              const Icon(Icons.favorite_rounded, size: 30, color: _kBurgundy),
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -112,48 +119,51 @@ class LastTimeScreen extends StatelessWidget {
             Text(
               '$streak',
               style: const TextStyle(
-                fontSize: 32,
+                fontSize: 34,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFFD85A30),
+                color: _kBurgundy,
+                letterSpacing: -1.0,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 7),
             Text(
               s.lastTimeStreakWeeks(streak),
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFD85A30),
+                color: _kBurgundy,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
-          s.lastTimeInARow,
-          style: const TextStyle(fontSize: 14, color: AppTheme.textMuted),
+          s.choosingEachOther,
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppTheme.textMuted,
+          ),
         ),
         if (record > 0) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFFAEEDA),
+              color: _kCreamBadge,
               borderRadius: BorderRadius.circular(99),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.emoji_events_rounded,
-                    size: 14, color: Color(0xFF854F0B)),
+                const Icon(Icons.favorite_border_rounded,
+                    size: 12, color: _kBrownBadge),
                 const SizedBox(width: 5),
                 Text(
-                  s.lastTimeRecord(record),
+                  '${s.bestRhythm}: $record ${s.lastTimeStreakWeeks(record)}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF854F0B),
+                    color: _kBrownBadge,
                   ),
                 ),
               ],
@@ -181,18 +191,18 @@ class LastTimeScreen extends StatelessWidget {
 
           Color bgColor;
           Border? border;
-          Widget? icon;
+          Widget? child;
 
           if (hasActivity) {
-            bgColor = const Color(0xFFD85A30);
-            icon = const Icon(Icons.check_rounded,
-                color: Colors.white, size: 14);
+            bgColor = _kBurgundy.withValues(alpha: 0.82);
+            child = const Icon(Icons.check_rounded,
+                color: Colors.white, size: 13);
           } else if (isToday) {
             bgColor = Colors.transparent;
             border = Border.all(
-                color: const Color(0xFFA32D2D), width: 2);
+                color: _kBurgundy.withValues(alpha: 0.45), width: 1.5);
           } else {
-            bgColor = const Color(0xFFF5E6DC);
+            bgColor = _kRoseLight;
           }
 
           return Column(
@@ -205,16 +215,16 @@ class LastTimeScreen extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Container(
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: bgColor,
                   border: border,
                 ),
-                child: icon != null ? Center(child: icon) : null,
+                child: child != null ? Center(child: child) : null,
               ),
             ],
           );
@@ -223,35 +233,51 @@ class LastTimeScreen extends StatelessWidget {
     );
   }
 
-  // ── Stats row ────────────────────────────────────────────────────────────────
+  // ── Stats row ─────────────────────────────────────────────────────────────────
 
   Widget _buildStatsRow(AppStrings s, AppState state) {
-    return IntrinsicHeight(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _StatItem(
-              value: '${state.momentsTotal}', label: s.lastTimeTotalStat),
-          _VertDivider(),
-          _StatItem(
-              value: '${state.momentsThisMonthCount}',
-              label: s.lastTimeMonthStat),
-          _VertDivider(),
-          _StatItem(
-              value: '${state.momentsThisWeekCount}',
-              label: s.lastTimeWeekStat),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: IntrinsicHeight(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _StatItem(
+                value: '${state.momentsTotal}',
+                label: s.momentsCountLabel),
+            _VertDivider(),
+            _StatItem(
+                value: '${state.momentsThisMonthCount}',
+                label: s.lastTimeMonthStat),
+            _VertDivider(),
+            _StatItem(
+                value: '${state.momentsThisWeekCount}',
+                label: s.lastTimeWeekStat),
+          ],
+        ),
       ),
     );
   }
 
-  // ── Activity list ────────────────────────────────────────────────────────────
+  // ── Activity list ─────────────────────────────────────────────────────────────
 
   Widget _buildActivityList(BuildContext context, AppStrings s, AppState state,
       List<MomentItem> moments) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+          child: Text(
+            s.recentMoments,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ),
         const Divider(height: 1, color: AppTheme.divider),
         for (int i = 0; i < moments.length; i++) ...[
           _ActivityRow(
@@ -259,32 +285,35 @@ class LastTimeScreen extends StatelessWidget {
             s: s,
             onTap: () => _confirmAndLog(context, s, state, moments[i]),
           ),
-          const Divider(height: 1, color: AppTheme.divider,
-              indent: 20, endIndent: 20),
+          const Divider(
+              height: 1,
+              color: AppTheme.divider,
+              indent: 74,
+              endIndent: 22),
         ],
       ],
     );
   }
 
-  // ── Bottom button ────────────────────────────────────────────────────────────
+  // ── Bottom button ─────────────────────────────────────────────────────────────
 
-  Widget _buildButton(
-      BuildContext context, AppStrings s, AppState state) {
+  Widget _buildButton(BuildContext context, AppStrings s, AppState state) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
           onPressed: () => _openLogSheet(context, state),
-          icon: const Icon(Icons.add),
-          label: Text(s.lastTimeLogButton),
+          icon: const Icon(Icons.add, size: 18),
+          label: Text(s.addMoment),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFA32D2D),
+            backgroundColor: _kBurgundy,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(vertical: 15),
             textStyle: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
@@ -301,7 +330,8 @@ class LastTimeScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFFFAF7F4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           s.momentTitle(moment.id),
           style: const TextStyle(
@@ -339,7 +369,7 @@ class LastTimeScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(ctx, true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: _kBurgundy,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -380,20 +410,18 @@ class _RingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    const strokeWidth = 8.0;
+    const strokeWidth = 7.0;
     final radius = size.width / 2 - strokeWidth / 2;
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
-    // Background ring
-    paint.color = const Color(0xFFF5E6DC);
+    paint.color = _kRoseLight;
     canvas.drawCircle(center, radius, paint);
 
-    // Progress arc
     if (progress > 0) {
       paint
-        ..color = const Color(0xFFD85A30)
+        ..color = _kBurgundy
         ..strokeCap = StrokeCap.round;
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
@@ -409,7 +437,7 @@ class _RingPainter extends CustomPainter {
   bool shouldRepaint(_RingPainter old) => old.progress != progress;
 }
 
-// ── Stat item ────────────────────────────────────────────────────────────────
+// ── Stat item ─────────────────────────────────────────────────────────────────
 
 class _StatItem extends StatelessWidget {
   final String value;
@@ -419,7 +447,7 @@ class _StatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -431,7 +459,7 @@ class _StatItem extends StatelessWidget {
               color: AppTheme.textPrimary,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
             label,
             style: const TextStyle(
@@ -448,10 +476,7 @@ class _StatItem extends StatelessWidget {
 class _VertDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 0.5,
-      color: AppTheme.divider,
-    );
+    return Container(width: 0.5, color: AppTheme.divider);
   }
 }
 
@@ -469,18 +494,18 @@ class _ActivityRow extends StatelessWidget {
   });
 
   static ({Color bg, Color icon}) _colors(String id) {
-    const romantic = (bg: Color(0xFFFBEAF0), icon: Color(0xFF993556));
-    const home = (bg: Color(0xFFFAECE7), icon: Color(0xFF993C1D));
-    const outdoor = (bg: Color(0xFFEAF3DE), icon: Color(0xFF3B6D11));
-    const games = (bg: Color(0xFFFAEEDA), icon: Color(0xFF854F0B));
+    const romantic      = (bg: Color(0xFFFBEAF0), icon: Color(0xFF993556));
+    const home          = (bg: Color(0xFFFAECE7), icon: Color(0xFF993C1D));
+    const outdoor       = (bg: Color(0xFFEAF3DE), icon: Color(0xFF3B6D11));
+    const games         = (bg: Color(0xFFFAEEDA), icon: Color(0xFF854F0B));
     const communication = (bg: Color(0xFFEEEDFE), icon: Color(0xFF534AB7));
     return switch (id) {
       'date_night' || 'send_note' => romantic,
-      'home_date' || 'no_kids' => home,
-      'went_out' || 'walk' => outdoor,
-      'game' => games,
-      'phone_free' => communication,
-      _ => home,
+      'home_date'  || 'no_kids'   => home,
+      'went_out'   || 'walk'      => outdoor,
+      'game'                      => games,
+      'phone_free'                => communication,
+      _                           => home,
     };
   }
 
@@ -497,13 +522,15 @@ class _ActivityRow extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
+      splashColor: _kRoseLight,
+      highlightColor: _kRoseLight.withValues(alpha: 0.5),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 22),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: colors.bg,
@@ -516,7 +543,7 @@ class _ActivityRow extends StatelessWidget {
                 s.momentTitle(moment.id),
                 style: const TextStyle(
                   fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   color: AppTheme.textPrimary,
                 ),
               ),
@@ -525,10 +552,9 @@ class _ActivityRow extends StatelessWidget {
               _timeLabel(),
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: isRecent ? FontWeight.w600 : FontWeight.w400,
-                color: isRecent
-                    ? const Color(0xFFA32D2D)
-                    : AppTheme.textMuted,
+                fontWeight:
+                    isRecent ? FontWeight.w600 : FontWeight.w400,
+                color: isRecent ? _kBurgundy : AppTheme.textMuted,
               ),
             ),
           ],

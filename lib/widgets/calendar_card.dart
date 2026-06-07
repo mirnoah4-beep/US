@@ -112,10 +112,10 @@ class CalendarCard extends StatelessWidget {
 
     if (isSelected) {
       textColor = Colors.white;
-      bgColor = const Color(0xFFC1544A);
+      bgColor = const Color(0xFF8B2E42);
       fw = FontWeight.w500;
     } else if (isToday) {
-      textColor = const Color(0xFFC1544A);
+      textColor = const Color(0xFF8B2E42);
       bgColor = const Color(0xFFFAECE7);
       fw = FontWeight.w500;
     } else if (isPast) {
@@ -146,7 +146,7 @@ class CalendarCard extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(top: 2),
               decoration: const BoxDecoration(
-                  color: Color(0xFFC1544A), shape: BoxShape.circle),
+                  color: Color(0xFF8B2E42), shape: BoxShape.circle),
             )
           else
             const SizedBox(height: 6),

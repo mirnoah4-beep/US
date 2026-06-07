@@ -502,7 +502,7 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
                   ),
                   child: const Icon(
                     Icons.link_off,
-                    color: Color(0xFFA32D2D),
+                    color: AppTheme.accentRose,
                     size: 20,
                   ),
                 ),
@@ -527,7 +527,7 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
                     onPressed: () =>
                         _approveDisconnect(context, s, appState),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFA32D2D),
+                      backgroundColor: AppTheme.accentRose,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       shape: RoundedRectangleBorder(
@@ -579,14 +579,14 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
           ),
           child: const Icon(
             Icons.link_off,
-            color: Color(0xFFA32D2D),
+            color: AppTheme.accentRose,
             size: 20,
           ),
         ),
         title: Text(
           s.settingsDisconnect,
           style: const TextStyle(
-            color: Color(0xFFA32D2D),
+            color: AppTheme.accentRose,
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -635,7 +635,7 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
                 ),
                 child: const Icon(
                   Icons.link_off,
-                  color: Color(0xFFA32D2D),
+                  color: AppTheme.accentRose,
                   size: 26,
                 ),
               ),
@@ -665,7 +665,7 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
                 child: FilledButton(
                   onPressed: () => Navigator.pop(ctx, true),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFA32D2D),
+                    backgroundColor: AppTheme.accentRose,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(

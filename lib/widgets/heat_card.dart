@@ -73,7 +73,7 @@ class _HeatCardState extends State<HeatCard>
         final intensity = (_scale.value - 1.0) / 0.04;
         final borderColor = Color.lerp(
           widget.item.heatBorderColor,
-          const Color(0xFFC1544A),
+          AppTheme.accentRose,
           intensity,
         )!;
         final glowOpacity = intensity * 0.22;
@@ -90,7 +90,7 @@ class _HeatCardState extends State<HeatCard>
                 boxShadow: glowOpacity > 0.01
                     ? [
                         BoxShadow(
-                          color: const Color(0xFFC1544A)
+                          color: AppTheme.accentRose
                               .withValues(alpha: glowOpacity),
                           blurRadius: 12,
                           spreadRadius: 2,

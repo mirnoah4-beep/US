@@ -228,7 +228,7 @@ class _MemoryRow extends StatelessWidget {
                           color: AppTheme.textMuted),
                     )
                   : const Icon(Icons.add_photo_alternate_outlined,
-                      color: Color(0xFFA32D2D), size: 22),
+                      color: AppTheme.accentRose, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -278,7 +278,7 @@ class _MemoryRow extends StatelessWidget {
                     Text(
                       s.memoriesAddPhoto,
                       style: const TextStyle(
-                        color: Color(0xFFA32D2D),
+                        color: AppTheme.accentRose,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -292,7 +292,7 @@ class _MemoryRow extends StatelessWidget {
               hasImage
                   ? Icons.chevron_right_rounded
                   : Icons.add_photo_alternate_outlined,
-              color: hasImage ? AppTheme.textMuted : const Color(0xFFA32D2D),
+              color: hasImage ? AppTheme.textMuted : AppTheme.accentRose,
               size: 20,
             ),
           ],
