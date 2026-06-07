@@ -8,7 +8,16 @@ service cloud.firestore {
         || (resource.data.coupleId != null
             && request.auth.uid in get(
                  /databases/$(database)/documents/couples/$(resource.data.coupleId)
-               ).data.members);
+               ).data.members)
+        // Allow the joiner to read the inviter's doc during the join transaction.
+        // createInvite() does not write coupleId to the user doc — that happens
+        // inside joinByCode(). So at read time the inviter's coupleId is null;
+        // we must allow that case explicitly. Once the couple is active the
+        // members check above takes over and this condition becomes false.
+        || (request.auth != null
+            && (resource.data.coupleId == null
+                || get(/databases/$(database)/documents/couples/$(resource.data.coupleId)
+                   ).data.status == 'pending'));
       allow create, delete: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId ||
         // Cross-user coupleId writes are allowed for two operations only:

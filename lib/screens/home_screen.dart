@@ -135,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (_) => CoupleSetupScreen(
           currentUserId: userId,
-          onCoupleActive: () {},
+          onCoupleActive: () => Navigator.of(context, rootNavigator: true).pop(),
         ),
       ),
     );
@@ -1352,9 +1352,9 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   Future<void> _precacheAllImages(
       BuildContext ctx, List<WeeklyIdea> ideas) =>
       Future.wait(ideas.map((idea) async {
-        final url = IdeaImageService.getCachedUrl(
+        final url = await IdeaImageService.fetchCoverUrl(
             IdeaImageService.toId(idea.titleNo));
-        if (url != null) {
+        if (url != null && url.isNotEmpty) {
           try {
             await precacheImage(
                 CachedNetworkImageProvider(url, maxWidth: 600), ctx);
@@ -1632,7 +1632,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   Future<void> _loadImage() async {
     final id = IdeaImageService.toId(widget.idea.titleNo);
     final url = await IdeaImageService.fetchCoverUrl(id);
-    if (mounted && url != null) setState(() => _imageUrl = url);
+    if (mounted && url != null && url.isNotEmpty) setState(() => _imageUrl = url);
   }
 
   bool get _isAdmin =>

@@ -25,6 +25,7 @@ import 'screens/last_time_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/name_screen.dart';
 import 'screens/plan_screen.dart';
+import 'screens/onboarding_preferences.dart';
 import 'screens/splash_screen.dart';
 import 'services/firestore_service.dart';
 import 'services/notification_service.dart';
@@ -167,11 +168,59 @@ class _CoupleGate extends StatefulWidget {
 
 class _CoupleGateState extends State<_CoupleGate> {
   bool _clearedStale = false;
+  bool _onboardingCheckStarted = false;
+  bool? _onboardingDone; // null = check pending, true/false = result known
+  // Created once so StreamBuilder never re-subscribes on setState rebuilds.
+  late final Stream<CoupleModel?> _coupleStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _coupleStream = FirestoreService.watchCouple(widget.coupleId);
+  }
+
+  Future<void> _checkOnboarding() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(widget.coupleId)
+          .collection('settings')
+          .doc('main')
+          .get();
+      if (!mounted) return;
+      setState(() {
+        _onboardingDone = snap.data()?['onboardingDone'] == true;
+      });
+    } catch (e) {
+      debugPrint('[CoupleGate] onboarding check failed: $e');
+      if (!mounted) return;
+      setState(() => _onboardingDone = false);
+    }
+  }
+
+  Future<void> _finishOnboarding(OnboardingPreferences prefs) async {
+    await FirebaseFirestore.instance
+        .collection('couples')
+        .doc(widget.coupleId)
+        .collection('settings')
+        .doc('main')
+        .set({
+      'onboardingDone': true,
+      'isParent': prefs.isParent,
+      'place': prefs.place,
+      'pace': prefs.pace,
+      'availableTime': prefs.time,
+      'bedtimeHour': prefs.bedtime.hour,
+      'bedtimeMinute': prefs.bedtime.minute,
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    setState(() => _onboardingDone = true);
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<CoupleModel?>(
-      stream: FirestoreService.watchCouple(widget.coupleId),
+      stream: _coupleStream,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
@@ -193,6 +242,8 @@ class _CoupleGateState extends State<_CoupleGate> {
 
         final couple = snap.data;
 
+        debugPrint('[CoupleGate] stream emit → status=${couple?.status}, isActive=${couple?.isActive}, members=${couple?.members.length ?? 0}, _onboardingDone=$_onboardingDone');
+
         // Couple document missing — stale coupleId on user doc.
         // Clear it and wait for AuthGate to re-route.
         if (couple == null) {
@@ -209,6 +260,19 @@ class _CoupleGateState extends State<_CoupleGate> {
         }
 
         if (couple.isActive) {
+          // Both partners connected — check once whether onboarding is done.
+          if (!_onboardingCheckStarted) {
+            _onboardingCheckStarted = true;
+            _checkOnboarding();
+          }
+
+          debugPrint('[CoupleGate] isActive=true → _onboardingCheckStarted=$_onboardingCheckStarted, _onboardingDone=$_onboardingDone');
+
+          if (_onboardingDone == null) return const SplashScreen();
+          if (_onboardingDone == false) {
+            return OnboardingPreferencesScreen(onFinish: _finishOnboarding);
+          }
+
           context.read<WeeklyIdeasProvider>().init(widget.coupleId);
           context.read<MemoriesProvider>().init(widget.coupleId);
           return Consumer<WeeklyIdeasProvider>(

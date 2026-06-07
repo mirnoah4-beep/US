@@ -135,8 +135,11 @@ class FirestoreService {
     try {
       return await _db.runTransaction<JoinResult>((txn) async {
         // 1. Read the invite.
+        final invitePath = 'invites/$code';
+        debugPrint('[joinByCode] reading $invitePath');
         final inviteSnap =
             await txn.get(_db.collection('invites').doc(code));
+        debugPrint('[joinByCode] read ok: $invitePath exists=${inviteSnap.exists}');
         if (!inviteSnap.exists) {
           return const JoinFailure(JoinFailureReason.invalidCode);
         }
@@ -148,16 +151,22 @@ class FirestoreService {
         }
 
         // 3. Verify the couple is still pending.
+        final couplePath = 'couples/${invite.coupleId}';
+        debugPrint('[joinByCode] reading $couplePath');
         final coupleSnap =
             await txn.get(_db.collection('couples').doc(invite.coupleId));
+        debugPrint('[joinByCode] read ok: $couplePath status=${coupleSnap.data()?['status']}');
         if (!coupleSnap.exists ||
             coupleSnap.data()?['status'] != 'pending') {
           return const JoinFailure(JoinFailureReason.inviteExpired);
         }
 
         // 4. Check the inviter does not already have an active different couple.
+        final fromUserPath = 'users/${invite.fromUserId}';
+        debugPrint('[joinByCode] reading $fromUserPath');
         final fromUserSnap =
             await txn.get(_db.collection('users').doc(invite.fromUserId));
+        debugPrint('[joinByCode] read ok: $fromUserPath coupleId=${fromUserSnap.data()?['coupleId']}');
         final fromCoupleId =
             fromUserSnap.data()?['coupleId'] as String?;
         if (fromCoupleId != null &&
@@ -167,6 +176,7 @@ class FirestoreService {
         }
 
         // 5. All valid — commit the join atomically.
+        debugPrint('[joinByCode] all reads passed — committing writes');
         txn.update(_db.collection('couples').doc(invite.coupleId), {
           'members': FieldValue.arrayUnion([currentUserId]),
           'status': 'active',
@@ -183,7 +193,7 @@ class FirestoreService {
         return JoinSuccess(invite.coupleId);
       });
     } catch (e) {
-      debugPrint('joinByCode failed: $e');
+      debugPrint('[joinByCode] FAILED: $e');
       return JoinFailure(JoinFailureReason.networkError, e.toString());
     }
   }

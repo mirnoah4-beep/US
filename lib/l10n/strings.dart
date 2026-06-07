@@ -919,4 +919,36 @@ class AppStrings {
       : 'Not verified yet. Check your inbox and try again.';
   String get emailVerifySignOut =>
       isNorwegian ? 'Logg ut' : 'Sign out';
+
+  // ── Onboarding Preferences ───────────────────────────────────────────────
+  String get onbAreYouParentsTitle => isNorwegian ? 'Er dere foreldre?' : 'Are you parents?';
+  String get onbWhereDoYouLikeTitle => isNorwegian ? 'Hvor liker dere å være?' : 'Where do you like to be?';
+  String get onbWhatPaceTitle => isNorwegian ? 'Hvilket tempo passer dere?' : 'What pace suits you?';
+  String get onbHowMuchTimeTitle => isNorwegian ? 'Hvor mye tid har dere?' : 'How much time do you have?';
+  String get onbYesParentsTitle => isNorwegian ? 'Ja, vi har barn' : 'Yes, we have kids';
+  String get onbYesParentsSubtitle => isNorwegian ? 'Foreldremodus slås på' : 'Parent mode turns on';
+  String get onbNoParentsTitle => isNorwegian ? 'Nei, bare vi to' : 'No, just the two of us';
+  String get onbNoParentsSubtitle => isNorwegian ? 'Fri og spontan hverdag' : 'Free and spontaneous everyday life';
+  String get onbPlaceNatureTitle => isNorwegian ? 'Natur' : 'Nature';
+  String get onbPlaceCafeTitle => isNorwegian ? 'By og kafé' : 'City & café';
+  String get onbPlaceHomeTitle => isNorwegian ? 'Hjemme' : 'Home';
+  String get onbPlaceOutTitle => isNorwegian ? 'Ute og om' : 'Out and about';
+  String get onbPaceCalmTitle => isNorwegian ? 'Rolig' : 'Calm';
+  String get onbPaceMixedTitle => isNorwegian ? 'Blandet' : 'Mixed';
+  String get onbPaceActiveTitle => isNorwegian ? 'Aktiv' : 'Active';
+  String get onbTimeShortTitle => isNorwegian ? 'Kort' : 'Short';
+  String get onbTimeShortSubtitle => isNorwegian ? 'En time eller to' : 'An hour or two';
+  String get onbTimeEveningTitle => isNorwegian ? 'Hel kveld' : 'Whole evening';
+  String get onbTimeEveningSubtitle => isNorwegian ? 'Tid til middag og mer' : 'Time for dinner and more';
+  String get onbTimeDayTitle => isNorwegian ? 'Hel dag' : 'Whole day';
+  String get onbTimeDaySubtitle => isNorwegian ? 'Hele dagen for dere to' : 'The whole day for the two of you';
+  String get onbTimeShortParentSubtitle => isNorwegian ? 'Etter barna har lagt seg' : 'After the kids are in bed';
+  String get onbTimeEveningParentSubtitle => isNorwegian ? 'Med barnevakt' : 'With a babysitter';
+  String get onbTimeDayParentSubtitle => isNorwegian ? 'En helg uten barna' : 'A weekend without the kids';
+  String get onbBedtimeLabel => isNorwegian ? 'Når legger barna seg?' : 'When do the kids go to bed?';
+  String get onbBedtimeSubtitle => isNorwegian ? 'Brukes til påminnelser' : 'Used for reminders';
+  String get onbParentModeBadge => isNorwegian ? 'Foreldremodus' : 'Parent mode';
+  String get onbNext => isNorwegian ? 'Neste' : 'Next';
+  String get onbFinish => isNorwegian ? 'Ferdig →' : 'Finish →';
+  String get onbCancel => isNorwegian ? 'Avbryt' : 'Cancel';
 }
