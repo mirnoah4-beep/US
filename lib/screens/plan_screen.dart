@@ -129,6 +129,7 @@ class _PlanScreenState extends State<PlanScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
+    final isNo = s.isNorwegian;
     final provider = context.watch<WeeklyIdeasProvider>();
     final appState = context.watch<AppState>();
     final incoming = provider.incomingRequest;
@@ -142,7 +143,10 @@ class _PlanScreenState extends State<PlanScreen> {
             const SizedBox(height: 24),
             Text(s.planTitle, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 26, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
-            Text(s.planSubtitle, style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13)),
+            Text(
+              isNo ? 'Gi dere selv noe å se frem til.' : 'Give yourselves something to look forward to.',
+              style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13),
+            ),
             const SizedBox(height: 22),
             if (incoming != null) ...[
               Text(
@@ -163,34 +167,85 @@ class _PlanScreenState extends State<PlanScreen> {
               ),
               const SizedBox(height: 24),
             ],
-            _SectionLabel(s.planChooseDate),
+            _SectionLabel(isNo ? 'Neste øyeblikk' : 'Next moment'),
             const SizedBox(height: 10),
-            CalendarCard(
-              displayMonth: _displayMonth,
-              selectedDate: _selectedDate,
-              eventDates: _eventDateSet,
-              s: s,
-              onPrevMonth: () => setState(() {
-                _displayMonth = DateTime(_displayMonth.year, _displayMonth.month - 1, 1);
-              }),
-              onNextMonth: () => setState(() {
-                _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + 1, 1);
-              }),
-              onSelectDate: (d) => setState(() => _selectedDate = d),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.07),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: CalendarCard(
+                displayMonth: _displayMonth,
+                selectedDate: _selectedDate,
+                eventDates: _eventDateSet,
+                s: s,
+                onPrevMonth: () => setState(() {
+                  _displayMonth = DateTime(_displayMonth.year, _displayMonth.month - 1, 1);
+                }),
+                onNextMonth: () => setState(() {
+                  _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + 1, 1);
+                }),
+                onSelectDate: (d) => setState(() => _selectedDate = d),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFEDE7E0)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B2E42).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B2E42), size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.planFormatDate(_selectedDate),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isNo ? 'Perfekt for en stille kveld sammen.' : 'Perfect for a slow evening together.',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF9A8F86)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () => _openPlanSheet(context, s),
-                icon: const Icon(Icons.add),
-                label: Text(s.planDateButton),
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(s.planAMoment),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.accentRose,
+                  backgroundColor: const Color(0xFF8B2E42),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
               ),
             ),
@@ -274,8 +329,15 @@ class _UpcomingCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0D9D0)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEDE7E0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       clipBehavior: Clip.hardEdge,
       child: dates.isEmpty ? _buildEmpty() : _buildList(context),
@@ -284,15 +346,24 @@ class _UpcomingCard extends StatelessWidget {
 
   Widget _buildEmpty() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+      padding: const EdgeInsets.symmetric(vertical: 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.calendar_today_outlined, color: Color(0xFFD3D1C7), size: 32),
-          const SizedBox(height: 12),
-          Text(s.planNoUpcomingTitle, style: const TextStyle(color: AppTheme.textSubtle, fontSize: 14, fontWeight: FontWeight.w500)),
+          const Icon(Icons.calendar_today_outlined, color: Color(0xFFCEC8C0), size: 24),
+          const SizedBox(height: 10),
+          Text(
+            s.isNorwegian ? 'Ingen planer ennå' : 'Nothing planned yet',
+            style: const TextStyle(color: Color(0xFF6B6460), fontSize: 14, fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 4),
-          Text(s.planNoUpcomingSub, style: const TextStyle(color: Color(0xFFB4B2A9), fontSize: 12)),
+          Text(
+            s.isNorwegian
+                ? 'Velg en dag og gi dere noe å se frem til.'
+                : 'Pick a day and make something to look forward to.',
+            style: const TextStyle(color: Color(0xFFB4B2A9), fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -620,30 +691,35 @@ class _CoupleGameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNo = s.isNorwegian;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFAECE7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF5C4B3)),
+        color: const Color(0xFFFBF1EE),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDFAFA2), width: 1),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(color: const Color(0xFFF5C4B3), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.emoji_events_outlined, color: Color(0xFF993C1D), size: 22),
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF8B2E42).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.emoji_events_outlined, color: Color(0xFF8B2E42), size: 24),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.coupleGameLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF993C1D))),
-                const SizedBox(height: 2),
-                Text(s.coupleGameTitle, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF4A1B0C))),
-                const SizedBox(height: 2),
-                Text(s.planCoupleGameSub, style: const TextStyle(fontSize: 12, color: Color(0xFF993C1D))),
+                Text(
+                  isNo ? 'Hvor godt kjenner dere hverandre?' : 'How well do you know each other?',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2C1A1A), height: 1.3),
+                ),
+                const SizedBox(height: 3),
+                Text(s.planCoupleGameSub, style: const TextStyle(fontSize: 12, color: Color(0xFF9A7E78))),
               ],
             ),
           ),
@@ -653,11 +729,11 @@ class _CoupleGameCard extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const CoupleGameScreen()),
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.accentRose,
+              backgroundColor: const Color(0xFF8B2E42),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: Text(s.coupleGameStart),
           ),
