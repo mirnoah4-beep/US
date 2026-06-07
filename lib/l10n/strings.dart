@@ -79,6 +79,12 @@ class AppStrings {
   String get homeSendToS => isNorwegian ? 'Send til S' : 'Send to S';
   String get homeSentToS => isNorwegian ? 'Sendt til S!' : 'Sent to S!';
   String get homeWeeklyIdeasSection => isNorwegian ? 'Ukens ideer' : 'This week\'s ideas';
+  String get somethingForYouTwo => isNorwegian ? 'Noe for dere to' : 'Something for you two';
+  String get sendToPartner => isNorwegian ? 'Send til' : 'Send to';
+  String percentCharged(int x) => isNorwegian ? '$x% ladet' : '$x% charged';
+  String get ideaSubtitleHike => isNorwegian ? 'Frisk luft, ingen telefon, bare dere to.' : 'Fresh air, no phones, just you two.';
+  String get noMemoriesSubtitle => isNorwegian ? 'Ditt første minne starter etter neste date.' : 'Your first memory starts after your next date.';
+  String get planAMoment => isNorwegian ? 'Planlegg et øyeblikk' : 'Plan a moment';
   String get homeAiPersonalized => isNorwegian ? 'AI-personalisert denne uken' : 'AI-personalised this week';
   String get homeWeeklyIdeasEmpty => isNorwegian ? 'Ingen ideer ennå — prøv igjen snart.' : 'No ideas yet — check back soon.';
   String get homeIdeaSendToPartner => isNorwegian ? 'Send idé til partner' : 'Send idea to partner';

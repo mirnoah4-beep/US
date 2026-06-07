@@ -24,7 +24,6 @@ import '../widgets/add_memory_sheet.dart';
 import '../widgets/already_pending_dialog.dart';
 import '../widgets/calendar_card.dart';
 import '../widgets/heart_confirm_dialog.dart';
-import '../widgets/relationship_battery_card.dart';
 import 'couple_setup_screen.dart';
 import 'memories_screen.dart';
 import 'settings_screen.dart';
@@ -50,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 120),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 220),
           children: [
             _buildTopBar(context),
             const SizedBox(height: 18),
@@ -84,28 +83,28 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
             if (hasPartner) ...[
               const _RelationshipCounterCard(),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
             ],
             const Align(
               alignment: Alignment.centerLeft,
               child: _NextPlanPill(),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 14),
             if (hasPartner) ...[
-              RelationshipBatteryCard(
+              _HomeRelationshipCard(
                 percent: state.batteryPercent,
                 statusLine: s.batteryStatus(state.batteryPercent),
                 message: s.batteryMsg(state.batteryPercent),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 28),
             ],
             const _WeeklyIdeasCarousel(),
             if (!hasPartner) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
               _SoloPreviewGrid(s: s),
             ],
             if (hasPartner) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
               if (memProv.pendingPrompt != null)
                 _MemoryPromptCard(
                   prompt: memProv.pendingPrompt!,
@@ -118,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildMemoriesHeader(context, s, memProv.streakCount),
               const SizedBox(height: 10),
               if (memProv.memories.isEmpty)
-                _MemoriesEmptyCard(s: s)
+                const _MemoriesEmptyCard()
               else
                 _MemoriesPreview(
                   memories: memProv.memories,
@@ -167,15 +166,15 @@ class _HomeScreenState extends State<HomeScreen> {
         GestureDetector(
           onTap: () => _openSettings(context),
           child: Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: AppTheme.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.textPrimary.withValues(alpha: 0.05),
-                  blurRadius: 12,
+                  color: AppTheme.textPrimary.withValues(alpha: 0.06),
+                  blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -379,16 +378,16 @@ class _MemoryPromptCard extends StatelessWidget {
 // ─── Memories empty card ──────────────────────────────────────────────────────
 
 class _MemoriesEmptyCard extends StatelessWidget {
-  final AppStrings s;
-  const _MemoriesEmptyCard({required this.s});
+  const _MemoriesEmptyCard();
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
       decoration: BoxDecoration(
         color: AppTheme.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
             color: AppTheme.textPrimary.withValues(alpha: 0.04),
@@ -410,15 +409,34 @@ class _MemoriesEmptyCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            s.memoriesEmptySub,
+            s.noMemoriesSubtitle,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
               height: 1.4,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => context.read<AppState>().pendingTabIndex = 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFCF0EC),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                s.planAMoment,
+                style: const TextStyle(
+                  color: Color(0xFFA32D2D),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1440,11 +1458,12 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              s.homeWeeklyIdeasSection,
+              s.somethingForYouTwo,
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
             ),
             const Spacer(),
@@ -1470,7 +1489,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
         ),
         const SizedBox(height: 10),
         if (!imagesReady && appState.coupleId.isNotEmpty)
-          const SizedBox(height: 160)
+          const SizedBox(height: 185)
         else if (ideas.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1484,7 +1503,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           )
         else
           SizedBox(
-            height: 160,
+            height: 185,
             child: PageView.builder(
               controller: _controller,
               itemCount: ideas.length,
@@ -1859,7 +1878,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
         ? _proposedTime!.format(context)
         : s.ideaTimePlaceholder;
     return Container(
-      height: 160,
+      height: 185,
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(12),
@@ -2228,19 +2247,23 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
               borderRadius: BorderRadius.circular(99),
             ),
             child: Text(
-              s.homeSendIdea,
+              widget.partnerName.isNotEmpty
+                  ? '${s.sendToPartner} ${widget.partnerName}'
+                  : s.homeSendIdea,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         );
       }
 
       final side1 = Container(
-        height: 160,
+        height: 185,
         decoration: BoxDecoration(
           color: AppTheme.white,
           borderRadius: BorderRadius.circular(12),
@@ -2310,7 +2333,25 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
+                    Builder(builder: (context) {
+                      final sub = widget.idea.subtitle(isNo).isNotEmpty
+                          ? widget.idea.subtitle(isNo)
+                          : widget.idea.description(isNo);
+                      if (sub.isEmpty) return const SizedBox.shrink();
+                      return AutoSizeText(
+                        sub,
+                        style: const TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 10,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        minFontSize: 8,
+                      );
+                    }),
+                    const SizedBox(height: 2),
                     if (isPending)
                       AnimatedBuilder(
                         animation: _dotCtrl,
@@ -2535,6 +2576,219 @@ class _NextPlanPillState extends State<_NextPlanPill> {
               ),
               overflow: TextOverflow.ellipsis,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Home relationship card (battery + percentCharged row) ───────────────────
+
+class _HomeRelationshipCard extends StatelessWidget {
+  final int percent;
+  final String statusLine;
+  final String message;
+
+  const _HomeRelationshipCard({
+    required this.percent,
+    required this.statusLine,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final appState = context.watch<AppState>();
+    final pct = percent.clamp(0, 100);
+    final progress = pct / 100.0;
+    final mood = s.batteryMood(pct);
+    final pillLabel = s.batteryPillLabel(pct);
+    final pillColor = pct >= 65 ? AppTheme.accentGreen : AppTheme.warningAmber;
+    final pillBg = pct >= 65 ? AppTheme.accentGreenLight : AppTheme.warningAmberLight;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.favorite_border, color: AppTheme.accentRose, size: 15),
+              const SizedBox(width: 6),
+              Text(
+                s.batteryTitle,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _HomeAvatarPair(appState: appState),
+              const SizedBox(width: 20),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      mood,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'Georgia',
+                        letterSpacing: -0.4,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: pillBg,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        pillLabel,
+                        style: TextStyle(
+                          color: pillColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            s.percentCharged(pct),
+            style: const TextStyle(
+              color: AppTheme.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: progress),
+            duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 600),
+            curve: Curves.easeOut,
+            builder: (context, value, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: value,
+                minHeight: 5,
+                backgroundColor: AppTheme.accentRoseLight,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accentRose),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.3,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeAvatarPair extends StatelessWidget {
+  final AppState appState;
+  const _HomeAvatarPair({required this.appState});
+
+  Widget _avatar(String? imageUrl, String initial, Color bg, Color fg) {
+    const diameter = 50.0;
+    final fallback = Center(
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: fg,
+          fontSize: diameter * 0.40,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+    return Container(
+      width: diameter,
+      height: diameter,
+      decoration: BoxDecoration(
+        color: bg,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppTheme.white, width: 2.5),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      child: ClipOval(
+        child: imageUrl != null
+            ? CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                width: diameter,
+                height: diameter,
+                placeholder: (_, __) => fallback,
+                errorWidget: (_, __, ___) => fallback,
+              )
+            : fallback,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const diameter = 50.0;
+    const overlap = 16.0;
+    final myInitial = appState.displayName.isNotEmpty
+        ? appState.displayName[0].toUpperCase()
+        : '?';
+    final partnerInitial = appState.partnerName.isNotEmpty
+        ? appState.partnerName[0].toUpperCase()
+        : '?';
+    return SizedBox(
+      width: diameter * 2 - overlap,
+      height: diameter,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            child: _avatar(appState.userAvatarUrl, myInitial,
+                const Color(0xFFEBD2D2), AppTheme.accentRose),
+          ),
+          Positioned(
+            left: diameter - overlap,
+            child: _avatar(appState.partnerAvatarUrl, partnerInitial,
+                const Color(0xFFD8E9DA), AppTheme.accentGreen),
           ),
         ],
       ),

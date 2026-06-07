@@ -14,6 +14,8 @@ class WeeklyIdea {
   final IconData icon;
   final String descriptionNo;
   final String descriptionEn;
+  final String subtitleNo;
+  final String subtitleEn;
   final Color buttonColor;
 
   const WeeklyIdea({
@@ -29,6 +31,8 @@ class WeeklyIdea {
     required this.icon,
     required this.descriptionNo,
     required this.descriptionEn,
+    this.subtitleNo = '',
+    this.subtitleEn = '',
     this.buttonColor = const Color(0xFFC1544A),
   });
 
@@ -47,6 +51,8 @@ class WeeklyIdea {
   String description(bool isNorwegian) => isNorwegian
       ? (descriptionNo.isNotEmpty ? descriptionNo : descriptionEn)
       : (descriptionEn.isNotEmpty ? descriptionEn : descriptionNo);
+
+  String subtitle(bool isNorwegian) => isNorwegian ? subtitleNo : subtitleEn;
 
   factory WeeklyIdea.fromJson(Map<String, dynamic> json) {
     String tryStr(List<String> keys) {
@@ -76,6 +82,8 @@ class WeeklyIdea {
       icon: _iconFromName(json['iconName'] as String? ?? 'star_outline'),
       descriptionNo: tryStr(['descriptionNo', 'description', 'desc']),
       descriptionEn: tryStr(['descriptionEn', 'description', 'desc']),
+      subtitleNo: tryStr(['subtitleNo']),
+      subtitleEn: tryStr(['subtitleEn']),
       buttonColor: _hexColor(json['buttonColor'] as String? ?? '#C1544A'),
     );
   }
