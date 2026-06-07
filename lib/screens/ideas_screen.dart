@@ -40,21 +40,32 @@ const _kPalettes = [
   _Palette(Color(0xFFEEEDFE), Color(0xFFCECBF6), Color(0xFF534AB7), Color(0xFFCECBF6), Color(0xFF3C3489)),
 ];
 
+const List<List<Color>> _kGradients = [
+  [Color(0xFFAD5846), Color(0xFF7A3228)],
+  [Color(0xFF4A7555), Color(0xFF2C5036)],
+  [Color(0xFFBB7838), Color(0xFF844E24)],
+  [Color(0xFF3D7870), Color(0xFF23524C)],
+  [Color(0xFF9A4D66), Color(0xFF6C2C44)],
+  [Color(0xFF486278), Color(0xFF2C4256)],
+];
+
 // ─── Idea model ───────────────────────────────────────────────────────────────
 
 class _IdeaItem {
   final String id;
   final String titleEn, titleNo;
+  final String subtitleEn, subtitleNo;
   final String durationEn, durationNo;
   final String categoryEn, categoryNo;
   final String descEn, descNo;
   final IconData icon;
-  final String filter; // '10min' | 'athome' | 'out' | '1hour'
+  final String filter; // 'all' | '10min' | 'home' | 'out' | 'talk' | 'food'
   final int colorIndex;
 
   const _IdeaItem({
     required this.id,
     required this.titleEn, required this.titleNo,
+    this.subtitleEn = '', this.subtitleNo = '',
     required this.durationEn, required this.durationNo,
     required this.categoryEn, required this.categoryNo,
     required this.descEn, required this.descNo,
@@ -64,30 +75,34 @@ class _IdeaItem {
   });
 
   String title(bool no) => no ? titleNo : titleEn;
+  String subtitle(bool no) => no ? subtitleNo : subtitleEn;
   String duration(bool no) => no ? durationNo : durationEn;
   String category(bool no) => no ? categoryNo : categoryEn;
   String desc(bool no) => no ? descNo : descEn;
 }
 
-// TODO: connect to Firestore when backend ready
 const List<_IdeaItem> _kIdeas = [
   _IdeaItem(
     id: 'question_cards',
     titleEn: 'Question cards on the couch',
     titleNo: 'Spørsmålskort i sofaen',
+    subtitleEn: 'Ask one question each. No phones.',
+    subtitleNo: 'Still ett spørsmål hver. Ingen telefoner.',
     durationEn: '10 min', durationNo: '10 min',
-    categoryEn: '10 min', categoryNo: '10 min',
+    categoryEn: 'Talk', categoryNo: 'Samtale',
     descEn: 'Pick a deck of questions and take turns asking each other. No phones, no distractions.',
     descNo: 'Velg et kortstokk med spørsmål og still hverandre på omgang. Ingen telefoner, ingen avbrytelser.',
     icon: Icons.quiz_outlined,
-    filter: '10min', colorIndex: 0,
+    filter: 'talk', colorIndex: 0,
   ),
   _IdeaItem(
     id: 'evening_walk',
     titleEn: 'Evening walk without phones',
     titleNo: 'Kveldstur uten telefoner',
+    subtitleEn: 'Walk, reset, and talk slowly.',
+    subtitleNo: 'Gå, pust ut, og snakk sakte.',
     durationEn: '30 min', durationNo: '30 min',
-    categoryEn: 'Out together', categoryNo: 'Ute sammen',
+    categoryEn: 'Outside', categoryNo: 'Ute',
     descEn: 'Leave the phones at home. Walk your neighbourhood and just talk.',
     descNo: 'La telefonene hjemme. Gå i nabolaget og bare prat.',
     icon: Icons.directions_walk_outlined,
@@ -95,30 +110,36 @@ const List<_IdeaItem> _kIdeas = [
   ),
   _IdeaItem(
     id: 'cook_together',
-    titleEn: 'Cook a new recipe together',
-    titleNo: 'Lag en ny oppskrift sammen',
+    titleEn: 'Cook something new together',
+    titleNo: 'Lag noe nytt sammen',
+    subtitleEn: 'Make it messy. Make it yours.',
+    subtitleNo: 'La det bli rotete. Gjør det til deres.',
     durationEn: '45 min', durationNo: '45 min',
-    categoryEn: 'At home', categoryNo: 'Hjemme',
+    categoryEn: 'Food', categoryNo: 'Mat',
     descEn: 'Choose a recipe neither of you has tried. Divide the prep and enjoy it together.',
     descNo: 'Velg en oppskrift ingen av dere har prøvd. Del forberedelsene og nyt det sammen.',
     icon: Icons.restaurant_outlined,
-    filter: 'athome', colorIndex: 2,
+    filter: 'food', colorIndex: 2,
   ),
   _IdeaItem(
     id: 'tea_night',
-    titleEn: 'Tea + dessert night',
-    titleNo: 'Te + dessertkveld',
+    titleEn: 'Tea and honesty',
+    titleNo: 'Te og ærlighet',
+    subtitleEn: 'One warm drink. One honest conversation.',
+    subtitleNo: 'En varm drikke. En ærlig samtale.',
     durationEn: '20 min', durationNo: '20 min',
-    categoryEn: 'At home', categoryNo: 'Hjemme',
+    categoryEn: 'Home', categoryNo: 'Hjemme',
     descEn: 'Brew your favourite tea, grab something sweet and just be together on the couch.',
     descNo: 'Trekk favorittteen, ta noe søtt og bare vær sammen i sofaen.',
     icon: Icons.local_cafe_outlined,
-    filter: 'athome', colorIndex: 3,
+    filter: 'home', colorIndex: 3,
   ),
   _IdeaItem(
     id: 'mini_trip',
     titleEn: 'Plan a mini trip together',
     titleNo: 'Planlegg en minitur sammen',
+    subtitleEn: 'Dream together. No commitment needed.',
+    subtitleNo: 'Drøm sammen. Ingen forpliktelse.',
     durationEn: '10 min', durationNo: '10 min',
     categoryEn: '10 min', categoryNo: '10 min',
     descEn: 'Spend 10 minutes browsing ideas for a weekend away — even if you do not book yet.',
@@ -130,19 +151,23 @@ const List<_IdeaItem> _kIdeas = [
     id: 'bowling',
     titleEn: 'Bowling or mini-golf',
     titleNo: 'Bowling eller minigolf',
+    subtitleEn: 'Low stakes. High laughs.',
+    subtitleNo: 'Lavt press. Mye latter.',
     durationEn: '1 hour+', durationNo: '1 time+',
-    categoryEn: '1 hour+', categoryNo: '1 time+',
+    categoryEn: 'Outside', categoryNo: 'Ute',
     descEn: 'Pick something a little silly and competitive. Low pressure, high fun.',
     descNo: 'Velg noe litt tåpelig og konkurransepreget. Lavt press, høy moro.',
     icon: Icons.sports_outlined,
-    filter: '1hour', colorIndex: 5,
+    filter: 'out', colorIndex: 5,
   ),
   _IdeaItem(
     id: 'coffee_walk',
     titleEn: 'Morning coffee walk',
     titleNo: 'Morgentur med kaffe',
+    subtitleEn: 'Fresh air, warm drinks, just you two.',
+    subtitleNo: 'Frisk luft, varm kaffe, bare dere to.',
     durationEn: '30 min', durationNo: '30 min',
-    categoryEn: 'Out together', categoryNo: 'Ute sammen',
+    categoryEn: 'Outside', categoryNo: 'Ute',
     descEn: 'Start the day together with a walk and a takeaway coffee. Just the two of you.',
     descNo: 'Start dagen sammen med en tur og en takeaway-kaffe. Bare dere to.',
     icon: Icons.coffee_outlined,
@@ -152,34 +177,40 @@ const List<_IdeaItem> _kIdeas = [
     id: 'write_letters',
     titleEn: 'Write each other a letter',
     titleNo: 'Skriv hverandre et brev',
+    subtitleEn: 'Pen and paper. No edits.',
+    subtitleNo: 'Penn og papir. Ingen redigering.',
     durationEn: '10 min', durationNo: '10 min',
-    categoryEn: '10 min', categoryNo: '10 min',
+    categoryEn: 'Talk', categoryNo: 'Samtale',
     descEn: 'Pen and paper. Write one thing you love about them right now and swap.',
     descNo: 'Penn og papir. Skriv én ting du elsker ved dem akkurat nå og bytt.',
     icon: Icons.edit_outlined,
-    filter: '10min', colorIndex: 1,
+    filter: 'talk', colorIndex: 1,
   ),
   _IdeaItem(
     id: 'local_market',
     titleEn: 'Visit a local market',
     titleNo: 'Besøk et lokalt marked',
+    subtitleEn: 'Wander, taste, and discover together.',
+    subtitleNo: 'Vandre, smak, og oppdag sammen.',
     durationEn: '1 hour+', durationNo: '1 time+',
-    categoryEn: '1 hour+', categoryNo: '1 time+',
+    categoryEn: 'Outside', categoryNo: 'Ute',
     descEn: 'Wander through a market together. Grab a snack and people-watch.',
     descNo: 'Vandre gjennom et marked sammen. Ta en snack og se på folk.',
     icon: Icons.store_outlined,
-    filter: '1hour', colorIndex: 2,
+    filter: 'out', colorIndex: 2,
   ),
   _IdeaItem(
     id: 'dance_kitchen',
     titleEn: 'Dance in the kitchen',
     titleNo: 'Dans på kjøkkenet',
+    subtitleEn: 'No playlist required. No rhythm needed.',
+    subtitleNo: 'Ingen spilleliste. Ingen rytme nødvendig.',
     durationEn: '10 min', durationNo: '10 min',
-    categoryEn: '10 min', categoryNo: '10 min',
+    categoryEn: 'Home', categoryNo: 'Hjemme',
     descEn: 'Put on a favourite song and just dance. It does not have to be good.',
     descNo: 'Sett på en favorittlåt og dans. Det trenger ikke å være bra.',
     icon: Icons.music_note_outlined,
-    filter: '10min', colorIndex: 3,
+    filter: 'home', colorIndex: 3,
   ),
 ];
 
@@ -245,7 +276,7 @@ class _IdeasScreenState extends State<IdeasScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -265,9 +296,9 @@ class _IdeasScreenState extends State<IdeasScreen> {
                         fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     SizedBox(
-                      height: 36,
+                      height: 38,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
@@ -278,32 +309,38 @@ class _IdeasScreenState extends State<IdeasScreen> {
                           ),
                           const SizedBox(width: 8),
                           _FilterChip(
-                            label: s.ideasChip10min,
+                            label: '10 min',
                             active: _activeFilter == '10min',
                             onTap: () => setState(() => _activeFilter = '10min'),
                           ),
                           const SizedBox(width: 8),
                           _FilterChip(
-                            label: s.ideasFilterAtHome,
-                            active: _activeFilter == 'athome',
-                            onTap: () => setState(() => _activeFilter = 'athome'),
+                            label: isNo ? 'Hjemme' : 'Home',
+                            active: _activeFilter == 'home',
+                            onTap: () => setState(() => _activeFilter = 'home'),
                           ),
                           const SizedBox(width: 8),
                           _FilterChip(
-                            label: s.ideasFilterOut,
+                            label: isNo ? 'Ute' : 'Outside',
                             active: _activeFilter == 'out',
                             onTap: () => setState(() => _activeFilter = 'out'),
                           ),
                           const SizedBox(width: 8),
                           _FilterChip(
-                            label: s.ideasFilter1Hour,
-                            active: _activeFilter == '1hour',
-                            onTap: () => setState(() => _activeFilter = '1hour'),
+                            label: isNo ? 'Prat' : 'Talk',
+                            active: _activeFilter == 'talk',
+                            onTap: () => setState(() => _activeFilter = 'talk'),
+                          ),
+                          const SizedBox(width: 8),
+                          _FilterChip(
+                            label: isNo ? 'Mat' : 'Food',
+                            active: _activeFilter == 'food',
+                            onTap: () => setState(() => _activeFilter = 'food'),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 28),
                   ],
                 ),
               ),
@@ -319,14 +356,14 @@ class _IdeasScreenState extends State<IdeasScreen> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final idea = filtered[index];
                       final palette = _kPalettes[idea.colorIndex % _kPalettes.length];
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.only(bottom: 18),
                         child: _IdeaCard(
                           key: ValueKey(idea.id),
                           idea: idea,
@@ -1128,30 +1165,45 @@ class _IdeaCardState extends State<_IdeaCard> with SingleTickerProviderStateMixi
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.palette;
     final isNo = widget.isNorwegian;
+    final gradient = _kGradients[widget.idea.colorIndex % _kGradients.length];
+    final subtitle = widget.idea.subtitle(isNo);
 
     return GestureDetector(
       onTap: widget.onTap,
       onLongPress: _isAdmin ? () => _pickAndUpload(context) : null,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: p.border, width: 1.5),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12.5),
+          borderRadius: BorderRadius.circular(22),
           child: SizedBox(
-            height: 140,
+            height: 172,
             width: double.infinity,
             child: FutureBuilder<String?>(
               future: _imageFuture,
               builder: (_, snap) => Stack(
                 fit: StackFit.expand,
                 children: [
-                  // warm placeholder
-                  const ColoredBox(color: Color(0xFFC4956A)),
-                  // pexels image
+                  // Gradient background
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: gradient,
+                      ),
+                    ),
+                  ),
+                  // Photo over gradient
                   if (snap.hasData && snap.data != null)
                     CachedNetworkImage(
                       imageUrl: snap.data!,
@@ -1159,87 +1211,102 @@ class _IdeaCardState extends State<_IdeaCard> with SingleTickerProviderStateMixi
                       placeholder: (_, _) => const SizedBox(),
                       errorWidget: (_, _, _) => const SizedBox(),
                     ),
-                  // gradient overlay
+                  // Dark bottom overlay
                   Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter,
+                        begin: Alignment(0, -0.1),
                         end: Alignment.bottomCenter,
-                        colors: [Color(0x00000000), Color(0xCC000000)],
+                        colors: [Colors.transparent, Color(0xCC000000)],
+                        stops: [0.3, 1.0],
                       ),
                     ),
                   ),
-                  // content
+                  // Heart — top right
                   Positioned(
-                    bottom: 14,
-                    left: 16,
-                    right: 8,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                widget.idea.title(isNo),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  shadows: [
-                                    Shadow(blurRadius: 4, color: Colors.black54),
-                                  ],
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.20),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.45),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  widget.idea.duration(isNo),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
+                    top: 14,
+                    right: 14,
+                    child: AnimatedBuilder(
+                      animation: _heartCtrl,
+                      builder: (context, _) => GestureDetector(
+                        onTap: () {
+                          _heartCtrl.forward(from: 0);
+                          widget.onHeartTap();
+                        },
+                        child: Transform.scale(
+                          scale: _heartScale.value,
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              widget.isSaved
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              color: widget.isSaved
+                                  ? const Color(0xFFFF6B6B)
+                                  : Colors.white,
+                              size: 18,
+                            ),
                           ),
                         ),
-                        AnimatedBuilder(
-                          animation: _heartCtrl,
-                          builder: (context, _) => GestureDetector(
-                            onTap: () {
-                              _heartCtrl.forward(from: 0);
-                              widget.onHeartTap();
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 12, bottom: 2),
-                              child: Transform.scale(
-                                scale: _heartScale.value,
-                                child: Icon(
-                                  widget.isSaved
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  color: widget.isSaved
-                                      ? const Color(0xFFFF6B6B)
-                                      : Colors.white,
-                                  size: 24,
-                                ),
-                              ),
+                      ),
+                    ),
+                  ),
+                  // Content — bottom left
+                  Positioned(
+                    bottom: 16,
+                    left: 18,
+                    right: 58,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.idea.title(isNo),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Georgia',
+                            height: 1.25,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.78),
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.45),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            widget.idea.duration(isNo),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -1418,19 +1485,19 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: active ? AppTheme.accentRose : Colors.white,
+          color: active ? AppTheme.accentRose : const Color(0xFFF5F0EB),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: active ? AppTheme.accentRose : const Color(0xFFE0D9D0),
+            color: active ? AppTheme.accentRose : const Color(0xFFD4C8BC),
             width: 1,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: active ? Colors.white : const Color(0xFF555555),
+            color: active ? Colors.white : const Color(0xFF3A2A28),
             fontSize: 13,
             fontWeight: active ? FontWeight.w600 : FontWeight.w500,
           ),
