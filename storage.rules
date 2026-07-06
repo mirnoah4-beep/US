@@ -1,26 +1,68 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // ---------- Helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.uid == '1RTxZHUV1NbvNlFsXhwl5LeEgFw1';
+    }
+
+    function isCoupleMember(coupleId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/couples/$(coupleId))
+        && request.auth.uid in firestore.get(
+          /databases/(default)/documents/couples/$(coupleId)
+        ).data.members;
+    }
+
+    function isValidImageUpload() {
+      return request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ---------- User avatars/files ----------
     match /users/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == userId
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      // Kept readable by signed-in users so partner avatar display does not break.
+      allow read: if isSignedIn();
+
+      // Only owner or admin can upload/update, and only valid images.
+      allow create, update: if (isAdmin() || request.auth.uid == userId)
+        && isValidImageUpload();
+
+      // Delete has no request.resource, so keep separate.
+      allow delete: if isAdmin() || request.auth.uid == userId;
     }
 
+    // ---------- Idea images ----------
     match /ideas/{ideaId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == '1RTxZHUV1NbvNlFsXhwl5LeEgFw1'
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      // Any signed-in user can view idea images.
+      allow read: if isSignedIn();
+
+      // Only admin can upload/update valid idea images.
+      allow create, update: if isAdmin() && isValidImageUpload();
+
+      // Delete has no request.resource.
+      allow delete: if isAdmin();
     }
 
+    // ---------- Couple memories ----------
     match /couples/{coupleId}/memories/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      // Only admin or actual members of this couple.
+      allow read: if isAdmin() || isCoupleMember(coupleId);
+
+      // Admin and couple members can upload/update, but only valid images.
+      allow create, update: if (isAdmin() || isCoupleMember(coupleId))
+        && isValidImageUpload();
+
+      // Delete has no request.resource.
+      allow delete: if isAdmin() || isCoupleMember(coupleId);
     }
   }
 }

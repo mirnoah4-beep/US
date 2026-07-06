@@ -190,6 +190,26 @@ export const onWeeklyPlanDeleted = onDocumentDeleted(
   }
 );
 
+// Invite cleanup: when a couple flips from pending -> active (a partner joined
+// via joinByCode), delete the now-consumed invite. joinByCode sets inviteCode
+// to null, so we read the code from the BEFORE snapshot.
+export const onCoupleActivated = onDocumentUpdated(
+  { document: 'couples/{coupleId}', region: 'europe-west1' },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    const becameActive = before.status === 'pending' && after.status === 'active';
+    if (!becameActive) return;
+
+    const inviteCode: string | undefined = before.inviteCode ?? undefined;
+    if (!inviteCode) return;
+
+    await admin.firestore().collection('invites').doc(inviteCode).delete();
+  }
+);
+
 // On-demand callable: triggered from app when weeklyIdeas is missing or stale
 export const generateWeeklyIdeasNow = onCall(
   { region: 'europe-west1' },

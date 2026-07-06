@@ -49,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 220),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
           children: [
             _buildTopBar(context),
             const SizedBox(height: 18),
@@ -103,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 28),
               _SoloPreviewGrid(s: s),
             ],
+            const SizedBox(height: 28),
+            const _WriteOwnIdeaButton(),
             if (hasPartner) ...[
               const SizedBox(height: 28),
               if (memProv.pendingPrompt != null)
@@ -114,15 +116,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       memProv.dismissPrompt(memProv.pendingPrompt!.planId),
                 ),
               if (memProv.pendingPrompt != null) const SizedBox(height: 16),
-              _buildMemoriesHeader(context, s, memProv.streakCount),
-              const SizedBox(height: 10),
-              if (memProv.memories.isEmpty)
-                const _MemoriesEmptyCard()
-              else
+              if (memProv.memories.isNotEmpty) ...[
+                _buildMemoriesHeader(context, s, memProv.streakCount),
+                const SizedBox(height: 10),
                 _MemoriesPreview(
                   memories: memProv.memories,
                   s: s,
                 ),
+              ],
             ],
           ],
         ),
@@ -368,75 +369,6 @@ class _MemoryPromptCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Memories empty card ──────────────────────────────────────────────────────
-
-class _MemoriesEmptyCard extends StatelessWidget {
-  const _MemoriesEmptyCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.watch<LanguageProvider>().s;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.photo_library_outlined,
-              size: 36, color: AppTheme.textMuted),
-          const SizedBox(height: 10),
-          Text(
-            s.memoriesEmpty,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            s.noMemoriesSubtitle,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () => context.read<AppState>().requestTabNavigation(2),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFCF0EC),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                s.planAMoment,
-                style: const TextStyle(
-                  color: AppTheme.accentRose,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -1385,8 +1317,6 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     context.read<WeeklyIdeasProvider>().init(appState.coupleId);
 
     final sentTitle = provider.sentIdea?.titleNo;
-    final isCustomPending = provider.sendState == IdeaSendState.waiting &&
-        !ideas.any((idea) => idea.titleNo == sentTitle);
     if (sentTitle != null && !ideas.any((idea) => idea.titleNo == sentTitle)) {
       if (provider.sendState == IdeaSendState.declined) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1521,35 +1451,15 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
               ),
             ),
           ),
-        const SizedBox(height: 10),
-        if (isCustomPending)
-          _WriteOwnWaitingBar(
-            coupleId: appState.coupleId,
-            partnerName: appState.partnerName,
-          )
-        else
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => _openWriteOwnSheet(context, s),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFFFFF),
-                foregroundColor: AppTheme.accentRose,
-                side: const BorderSide(color: AppTheme.accentRose, width: 1.5),
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                s.homeWriteOwn,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
       ],
     );
   }
+}
+
+// ─── Write-your-own idea button (last element before the bottom navbar) ───────
+
+class _WriteOwnIdeaButton extends StatelessWidget {
+  const _WriteOwnIdeaButton();
 
   void _openWriteOwnSheet(BuildContext context, AppStrings s) {
     if (context.read<AppState>().partnerId.isEmpty) {
@@ -1566,6 +1476,46 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _WriteOwnSheet(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    final provider = context.watch<WeeklyIdeasProvider>();
+    final appState = context.watch<AppState>();
+    final ideas = provider.ideas
+        .where((idea) => idea.titleNo.isNotEmpty || idea.titleEn.isNotEmpty)
+        .take(4)
+        .toList();
+    final sentTitle = provider.sentIdea?.titleNo;
+    final isCustomPending = provider.sendState == IdeaSendState.waiting &&
+        !ideas.any((idea) => idea.titleNo == sentTitle);
+
+    if (isCustomPending) {
+      return _WriteOwnWaitingBar(
+        coupleId: appState.coupleId,
+        partnerName: appState.partnerName,
+      );
+    }
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: () => _openWriteOwnSheet(context, s),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: const Color(0xFFFFFFFF),
+          foregroundColor: AppTheme.accentRose,
+          side: const BorderSide(color: AppTheme.accentRose, width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          s.homeWriteOwn,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 }

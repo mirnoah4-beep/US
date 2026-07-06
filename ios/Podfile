@@ -4,6 +4,10 @@
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# Disable Flutter's Swift Package Manager integration — all plugins are already
+# managed by CocoaPods. Having both active causes duplicate symbols (AppCheckCore).
+ENV['FLUTTER_DISABLE_SPM'] = '1'
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,

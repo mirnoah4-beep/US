@@ -40,8 +40,10 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
   bool _isConnecting = false;
 
   bool get _isAnyLoading => _isGenerating || _isCancelling || _isConnecting;
-  String get _rawDigits => _codeCtrl.text.replaceAll(' ', '');
-  bool get _canConnect => _rawDigits.length == 6 && !_isAnyLoading;
+  // Normalized invite code: trimmed, spaces removed, uppercased.
+  String get _rawDigits =>
+      _codeCtrl.text.trim().replaceAll(' ', '').toUpperCase();
+  bool get _canConnect => _rawDigits.length == 8 && !_isAnyLoading;
 
   @override
   void dispose() {
@@ -279,7 +281,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
   }
 
   Widget _buildCodeCard(String code) {
-    final formatted = '${code.substring(0, 3)} ${code.substring(3)}';
+    final formatted = '${code.substring(0, 4)} ${code.substring(4)}';
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -449,7 +451,8 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
             child: TextField(
               controller: _codeCtrl,
               focusNode: _codeFocus,
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.text,
+              textCapitalization: TextCapitalization.characters,
               inputFormatters: [_InviteCodeFormatter()],
               textAlign: TextAlign.center,
               enabled: !_isAnyLoading,
@@ -461,7 +464,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
                 letterSpacing: 8,
               ),
               decoration: InputDecoration(
-                hintText: '000 000',
+                hintText: 'XXXX XXXX',
                 hintStyle: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.w700,
@@ -527,10 +530,12 @@ class _InviteCodeFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final capped = digits.length > 6 ? digits.substring(0, 6) : digits;
-    final formatted = capped.length > 3
-        ? '${capped.substring(0, 3)} ${capped.substring(3)}'
+    // Keep only alphanumeric characters, uppercased; cap at 8.
+    final cleaned =
+        newValue.text.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final capped = cleaned.length > 8 ? cleaned.substring(0, 8) : cleaned;
+    final formatted = capped.length > 4
+        ? '${capped.substring(0, 4)} ${capped.substring(4)}'
         : capped;
     return TextEditingValue(
       text: formatted,

@@ -92,11 +92,16 @@ class FirestoreService {
       return (code: doc.id, coupleId: existingCoupleId);
     }
 
-    // Generate a unique 6-digit numeric code (up to 5 attempts).
+    // Generate a unique 8-char alphanumeric code (up to 5 attempts).
+    // Character set excludes confusing glyphs (O, 0, I, 1).
+    const inviteAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final rng = Random.secure();
     String? code;
     for (int attempt = 0; attempt < 5; attempt++) {
-      final candidate = (100000 + rng.nextInt(900000)).toString();
+      final candidate = List.generate(
+        8,
+        (_) => inviteAlphabet[rng.nextInt(inviteAlphabet.length)],
+      ).join();
       final snap = await _db.collection('invites').doc(candidate).get();
       if (!snap.exists) {
         code = candidate;
@@ -188,7 +193,9 @@ class FirestoreService {
         txn.update(
             _db.collection('users').doc(invite.fromUserId),
             {'coupleId': invite.coupleId});
-        txn.delete(_db.collection('invites').doc(code));
+        // Invite cleanup is handled by the onCoupleActivated Cloud Function
+        // (deletes /invites/{inviteCode} when the couple flips to 'active'),
+        // so the joiner no longer needs delete permission on the invite.
 
         return JoinSuccess(invite.coupleId);
       });
