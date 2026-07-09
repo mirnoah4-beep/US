@@ -35,7 +35,6 @@ class AppState extends ChangeNotifier {
   String _partnerEmail = '';
   DateTime? togetherSince;
   ({DateTime date, String proposedBy})? togetherSinceProposal;
-  String? disconnectRequestedBy;
 
   String get partnerId => _partnerId;
   String get partnerEmail => _partnerEmail;
@@ -122,7 +121,6 @@ class AppState extends ChangeNotifier {
       _partnerId = '';
       togetherSince = null;
       togetherSinceProposal = null;
-      disconnectRequestedBy = null;
       notifyListeners();
       return;
     }
@@ -172,7 +170,6 @@ class AppState extends ChangeNotifier {
           _partnerId = '';
           togetherSince = null;
           togetherSinceProposal = null;
-          disconnectRequestedBy = null;
         }
       }
       if (changed) notifyListeners();
@@ -200,7 +197,6 @@ class AppState extends ChangeNotifier {
           ? (date: (proposalMap['date'] as Timestamp).toDate(),
              proposedBy: proposalMap['proposedBy'] as String? ?? '')
           : null;
-      final newDisconnectRequestedBy = d['disconnectRequestedBy'] as String?;
       final newStreakRecord = d['streakRecord'] as int? ?? 0;
 
       bool changed = false;
@@ -222,10 +218,6 @@ class AppState extends ChangeNotifier {
         togetherSinceProposal = newProposal;
         changed = true;
       }
-      if (newDisconnectRequestedBy != disconnectRequestedBy) {
-        disconnectRequestedBy = newDisconnectRequestedBy;
-        changed = true;
-      }
       if (changed) notifyListeners();
     }, onError: (Object e) {
       debugPrint('[AppState] coupleStream error: $e');
@@ -243,7 +235,6 @@ class AppState extends ChangeNotifier {
         coupleCreatedAt = null;
         togetherSince = null;
         togetherSinceProposal = null;
-        disconnectRequestedBy = null;
         notifyListeners();
       }
     });

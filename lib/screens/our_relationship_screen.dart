@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -417,157 +418,22 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
 
   Widget _buildDisconnectCard(
       BuildContext context, AppStrings s, AppState appState) {
-    final requested = appState.disconnectRequestedBy;
-    final myId = appState.userId;
-    final partnerId = appState.partnerId;
     final partnerName =
         appState.partnerName.isNotEmpty ? appState.partnerName : '?';
 
-    Widget cardChild;
-
-    if (requested == myId) {
-      // ── I requested: show waiting state ──────────────────────────────────
-      cardChild = Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3CD),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: const Icon(
-                    Icons.hourglass_top_rounded,
-                    color: Color(0xFF856404),
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    s.ourRelationshipWaitingFor(partnerName),
-                    style: const TextStyle(
-                      color: Color(0xFF856404),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () =>
-                    _cancelDisconnectRequest(context, appState.coupleId),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF5F5E5A),
-                  side: const BorderSide(color: Color(0xFFE0D9D0)),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  s.ourRelationshipCancelRequest,
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (requested == partnerId && partnerId.isNotEmpty) {
-      // ── Partner requested: show approval banner ───────────────────────────
-      cardChild = Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFCEBEB),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: const Icon(
-                    Icons.link_off,
-                    color: AppTheme.accentRose,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    s.ourRelationshipDisconnectRequestedBy(partnerName),
-                    style: const TextStyle(
-                      color: Color(0xFF1A1A1A),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () =>
-                        _approveDisconnect(context, s, appState),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.accentRose,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      s.ourRelationshipDisconnectApprove,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () =>
-                        _cancelDisconnectRequest(context, appState.coupleId),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF5F5E5A),
-                      side: const BorderSide(color: Color(0xFFE0D9D0)),
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      s.ourRelationshipDeclineRequest,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    } else {
-      // ── No request: show disconnect button ────────────────────────────────
-      cardChild = ListTile(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(
@@ -591,29 +457,14 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        onTap: () => _requestDisconnect(context, s, partnerName, appState),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        onTap: () => _disconnectPartner(context, s, partnerName, appState),
       ),
-      child: cardChild,
     );
   }
 
-  // ── Confirm and send request ───────────────────────────────────────────────
+  // ── Confirm and disconnect (unilateral) ─────────────────────────────────────
 
-  Future<void> _requestDisconnect(BuildContext context, AppStrings s,
+  Future<void> _disconnectPartner(BuildContext context, AppStrings s,
       String partnerName, AppState appState) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -707,55 +558,33 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
     if (confirmed != true || !context.mounted) return;
 
     final coupleId = appState.coupleId;
-    final userId = appState.userId;
     if (coupleId.isEmpty) return;
 
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    showDialog<void>(
+      context: context, // ignore: use_build_context_synchronously
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
-      await FirestoreService.requestDisconnect(coupleId, userId);
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('disconnectPartner');
+      await callable.call({'coupleId': coupleId});
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
-        );
-      }
-    }
-  }
-
-  // ── Partner approved — execute disconnect ─────────────────────────────────
-
-  Future<void> _approveDisconnect(
-      BuildContext context, AppStrings s, AppState appState) async {
-    final coupleId = appState.coupleId;
-    final partnerId = appState.partnerId;
-    if (coupleId.isEmpty) return;
-    try {
-      await FirestoreService.disconnectCouple(
-        coupleId: coupleId,
-        currentUserId: appState.userId,
-        partnerId: partnerId,
+      rootNav.pop(); // dismiss spinner
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
       );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
-        );
-      }
+      return;
     }
-  }
 
-  // ── Cancel / decline request ──────────────────────────────────────────────
-
-  Future<void> _cancelDisconnectRequest(
-      BuildContext context, String coupleId) async {
-    if (coupleId.isEmpty) return;
-    try {
-      await FirestoreService.clearDisconnectRequest(coupleId);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
-        );
-      }
-    }
+    // Couple dissolved server-side; our coupleId is now null. Pop to root —
+    // AuthGate re-routes to the solo/invite screen (same path as when a
+    // partner deletes their account).
+    rootNav.pop(); // dismiss spinner
+    rootNav.popUntil((route) => route.isFirst);
   }
 }

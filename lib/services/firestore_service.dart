@@ -1,5 +1,5 @@
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
@@ -76,61 +76,25 @@ class FirestoreService {
 
   // ── Invites ────────────────────────────────────────────────────────────────
 
-  /// Creates an invite for [userId]. Returns (code, coupleId).
-  /// If the user already has a pending invite, returns the existing code.
+  /// Creates (or reuses) a pairing invite for the current user via the
+  /// `createInvite` Cloud Function. Returns (code, coupleId).
+  ///
+  /// Server-side on purpose: the "reuse existing invite" step is a query over
+  /// the invites collection, and the security rules now deny client-side
+  /// list/query on invites (the code is a shared secret). The [userId] argument
+  /// is ignored — the function derives the caller from the auth context — but is
+  /// kept so the call site in couple_setup_screen stays unchanged.
   static Future<({String code, String coupleId})> createInvite(
       String userId) async {
-    // Re-use existing pending invite for this user.
-    final existing = await _db
-        .collection('invites')
-        .where('fromUserId', isEqualTo: userId)
-        .limit(1)
-        .get();
-    if (existing.docs.isNotEmpty) {
-      final doc = existing.docs.first;
-      final existingCoupleId = doc.data()['coupleId'] as String? ?? '';
-      return (code: doc.id, coupleId: existingCoupleId);
+    final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+        .httpsCallable('createInvite');
+    final result = await callable.call();
+    final code = result.data['code'] as String?;
+    final coupleId = result.data['coupleId'] as String?;
+    if (code == null || coupleId == null) {
+      throw Exception('createInvite returned an invalid response.');
     }
-
-    // Generate a unique 8-char alphanumeric code (up to 5 attempts).
-    // Character set excludes confusing glyphs (O, 0, I, 1).
-    const inviteAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final rng = Random.secure();
-    String? code;
-    for (int attempt = 0; attempt < 5; attempt++) {
-      final candidate = List.generate(
-        8,
-        (_) => inviteAlphabet[rng.nextInt(inviteAlphabet.length)],
-      ).join();
-      final snap = await _db.collection('invites').doc(candidate).get();
-      if (!snap.exists) {
-        code = candidate;
-        break;
-      }
-    }
-    if (code == null) {
-      throw Exception('Could not generate a unique invite code. Try again.');
-    }
-
-    // Atomically create the pending couple doc and the invite doc.
-    final coupleRef = _db.collection('couples').doc();
-    final batch = _db.batch();
-
-    batch.set(coupleRef, {
-      'members': [userId],
-      'status': 'pending',
-      'inviteCode': code,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    batch.set(_db.collection('invites').doc(code), {
-      'fromUserId': userId,
-      'coupleId': coupleRef.id,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
-    return (code: code, coupleId: coupleRef.id);
+    return (code: code, coupleId: coupleId);
   }
 
   /// Joins a couple via an invite [code]. Returns a [JoinResult].
@@ -140,11 +104,8 @@ class FirestoreService {
     try {
       return await _db.runTransaction<JoinResult>((txn) async {
         // 1. Read the invite.
-        final invitePath = 'invites/$code';
-        debugPrint('[joinByCode] reading $invitePath');
         final inviteSnap =
             await txn.get(_db.collection('invites').doc(code));
-        debugPrint('[joinByCode] read ok: $invitePath exists=${inviteSnap.exists}');
         if (!inviteSnap.exists) {
           return const JoinFailure(JoinFailureReason.invalidCode);
         }
@@ -156,32 +117,21 @@ class FirestoreService {
         }
 
         // 3. Verify the couple is still pending.
-        final couplePath = 'couples/${invite.coupleId}';
-        debugPrint('[joinByCode] reading $couplePath');
         final coupleSnap =
             await txn.get(_db.collection('couples').doc(invite.coupleId));
-        debugPrint('[joinByCode] read ok: $couplePath status=${coupleSnap.data()?['status']}');
         if (!coupleSnap.exists ||
             coupleSnap.data()?['status'] != 'pending') {
           return const JoinFailure(JoinFailureReason.inviteExpired);
         }
 
-        // 4. Check the inviter does not already have an active different couple.
-        final fromUserPath = 'users/${invite.fromUserId}';
-        debugPrint('[joinByCode] reading $fromUserPath');
-        final fromUserSnap =
-            await txn.get(_db.collection('users').doc(invite.fromUserId));
-        debugPrint('[joinByCode] read ok: $fromUserPath coupleId=${fromUserSnap.data()?['coupleId']}');
-        final fromCoupleId =
-            fromUserSnap.data()?['coupleId'] as String?;
-        if (fromCoupleId != null &&
-            fromCoupleId.isNotEmpty &&
-            fromCoupleId != invite.coupleId) {
-          return const JoinFailure(JoinFailureReason.alreadyPartnered);
-        }
-
-        // 5. All valid — commit the join atomically.
-        debugPrint('[joinByCode] all reads passed — committing writes');
+        // 4. All valid — commit the join atomically. We no longer read the
+        //    inviter's user doc (the rules forbid reading a stranger's
+        //    profile). The "inviter already partnered" case is enforced
+        //    server-side: the rules only permit setting the inviter's coupleId
+        //    when it is currently null, so if the inviter is already in a
+        //    couple the update below is rejected and the transaction aborts
+        //    (surfaced as alreadyPartnered in the catch).
+        debugPrint('[joinByCode] reads passed — committing writes');
         txn.update(_db.collection('couples').doc(invite.coupleId), {
           'members': FieldValue.arrayUnion([currentUserId]),
           'status': 'active',
@@ -200,7 +150,15 @@ class FirestoreService {
         return JoinSuccess(invite.coupleId);
       });
     } catch (e) {
-      debugPrint('[joinByCode] FAILED: $e');
+      // Do not log the raw exception in release — it can contain the invite
+      // code / couple path. Keep detail for local debugging only.
+      if (kDebugMode) debugPrint('[joinByCode] transaction failed: $e');
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        // On an otherwise-valid join the only write the rules can reject is the
+        // inviter's coupleId update (blocked when the inviter is already in a
+        // couple). Map it to alreadyPartnered rather than a generic error.
+        return const JoinFailure(JoinFailureReason.alreadyPartnered);
+      }
       return JoinFailure(JoinFailureReason.networkError, e.toString());
     }
   }
@@ -223,31 +181,6 @@ class FirestoreService {
 
   static Future<void> updateStreakRecord(String coupleId, int record) =>
       coupleRef(coupleId).update({'streakRecord': record});
-
-  static Future<void> requestDisconnect(String coupleId, String userId) =>
-      coupleRef(coupleId).update({'disconnectRequestedBy': userId});
-
-  static Future<void> clearDisconnectRequest(String coupleId) =>
-      coupleRef(coupleId).update({'disconnectRequestedBy': null});
-
-  /// Ends the couple relationship atomically.
-  /// Sets status to 'ended' and clears coupleId on both user docs.
-  static Future<void> disconnectCouple({
-    required String coupleId,
-    required String currentUserId,
-    required String partnerId,
-  }) {
-    return _db.runTransaction((txn) async {
-      txn.update(coupleRef(coupleId), {
-        'status': 'ended',
-        'endedAt': FieldValue.serverTimestamp(),
-      });
-      txn.update(userRef(currentUserId), {'coupleId': null});
-      if (partnerId.isNotEmpty) {
-        txn.update(userRef(partnerId), {'coupleId': null});
-      }
-    });
-  }
 
   /// Streams the couple document. Emits null when the doc is deleted
   /// (e.g. after a cancel) so callers can react accordingly.
@@ -361,33 +294,4 @@ class FirestoreService {
   static Future<void> deleteMemory(String coupleId, String docId) =>
       memoriesRef(coupleId).doc(docId).delete();
 
-  static Future<void> deleteUserData(String uid, String? coupleId) async {
-    await userRef(uid).delete();
-
-    if (coupleId == null || coupleId.isEmpty) return;
-
-    final cRef = _db.collection('couples').doc(coupleId);
-    final coupleSnap = await cRef.get();
-    if (!coupleSnap.exists) return;
-
-    final members = List<String>.from(coupleSnap.data()?['members'] ?? []);
-
-    if (members.length <= 1) {
-      final inviteCode = coupleSnap.data()?['inviteCode'] as String?;
-      if (inviteCode != null) {
-        await _db.collection('invites').doc(inviteCode).delete().catchError((_) {});
-      }
-      const subcollections = ['weeklyIdeas', 'weeklyPlan', 'ideaRequests', 'lastTime', 'settings', 'memories'];
-      for (final sub in subcollections) {
-        final snap = await cRef.collection(sub).get();
-        if (snap.docs.isEmpty) continue;
-        final batch = _db.batch();
-        for (final doc in snap.docs) batch.delete(doc.reference);
-        await batch.commit();
-      }
-      await cRef.delete();
-    } else {
-      await cRef.update({'members': FieldValue.arrayRemove([uid])});
-    }
-  }
 }

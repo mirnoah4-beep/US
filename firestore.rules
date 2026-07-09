@@ -4,42 +4,39 @@ service cloud.firestore {
 
     // ── Users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
+      // Read: yourself, or your partner once you are both members of the same
+      // couple. There is intentionally NO general "any signed-in user" clause.
+      // The join handshake no longer reads the inviter's user doc — the
+      // "inviter already partnered" guard moved to the cross-user update rule
+      // below (coupleId == null), so nothing legitimately needs to read a
+      // stranger's profile.
       allow read: if request.auth.uid == userId
         || (resource.data.coupleId != null
             && request.auth.uid in get(
                  /databases/$(database)/documents/couples/$(resource.data.coupleId)
-               ).data.members)
-        // Allow the joiner to read the inviter's doc during the join transaction.
-        // createInvite() does not write coupleId to the user doc — that happens
-        // inside joinByCode(). So at read time the inviter's coupleId is null;
-        // we must allow that case explicitly. Once the couple is active the
-        // members check above takes over and this condition becomes false.
-        || (request.auth != null
-            && (resource.data.coupleId == null
-                || get(/databases/$(database)/documents/couples/$(resource.data.coupleId)
-                   ).data.status == 'pending'));
+               ).data.members);
       allow create, delete: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId ||
-        // Cross-user coupleId writes are allowed for two operations only:
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['coupleId']) && (
-          // 1. Join: requester sets coupleId to a pending couple where userId is already a member.
-          (request.resource.data.coupleId != null &&
-           get(/databases/$(database)/documents/couples/$(request.resource.data.coupleId)).data.status == 'pending' &&
-           userId in get(/databases/$(database)/documents/couples/$(request.resource.data.coupleId)).data.members)
-          ||
-          // 2. Disconnect: requester clears coupleId; both must be members of the same active couple.
-          (request.resource.data.coupleId == null &&
-           resource.data.coupleId != null &&
-           request.auth.uid in get(/databases/$(database)/documents/couples/$(resource.data.coupleId)).data.members &&
-           userId in get(/databases/$(database)/documents/couples/$(resource.data.coupleId)).data.members)
-        ));
+        // Cross-user coupleId write is allowed for ONE operation only: the join
+        // handshake, where the joiner sets the inviter's coupleId to a pending
+        // couple the inviter is a member of. Disconnect is now fully
+        // server-side (disconnectPartner / deleteAccount use the Admin SDK), so
+        // there is no client-side cross-user disconnect write.
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['coupleId']) &&
+         resource.data.coupleId == null &&
+         request.resource.data.coupleId != null &&
+         get(/databases/$(database)/documents/couples/$(request.resource.data.coupleId)).data.status == 'pending' &&
+         userId in get(/databases/$(database)/documents/couples/$(request.resource.data.coupleId)).data.members);
     }
 
     // ── Couples ───────────────────────────────────────────────────────────────
     match /couples/{coupleId} {
-      // Create: requester must be listed as the sole initial member.
-      allow create: if request.auth != null &&
-        request.auth.uid in request.resource.data.members;
+      // Create is server-only: the createInvite Cloud Function creates the
+      // pending couple doc with the Admin SDK. The client only joins (update)
+      // or cancels (delete) an existing couple — it never creates one. This
+      // also means clients cannot seed a server-owned field like
+      // subscriptionTier at creation.
+      allow create: if false;
 
       // Read: existing members, OR anyone authenticated when the couple is
       // still pending with a live invite — the joiner must read the doc to
@@ -55,7 +52,10 @@ service cloud.firestore {
       //   - couple is still pending with a live invite
       //   - requester is adding only themselves (existing members stay)
       //   - requester ends up in the new members list
-      allow update: if request.auth != null && (
+      allow update: if request.auth != null
+        // subscriptionTier is server-owned — no client update may change it.
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscriptionTier'])
+        && (
         request.auth.uid in resource.data.members ||
         (resource.data.status == 'pending' &&
          resource.data.inviteCode != null &&
@@ -78,16 +78,21 @@ service cloud.firestore {
     }
 
     // ── Invites ───────────────────────────────────────────────────────────────
-    // Read: any authenticated user (needed to look up an invite by code in
-    // joinByCode). Create: only for yourself, and only the exact set of fields
-    // createInvite() writes — fromUserId (== caller), coupleId, createdAt.
-    // Delete: invite creator, or an existing member of the couple.
+    // GET only, by exact code (the doc ID). The invite code is a shared pairing
+    // secret; allowing LIST/query would let any signed-in user enumerate every
+    // live code and join a stranger's pending couple. joinByCode() and
+    // cancelInvite() only ever read a single invite by its code — a direct
+    // document get, which this allows.
+    //
+    // Create is server-only: the createInvite Cloud Function writes invite docs
+    // with the Admin SDK (which bypasses these rules). The client never creates
+    // invites directly, so client creates are denied outright.
+    //
+    // Delete: invite creator, or an existing member of the couple (cancelInvite).
     match /invites/{inviteCode} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-        && request.resource.data.fromUserId == request.auth.uid
-        && request.resource.data.keys().hasOnly(['fromUserId', 'coupleId', 'createdAt'])
-        && request.resource.data.keys().hasAll(['fromUserId', 'coupleId', 'createdAt']);
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create: if false;
       allow delete: if request.auth != null && (
         request.auth.uid == resource.data.fromUserId
         || request.auth.uid in get(

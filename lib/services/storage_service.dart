@@ -42,14 +42,4 @@ class StorageService {
     await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
     return ref.getDownloadURL();
   }
-
-  static Future<void> deleteUserFiles(String uid) async {
-    try {
-      final ref = FirebaseStorage.instance.ref('users/$uid');
-      final result = await ref.listAll();
-      for (final item in result.items) {
-        await item.delete();
-      }
-    } catch (_) {}
-  }
 }

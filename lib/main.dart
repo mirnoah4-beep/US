@@ -242,7 +242,9 @@ class _CoupleGateState extends State<_CoupleGate> {
 
         final couple = snap.data;
 
-        debugPrint('[CoupleGate] stream emit → status=${couple?.status}, isActive=${couple?.isActive}, members=${couple?.members.length ?? 0}, _onboardingDone=$_onboardingDone');
+        if (kDebugMode) {
+          debugPrint('[CoupleGate] stream emit → status=${couple?.status}, isActive=${couple?.isActive}, members=${couple?.members.length ?? 0}, _onboardingDone=$_onboardingDone');
+        }
 
         // Couple document missing — stale coupleId on user doc.
         // Clear it and wait for AuthGate to re-route.
@@ -266,7 +268,9 @@ class _CoupleGateState extends State<_CoupleGate> {
             _checkOnboarding();
           }
 
-          debugPrint('[CoupleGate] isActive=true → _onboardingCheckStarted=$_onboardingCheckStarted, _onboardingDone=$_onboardingDone');
+          if (kDebugMode) {
+            debugPrint('[CoupleGate] isActive=true → _onboardingCheckStarted=$_onboardingCheckStarted, _onboardingDone=$_onboardingDone');
+          }
 
           if (_onboardingDone == null) return const SplashScreen();
           if (_onboardingDone == false) {

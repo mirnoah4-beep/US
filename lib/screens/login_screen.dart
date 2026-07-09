@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -46,6 +45,21 @@ class _LoginScreenState extends State<LoginScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  String _authErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return 'Ugyldig e-postadresse.';
+      case 'weak-password':
+        return 'Passordet er for svakt (minst 6 tegn).';
+      case 'email-already-in-use':
+        return 'Feil e-post eller passord.';
+      case 'network-request-failed':
+        return 'Nettverksfeil. Sjekk internettforbindelsen.';
+      default:
+        return 'Noe gikk galt. Prøv igjen.';
+    }
   }
 
   Future<void> _handleAuthSuccess(User user, {bool needsEmailVerification = false}) async {
@@ -111,25 +125,51 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () async {
+                  final email = _emailController.text.trim();
+                  final password = _passwordController.text;
+                  if (email.isEmpty || password.isEmpty) {
+                    _showError('Fyll inn e-post og passord.');
+                    return;
+                  }
                   try {
                     await FirebaseAuth.instance.signInWithEmailAndPassword(
-                      email: _emailController.text,
-                      password: _passwordController.text,
+                      email: email,
+                      password: password,
                     );
                     await FirebaseAnalytics.instance
                         .logLogin(loginMethod: 'email');
-                    Navigator.pop(ctx);
-                  } catch (e) {
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  } on FirebaseAuthException catch (_) {
+                    // Combined "log in / create account" button: sign-in failed,
+                    // so try to create the account. If the email already exists,
+                    // the real problem was a wrong password — say so instead of
+                    // silently doing nothing.
                     try {
-                      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                        email: _emailController.text,
-                        password: _passwordController.text,
+                      final cred = await FirebaseAuth.instance
+                          .createUserWithEmailAndPassword(
+                        email: email,
+                        password: password,
                       );
-                      final newUser = cred.user!;
+                      final newUser = cred.user;
+                      if (newUser == null) {
+                        _showError();
+                        return;
+                      }
                       await newUser.sendEmailVerification();
-                      await _handleAuthSuccess(newUser, needsEmailVerification: true);
+                      await _handleAuthSuccess(newUser,
+                          needsEmailVerification: true);
                       if (ctx.mounted) Navigator.pop(ctx);
-                    } catch (_) {}
+                    } on FirebaseAuthException catch (createErr) {
+                      if (createErr.code == 'email-already-in-use') {
+                        _showError('Feil e-post eller passord.');
+                      } else {
+                        _showError(_authErrorMessage(createErr));
+                      }
+                    } catch (_) {
+                      _showError();
+                    }
+                  } catch (_) {
+                    _showError();
                   }
                 },
                 style: FilledButton.styleFrom(
