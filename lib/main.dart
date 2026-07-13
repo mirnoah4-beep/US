@@ -23,7 +23,6 @@ import 'models/weekly_ideas_provider.dart';
 import 'screens/couple_setup_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/ideas_screen.dart';
 import 'screens/last_time_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/name_screen.dart';
@@ -411,13 +410,11 @@ class _MainShellState extends State<MainShell> {
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
   ];
 
   static const _tabScreens = [
     HomeScreen(),
     LastTimeScreen(),
-    IdeasScreen(),
     PlanScreen(),
   ];
 
@@ -501,9 +498,9 @@ class _MainShellState extends State<MainShell> {
         if (coupleId.isNotEmpty && userId.isNotEmpty) {
           context.read<WeeklyIdeasProvider>().checkIncomingRequests(coupleId, userId);
         }
-        appState.requestTabNavigation(3);
+        appState.requestTabNavigation(2);
       } else if (data['type'] == 'idea_accepted') {
-        appState.requestTabNavigation(3);
+        appState.requestTabNavigation(2);
       }
     });
   }
@@ -577,11 +574,6 @@ class _MainShellState extends State<MainShell> {
                   icon: const Icon(Icons.access_time_outlined),
                   activeIcon: const Icon(Icons.access_time_rounded),
                   label: s.navLastTime,
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.lightbulb_outline_rounded),
-                  activeIcon: const Icon(Icons.lightbulb_rounded),
-                  label: s.navIdeas,
                 ),
                 BottomNavigationBarItem(
                   icon: Badge(

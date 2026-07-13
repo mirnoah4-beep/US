@@ -25,6 +25,7 @@ import '../widgets/already_pending_dialog.dart';
 import '../widgets/calendar_card.dart';
 import '../widgets/heart_confirm_dialog.dart';
 import 'couple_setup_screen.dart';
+import 'ideas_screen.dart';
 import 'memories_screen.dart';
 import 'settings_screen.dart';
 
@@ -99,6 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 28),
             ],
             const _WeeklyIdeasCarousel(),
+            const SizedBox(height: 4),
+            const _SeeAllIdeasLink(),
             if (!hasPartner) ...[
               const SizedBox(height: 28),
               _SoloPreviewGrid(s: s),
@@ -1452,6 +1455,42 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
             ),
           ),
       ],
+    );
+  }
+}
+
+// ─── See-all-ideas link (below the weekly carousel) ────────────────────────────
+
+class _SeeAllIdeasLink extends StatelessWidget {
+  const _SeeAllIdeasLink();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().s;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const IdeasScreen()),
+        ),
+        style: TextButton.styleFrom(
+          foregroundColor: AppTheme.accentRose,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              s.seeAllIdeas,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_forward_rounded, size: 15),
+          ],
+        ),
+      ),
     );
   }
 }

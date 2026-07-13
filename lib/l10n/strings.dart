@@ -301,6 +301,7 @@ class AppStrings {
 
   // ── Ideas Screen ────────────────────────────────────────────────────────
   String get ideasTitle => isNorwegian ? 'Dateideer' : 'Date ideas';
+  String get seeAllIdeas => isNorwegian ? 'Se alle ideer' : 'See all ideas';
   String get ideasSubtitle => isNorwegian ? 'Små idéer, stor tilkobling.' : 'Small ideas, big connection.';
   String get ideasAll => isNorwegian ? 'Alle' : 'All';
   String get ideasChip10min => '10 min';
