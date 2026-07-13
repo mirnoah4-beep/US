@@ -7,8 +7,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/firestore_service.dart';
+
+const kTermsUrl = 'https://us-app-4bf30.web.app/terms.html';
+const kPrivacyUrl = 'https://us-app-4bf30.web.app/privacy.html';
+
+void openLegalUrl(String url) {
+  launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -301,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const TextSpan(text: 'Ved å fortsette godtar du våre '),
                         WidgetSpan(
                           child: GestureDetector(
-                            onTap: () {},
+                            onTap: () => openLegalUrl(kTermsUrl),
                             child: const Text(
                               'Vilkår for bruk',
                               style: TextStyle(
@@ -314,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const TextSpan(text: ' og '),
                         WidgetSpan(
                           child: GestureDetector(
-                            onTap: () {},
+                            onTap: () => openLegalUrl(kPrivacyUrl),
                             child: const Text(
                               'Personvernerklæring',
                               style: TextStyle(

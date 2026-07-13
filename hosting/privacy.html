@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personvernerklæring — Us</title>
+<style>
+  :root { --burgundy: #8B2E42; --cream: #FAF7F4; --ink: #3A3936; --muted: #888780; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--cream); color: var(--ink); line-height: 1.65; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+  .brand { font-size: 28px; font-weight: 700; color: var(--burgundy); letter-spacing: -0.5px; }
+  .lang-toggle button { background: none; border: 1px solid var(--burgundy); color: var(--burgundy); padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; margin-left: 6px; }
+  .lang-toggle button.active { background: var(--burgundy); color: #fff; }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  .updated { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  h2 { font-size: 18px; color: var(--burgundy); margin: 28px 0 8px; }
+  p, li { font-size: 15px; margin-bottom: 10px; }
+  ul { padding-left: 22px; margin-bottom: 10px; }
+  a { color: var(--burgundy); }
+  [data-lang] { display: none; }
+  html[lang="no"] [data-lang="no"], html[lang="en"] [data-lang="en"] { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">us</div>
+    <div class="lang-toggle">
+      <button id="btn-no" class="active" onclick="setLang('no')">Norsk</button>
+      <button id="btn-en" onclick="setLang('en')">English</button>
+    </div>
+  </header>
+
+  <div data-lang="no">
+    <h1>Personvernerklæring</h1>
+    <p class="updated">Sist oppdatert: 13. juli 2026</p>
+
+    <p>Us («appen», «vi») er en app for par. Denne erklæringen forklarer hvilke personopplysninger vi behandler, hvorfor, og hvilke rettigheter du har etter personvernforordningen (GDPR).</p>
+
+    <h2>Behandlingsansvarlig</h2>
+    <p>Behandlingsansvarlig for appen er utvikleren av Us. Kontakt: <a href="mailto:adimirkhan@gmail.com">adimirkhan@gmail.com</a>.</p>
+
+    <h2>Hvilke opplysninger vi samler inn</h2>
+    <ul>
+      <li><strong>Kontoopplysninger:</strong> e-postadresse og navn (via e-postregistrering, Google- eller Apple-innlogging).</li>
+      <li><strong>Profil- og parinnhold:</strong> profilinformasjon, kobling til partneren din, minner, planer, datoideer, preferanser og meldinger du skriver i appen (inkludert samtaler med AI-mekleren).</li>
+      <li><strong>Bilder:</strong> profilbilder og bilder du legger til minner, lagret i Firebase Storage.</li>
+      <li><strong>Varslingstoken:</strong> en enhetstoken (FCM) for å kunne sende push-varsler.</li>
+      <li><strong>Bruks- og feildata:</strong> anonymiserte bruksstatistikker (Firebase Analytics) og krasjrapporter (Firebase Crashlytics) for å forbedre appen.</li>
+    </ul>
+
+    <h2>Formål og rettslig grunnlag</h2>
+    <ul>
+      <li><strong>Levere tjenesten</strong> (konto, parkobling, innhold, varsler) — nødvendig for å oppfylle avtalen med deg (GDPR art. 6(1)(b)).</li>
+      <li><strong>AI-funksjoner</strong> (ukentlige dateideer og mekler-chat) — innhold du sender behandles av OpenAI for å generere svar. Grunnlag: avtale (art. 6(1)(b)).</li>
+      <li><strong>Forbedring og feilretting</strong> (Analytics, Crashlytics) — berettiget interesse (art. 6(1)(f)).</li>
+    </ul>
+
+    <h2>Databehandlere og lagring</h2>
+    <p>Vi bruker Google Firebase (Authentication, Firestore, Storage, Cloud Functions, Messaging, Analytics, Crashlytics) som databehandler. Appdata lagres primært i EU (region europe-west1). Innhold du sender til AI-funksjonene behandles av OpenAI. Vi selger aldri opplysningene dine.</p>
+
+    <h2>Deling med partneren din</h2>
+    <p>Us er laget for to. Innhold du legger inn i et par (minner, planer, ideer, kalender) deles med partneren du har koblet deg til. Du kan når som helst koble fra partneren i appen.</p>
+
+    <h2>Lagringstid og sletting</h2>
+    <p>Opplysningene lagres så lenge du har konto. Du kan slette kontoen din i appen (Innstillinger → Slett konto). Da slettes kontoen, bildene og dataene dine permanent, og partnerkoblingen fjernes.</p>
+
+    <h2>Dine rettigheter</h2>
+    <p>Du har rett til innsyn, retting, sletting, dataportabilitet og å protestere mot behandling. Kontakt oss på e-post for å utøve rettighetene dine. Du kan også klage til Datatilsynet.</p>
+
+    <h2>Barn</h2>
+    <p>Appen er ikke rettet mot barn under 16 år.</p>
+
+    <h2>Endringer</h2>
+    <p>Vi kan oppdatere denne erklæringen. Vesentlige endringer varsles i appen.</p>
+  </div>
+
+  <div data-lang="en">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: July 13, 2026</p>
+
+    <p>Us ("the app", "we") is an app for couples. This policy explains what personal data we process, why, and your rights under the GDPR.</p>
+
+    <h2>Data controller</h2>
+    <p>The data controller is the developer of Us. Contact: <a href="mailto:adimirkhan@gmail.com">adimirkhan@gmail.com</a>.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>Account data:</strong> email address and name (via email sign-up, Google or Apple sign-in).</li>
+      <li><strong>Profile and couple content:</strong> profile info, your partner link, memories, plans, date ideas, preferences, and messages you write in the app (including conversations with the AI mediator).</li>
+      <li><strong>Photos:</strong> profile pictures and photos attached to memories, stored in Firebase Storage.</li>
+      <li><strong>Notification token:</strong> a device token (FCM) used to deliver push notifications.</li>
+      <li><strong>Usage and crash data:</strong> anonymized usage statistics (Firebase Analytics) and crash reports (Firebase Crashlytics) to improve the app.</li>
+    </ul>
+
+    <h2>Purposes and legal basis</h2>
+    <ul>
+      <li><strong>Providing the service</strong> (account, partner link, content, notifications) — necessary to perform our contract with you (GDPR Art. 6(1)(b)).</li>
+      <li><strong>AI features</strong> (weekly date ideas and the mediator chat) — content you submit is processed by OpenAI to generate responses. Basis: contract (Art. 6(1)(b)).</li>
+      <li><strong>Improvement and debugging</strong> (Analytics, Crashlytics) — legitimate interest (Art. 6(1)(f)).</li>
+    </ul>
+
+    <h2>Processors and storage</h2>
+    <p>We use Google Firebase (Authentication, Firestore, Storage, Cloud Functions, Messaging, Analytics, Crashlytics) as a data processor. App data is stored primarily in the EU (region europe-west1). Content you send to the AI features is processed by OpenAI. We never sell your data.</p>
+
+    <h2>Sharing with your partner</h2>
+    <p>Us is built for two. Content you add within a couple (memories, plans, ideas, calendar) is shared with the partner you have linked with. You can disconnect from your partner at any time in the app.</p>
+
+    <h2>Retention and deletion</h2>
+    <p>Your data is kept for as long as you have an account. You can delete your account in the app (Settings → Delete account). This permanently deletes your account, photos, and data, and removes the partner link.</p>
+
+    <h2>Your rights</h2>
+    <p>You have the right to access, rectify, erase, port your data, and object to processing. Contact us by email to exercise your rights. You may also lodge a complaint with your local data protection authority.</p>
+
+    <h2>Children</h2>
+    <p>The app is not directed at children under 16.</p>
+
+    <h2>Changes</h2>
+    <p>We may update this policy. Material changes will be announced in the app.</p>
+  </div>
+</div>
+<script>
+  function setLang(l) {
+    document.documentElement.lang = l;
+    document.getElementById('btn-no').classList.toggle('active', l === 'no');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+  }
+  if (!navigator.language.startsWith('no') && !navigator.language.startsWith('nb') && !navigator.language.startsWith('nn')) setLang('en');
+</script>
+</body>
+</html>

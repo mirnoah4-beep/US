@@ -10,6 +10,7 @@ import '../models/language_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'lifestyle_setup_screen.dart';
+import 'login_screen.dart' show openLegalUrl, kPrivacyUrl;
 import 'our_relationship_screen.dart';
 import 'profile_screen.dart';
 import 'reminders_screen.dart';
@@ -564,6 +565,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           iconBg: const Color(0xFFF1EFE8),
           title: s.settingsPrivacy,
           subtitle: s.settingsPrivacySub,
+          onTap: () => openLegalUrl(kPrivacyUrl),
         ),
         const _RowDivider(),
         _NavRow(

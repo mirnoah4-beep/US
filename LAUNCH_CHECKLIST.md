@@ -5,13 +5,13 @@
 - [ ] Set Firestore + Storage to "Enforced" in Firebase Console → App Check → APIs
 
 ## Legal
-- [ ] Privacy policy URL published
-- [ ] GDPR consent on signup (EU users)
-- [ ] Delete account functionality
+- [x] Privacy policy URL published — https://us-app-4bf30.web.app/privacy.html (+ /terms.html), source in `hosting/`, deploy with `firebase deploy --only hosting`
+- [x] GDPR consent on signup (EU users) — "Ved å fortsette godtar du…" on login screen now links to live terms + privacy policy
+- [x] Delete account functionality — Settings → Delete account (callable `deleteAccount`)
 
 ## Technical
-- [ ] Release keystore configured (not debug)
-- [ ] flutter build appbundle --release tested and working
+- [x] Release keystore configured (not debug)
+- [x] flutter build appbundle --release tested and working
 - [ ] No crashes in Crashlytics (all issues resolved)
 - [ ] All test/debug code removed (print statements, test buttons, hardcoded data)
 - [ ] App Check re-enabled (see Security above)
