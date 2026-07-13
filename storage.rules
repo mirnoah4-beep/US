@@ -27,10 +27,25 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    function isPartnerOf(userId) {
+      return isSignedIn()
+        && firestore.get(
+          /databases/(default)/documents/users/$(request.auth.uid)
+        ).data.coupleId != null
+        && firestore.get(
+          /databases/(default)/documents/users/$(request.auth.uid)
+        ).data.coupleId == firestore.get(
+          /databases/(default)/documents/users/$(userId)
+        ).data.coupleId;
+    }
+
     // ---------- User avatars/files ----------
     match /users/{userId}/{allPaths=**} {
-      // Kept readable by signed-in users so partner avatar display does not break.
-      allow read: if isSignedIn();
+      // Owner, their linked partner, or admin. Display in-app goes through
+      // tokened download URLs, so this only restricts direct SDK reads.
+      allow read: if isAdmin()
+        || request.auth.uid == userId
+        || isPartnerOf(userId);
 
       // Only owner or admin can upload/update, and only valid images.
       allow create, update: if (isAdmin() || request.auth.uid == userId)
