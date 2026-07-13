@@ -94,6 +94,23 @@ class AppState extends ChangeNotifier {
   static const int weeklyWalkGoal = 1;
   static const int weeklyPhoneFreeTalkGoal = 1;
 
+  // ── Readiness (first emission received per stream) ────────────────────────
+  bool _userDocLoaded = false;
+  bool _coupleDocLoaded = false;
+  bool _partnerDocLoaded = false;
+  bool _settingsLoaded = false;
+  bool _lastTimeLoaded = false;
+
+  /// True once every stream backing the initial UI has delivered its first
+  /// snapshot, so the app can be revealed without content popping in late.
+  bool get isReady {
+    if (_userId.isEmpty || !_userDocLoaded) return false;
+    if (_coupleId.isEmpty) return true;
+    if (!_coupleDocLoaded || !_settingsLoaded || !_lastTimeLoaded) return false;
+    if (_partnerId.isNotEmpty && !_partnerDocLoaded) return false;
+    return true;
+  }
+
   // ── Internal subscriptions ─────────────────────────────────────────────────
   StreamSubscription<User?>? _authSub;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSub;
@@ -110,6 +127,11 @@ class AppState extends ChangeNotifier {
 
   void _onAuthChanged(User? user) {
     _cancelDataSubs();
+    _userDocLoaded = false;
+    _coupleDocLoaded = false;
+    _partnerDocLoaded = false;
+    _settingsLoaded = false;
+    _lastTimeLoaded = false;
     if (user == null) {
       _userId = '';
       _coupleId = '';
@@ -137,6 +159,10 @@ class AppState extends ChangeNotifier {
         .doc(uid)
         .snapshots()
         .listen((snap) {
+      if (!_userDocLoaded) {
+        _userDocLoaded = true;
+        notifyListeners();
+      }
       if (!snap.exists) return;
       final d = snap.data()!;
       final newCoupleId = d['coupleId'] as String? ?? '';
@@ -156,6 +182,10 @@ class AppState extends ChangeNotifier {
       if (newCoupleId != _coupleId) {
         _coupleId = newCoupleId;
         changed = true;
+        _coupleDocLoaded = false;
+        _partnerDocLoaded = false;
+        _settingsLoaded = false;
+        _lastTimeLoaded = false;
         if (newCoupleId.isNotEmpty) {
           _subscribeCouple(newCoupleId);
         } else {
@@ -183,6 +213,10 @@ class AppState extends ChangeNotifier {
         .doc(coupleId)
         .snapshots()
         .listen((snap) {
+      if (!_coupleDocLoaded) {
+        _coupleDocLoaded = true;
+        notifyListeners();
+      }
       if (!snap.exists) return;
       final d = snap.data()!;
       final members = List<String>.from(d['members'] as List? ?? []);
@@ -204,6 +238,7 @@ class AppState extends ChangeNotifier {
       if (newPartnerId != _partnerId) {
         _partnerId = newPartnerId;
         changed = true;
+        _partnerDocLoaded = false;
         if (newPartnerId.isNotEmpty) _subscribePartner(newPartnerId);
       }
       if (newCreatedAt != coupleCreatedAt) {
@@ -250,6 +285,10 @@ class AppState extends ChangeNotifier {
         .doc(partnerId)
         .snapshots()
         .listen((snap) {
+      if (!_partnerDocLoaded) {
+        _partnerDocLoaded = true;
+        notifyListeners();
+      }
       if (!snap.exists) return;
       final d = snap.data()!;
       final displayName = d['displayName'] as String? ?? '';
@@ -277,6 +316,10 @@ class AppState extends ChangeNotifier {
         .doc('main')
         .snapshots()
         .listen((snap) {
+      if (!_settingsLoaded) {
+        _settingsLoaded = true;
+        notifyListeners();
+      }
       if (!snap.exists) return;
       final d = snap.data()!;
       final newParentMode = d['parentMode'] as bool? ?? false;
@@ -296,6 +339,7 @@ class AppState extends ChangeNotifier {
         .collection('lastTime')
         .snapshots()
         .listen((snap) {
+      _lastTimeLoaded = true;
       final newTimestamps = <String, DateTime>{};
       for (final doc in snap.docs) {
         final activityId = doc.id;

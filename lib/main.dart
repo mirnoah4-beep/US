@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +31,7 @@ import 'screens/plan_screen.dart';
 import 'screens/onboarding_preferences.dart';
 import 'screens/splash_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/idea_image_service.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
@@ -142,7 +146,7 @@ class AuthGate extends StatelessWidget {
             // No couple yet — let them in with static fallback data.
             // The invite banner on HomeScreen guides them to connect a partner.
             if (coupleId == null || coupleId.isEmpty) {
-              return const MainShell();
+              return const _ReadyGate(requireCoupleProviders: false);
             }
 
             // Has coupleId — verify the couple's status.
@@ -279,16 +283,7 @@ class _CoupleGateState extends State<_CoupleGate> {
 
           context.read<WeeklyIdeasProvider>().init(widget.coupleId);
           context.read<MemoriesProvider>().init(widget.coupleId);
-          return Consumer<WeeklyIdeasProvider>(
-            builder: (ctx, ideasProvider, _) {
-              return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 500),
-                child: ideasProvider.initialized
-                    ? const MainShell()
-                    : const SplashScreen(),
-              );
-            },
-          );
+          return const _ReadyGate(requireCoupleProviders: true);
         }
 
         // Pending couple — not reachable in normal flow (coupleId is only
@@ -298,6 +293,103 @@ class _CoupleGateState extends State<_CoupleGate> {
           onCoupleActive: () {},
         );
       },
+    );
+  }
+}
+
+// ── _ReadyGate ─────────────────────────────────────────────────────────────────
+
+/// Holds the splash screen until every data source backing the initial UI has
+/// delivered its first snapshot, so the app never appears half-loaded.
+/// A fallback timer reveals the app anyway if something never emits
+/// (e.g. flaky network), rather than trapping the user on the splash.
+class _ReadyGate extends StatefulWidget {
+  final bool requireCoupleProviders;
+
+  const _ReadyGate({required this.requireCoupleProviders});
+
+  @override
+  State<_ReadyGate> createState() => _ReadyGateState();
+}
+
+class _ReadyGateState extends State<_ReadyGate> {
+  bool _forceReveal = false;
+  bool _imagesStarted = false;
+  bool _imagesReady = false;
+  Timer? _fallback;
+
+  @override
+  void initState() {
+    super.initState();
+    _fallback = Timer(const Duration(seconds: 8), () {
+      if (mounted) setState(() => _forceReveal = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _fallback?.cancel();
+    super.dispose();
+  }
+
+  /// Warms the image cache for everything visible on the first Home frame:
+  /// the weekly-ideas carousel covers and both avatars. Uses the same
+  /// provider configs as the widgets that render them so the cache hits.
+  Future<void> _precacheStartupImages() async {
+    final ideas = context
+        .read<WeeklyIdeasProvider>()
+        .ideas
+        .where((idea) => idea.titleNo.isNotEmpty || idea.titleEn.isNotEmpty)
+        .take(4)
+        .toList();
+    final appState = context.read<AppState>();
+
+    final futures = <Future<void>>[
+      for (final idea in ideas)
+        () async {
+          final url = await IdeaImageService.fetchCoverUrl(
+              IdeaImageService.toId(idea.titleNo));
+          if (url != null && url.isNotEmpty && mounted) {
+            await precacheImage(
+                CachedNetworkImageProvider(url, maxWidth: 600), context);
+          }
+        }()
+            .catchError((_) {}),
+      for (final url in [appState.userAvatarUrl, appState.partnerAvatarUrl])
+        if (url != null && url.isNotEmpty)
+          precacheImage(CachedNetworkImageProvider(url), context)
+              .catchError((_) {}),
+    ];
+
+    // Never let slow image downloads hold the app hostage.
+    await Future.wait(futures).timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => [],
+    );
+    if (mounted) setState(() => _imagesReady = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    var dataReady = appState.isReady;
+    if (widget.requireCoupleProviders) {
+      dataReady = dataReady &&
+          context.watch<WeeklyIdeasProvider>().initialized &&
+          context.watch<MemoriesProvider>().initialized;
+    }
+
+    if (dataReady && !_imagesStarted) {
+      _imagesStarted = true;
+      _precacheStartupImages();
+    }
+
+    final ready = dataReady && _imagesReady;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      child: (ready || _forceReveal)
+          ? const MainShell()
+          : const SplashScreen(),
     );
   }
 }
