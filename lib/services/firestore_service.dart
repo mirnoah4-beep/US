@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import '../models/couple_model.dart';
 import '../models/invite_model.dart';
@@ -131,7 +131,6 @@ class FirestoreService {
         //    when it is currently null, so if the inviter is already in a
         //    couple the update below is rejected and the transaction aborts
         //    (surfaced as alreadyPartnered in the catch).
-        debugPrint('[joinByCode] reads passed — committing writes');
         txn.update(_db.collection('couples').doc(invite.coupleId), {
           'members': FieldValue.arrayUnion([currentUserId]),
           'status': 'active',
@@ -149,17 +148,18 @@ class FirestoreService {
 
         return JoinSuccess(invite.coupleId);
       });
-    } catch (e) {
-      // Do not log the raw exception in release — it can contain the invite
-      // code / couple path. Keep detail for local debugging only.
-      if (kDebugMode) debugPrint('[joinByCode] transaction failed: $e');
+    } catch (e, st) {
+      // Record for triage. The Firestore exception message is generic (no
+      // document path), and we never add the invite code or a UID to it, so
+      // nothing sensitive is logged.
+      FirebaseCrashlytics.instance.recordError(e, st);
       if (e is FirebaseException && e.code == 'permission-denied') {
         // On an otherwise-valid join the only write the rules can reject is the
         // inviter's coupleId update (blocked when the inviter is already in a
         // couple). Map it to alreadyPartnered rather than a generic error.
         return const JoinFailure(JoinFailureReason.alreadyPartnered);
       }
-      return JoinFailure(JoinFailureReason.networkError, e.toString());
+      return const JoinFailure(JoinFailureReason.networkError);
     }
   }
 

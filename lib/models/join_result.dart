@@ -9,8 +9,7 @@ final class JoinSuccess extends JoinResult {
 
 final class JoinFailure extends JoinResult {
   final JoinFailureReason reason;
-  final String? debugMessage;
-  const JoinFailure(this.reason, [this.debugMessage]);
+  const JoinFailure(this.reason);
 }
 
 enum JoinFailureReason {

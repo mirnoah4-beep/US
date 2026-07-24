@@ -122,15 +122,8 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
       switch (result) {
         case JoinSuccess():
           widget.onCoupleActive();
-        case JoinFailure(:final reason, :final debugMessage):
-          _showError(
-            debugMessage != null
-                ? 'Feil: $debugMessage'
-                : _failureMessage(reason),
-            duration: debugMessage != null
-                ? const Duration(seconds: 20)
-                : const Duration(seconds: 4),
-          );
+        case JoinFailure(:final reason):
+          _showError(_failureMessage(reason));
       }
     } finally {
       if (mounted) setState(() => _isConnecting = false);
