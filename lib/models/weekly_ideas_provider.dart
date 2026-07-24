@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -219,14 +220,14 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .listen(
             _onSnapshot,
             onError: (Object e) {
-              debugPrint('WeeklyIdeasProvider stream error: $e');
+              if (kDebugMode) debugPrint('WeeklyIdeasProvider stream error: $e');
               _loading = false;
               _initialized = true;
               notifyListeners();
             },
           );
     } catch (e) {
-      debugPrint('WeeklyIdeasProvider: Firebase unavailable: $e');
+      if (kDebugMode) debugPrint('WeeklyIdeasProvider: Firebase unavailable: $e');
       _initialized = true;
       notifyListeners();
     }
@@ -274,8 +275,9 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .httpsCallable('generateWeeklyIdeasNow');
       await callable.call({'coupleId': coupleId});
       // Firestore stream picks up the new doc automatically
-    } catch (e) {
-      debugPrint('WeeklyIdeasProvider generation failed: $e');
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('WeeklyIdeasProvider generation failed: $e');
+      FirebaseCrashlytics.instance.recordError(e, st);
       _loading = false;
       notifyListeners();
     } finally {
@@ -332,12 +334,13 @@ class WeeklyIdeasProvider extends ChangeNotifier {
       });
       _requestSub?.cancel();
       _requestSub = ref.snapshots().listen(_onRequestSnapshot, onError: (_) {});
-    } catch (e) {
+    } catch (e, st) {
       _sendState = IdeaSendState.idle;
       _sentIdea = null;
       _pendingRequestId = null;
       _sendError = 'networkError';
-      debugPrint('sendIdea failed: $e');
+      if (kDebugMode) debugPrint('sendIdea failed: $e');
+      FirebaseCrashlytics.instance.recordError(e, st);
       notifyListeners();
     }
   }
@@ -408,8 +411,9 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .update({'status': 'cancelled'});
       resetSendState();
       return true;
-    } catch (e) {
-      debugPrint('cancelForReplacement failed: $e');
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('cancelForReplacement failed: $e');
+      FirebaseCrashlytics.instance.recordError(e, st);
       return false;
     }
   }
@@ -425,8 +429,9 @@ class WeeklyIdeasProvider extends ChangeNotifier {
             .collection('ideaRequests')
             .doc(docId)
             .delete();
-      } catch (e) {
-        debugPrint('cancelPendingIdea failed: $e');
+      } catch (e, st) {
+        if (kDebugMode) debugPrint('cancelPendingIdea failed: $e');
+        FirebaseCrashlytics.instance.recordError(e, st);
       }
     }
   }
@@ -450,8 +455,9 @@ class WeeklyIdeasProvider extends ChangeNotifier {
         if (accepted && planDate != null)
           'acceptedAt': Timestamp.fromDate(planDate),
       });
-    } catch (e) {
-      debugPrint('respondToRequest failed: $e');
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('respondToRequest failed: $e');
+      FirebaseCrashlytics.instance.recordError(e, st);
     }
   }
 
@@ -504,7 +510,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('checkOutgoingRequests failed: $e');
+      if (kDebugMode) debugPrint('checkOutgoingRequests failed: $e');
     }
   }
 
@@ -541,10 +547,10 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .where('status', isEqualTo: 'pending')
           .snapshots()
           .listen(_onIncomingSnapshot, onError: (Object e) {
-            debugPrint('WeeklyIdeasProvider incoming stream error: $e');
+            if (kDebugMode) debugPrint('WeeklyIdeasProvider incoming stream error: $e');
           });
     } catch (e) {
-      debugPrint('WeeklyIdeasProvider checkIncomingRequests failed: $e');
+      if (kDebugMode) debugPrint('WeeklyIdeasProvider checkIncomingRequests failed: $e');
     }
   }
 

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -125,8 +127,9 @@ class _AddMemorySheetState extends State<AddMemorySheet> {
         Navigator.pop(context);
         widget.onDone?.call();
       }
-    } catch (e) {
-      debugPrint('MEMORY DELETE ERROR: $e');
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('MEMORY DELETE ERROR: $e');
+      FirebaseCrashlytics.instance.recordError(e, st);
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -181,8 +184,9 @@ class _AddMemorySheetState extends State<AddMemorySheet> {
         Navigator.pop(context);
         widget.onDone?.call();
       }
-    } catch (e) {
-      debugPrint('MEMORY UPLOAD ERROR: $e');
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('MEMORY UPLOAD ERROR: $e');
+      FirebaseCrashlytics.instance.recordError(e, st);
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(

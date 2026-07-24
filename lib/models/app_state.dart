@@ -203,7 +203,9 @@ class AppState extends ChangeNotifier {
         }
       }
       if (changed) notifyListeners();
-    }, onError: (Object e) => debugPrint('[AppState] userStream error: $e'));
+    }, onError: (Object e) {
+      if (kDebugMode) debugPrint('[AppState] userStream error: $e');
+    });
   }
 
   void _subscribeCouple(String coupleId) {
@@ -255,7 +257,10 @@ class AppState extends ChangeNotifier {
       }
       if (changed) notifyListeners();
     }, onError: (Object e) {
-      debugPrint('[AppState] coupleStream error: $e');
+      if (kDebugMode) debugPrint('[AppState] coupleStream error: $e');
+      // TODO: replace fragile string matching with
+      //   e is FirebaseException && e.code == 'permission-denied'
+      //   (after the cleanup pass).
       final errStr = e.toString();
       if (errStr.contains('permission-denied') || errStr.contains('PERMISSION_DENIED')) {
         _coupleSub?.cancel();
@@ -304,7 +309,9 @@ class AppState extends ChangeNotifier {
       if (newEmail != _partnerEmail) { _partnerEmail = newEmail; changed = true; }
       if (newAvatar != partnerAvatarUrl) { partnerAvatarUrl = newAvatar; changed = true; }
       if (changed) notifyListeners();
-    }, onError: (Object e) => debugPrint('[AppState] partnerStream error: $e'));
+    }, onError: (Object e) {
+      if (kDebugMode) debugPrint('[AppState] partnerStream error: $e');
+    });
   }
 
   void _subscribeSettings(String coupleId) {
@@ -328,7 +335,9 @@ class AppState extends ChangeNotifier {
       if (newParentMode != hasChildren) { hasChildren = newParentMode; changed = true; }
       if (newTotal != _momentsTotal) { _momentsTotal = newTotal; changed = true; }
       if (changed) notifyListeners();
-    }, onError: (Object e) => debugPrint('[AppState] settingsStream error: $e'));
+    }, onError: (Object e) {
+      if (kDebugMode) debugPrint('[AppState] settingsStream error: $e');
+    });
   }
 
   void _subscribeLastTime(String coupleId) {
@@ -355,7 +364,9 @@ class AppState extends ChangeNotifier {
       }
       _lastTimestamps = newTimestamps;
       notifyListeners();
-    }, onError: (Object e) => debugPrint('[AppState] lastTimeStream error: $e'));
+    }, onError: (Object e) {
+      if (kDebugMode) debugPrint('[AppState] lastTimeStream error: $e');
+    });
   }
 
   void _cancelDataSubs() {

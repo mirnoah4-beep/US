@@ -41,6 +41,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Belt-and-suspenders: no debugPrint anywhere reaches a release log, even
+  // from packages, on top of the per-call kDebugMode guards below.
+  if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await FirebaseAppCheck.instance.activate(
@@ -115,7 +118,7 @@ class AuthGate extends StatelessWidget {
             }
 
             if (userSnap.hasError) {
-              debugPrint('[AuthGate] user stream error: ${userSnap.error}');
+              if (kDebugMode) debugPrint('[AuthGate] user stream error: ${userSnap.error}');
               return const LoginScreen();
             }
 
@@ -195,7 +198,7 @@ class _CoupleGateState extends State<_CoupleGate> {
         _onboardingDone = snap.data()?['onboardingDone'] == true;
       });
     } catch (e) {
-      debugPrint('[CoupleGate] onboarding check failed: $e');
+      if (kDebugMode) debugPrint('[CoupleGate] onboarding check failed: $e');
       if (!mounted) return;
       setState(() => _onboardingDone = false);
     }
@@ -230,7 +233,7 @@ class _CoupleGateState extends State<_CoupleGate> {
         }
 
         if (snap.hasError) {
-          debugPrint('[CoupleGate] couple stream error: ${snap.error}');
+          if (kDebugMode) debugPrint('[CoupleGate] couple stream error: ${snap.error}');
           if (!_clearedStale) {
             _clearedStale = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
