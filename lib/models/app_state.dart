@@ -258,11 +258,7 @@ class AppState extends ChangeNotifier {
       if (changed) notifyListeners();
     }, onError: (Object e) {
       if (kDebugMode) debugPrint('[AppState] coupleStream error: $e');
-      // TODO: replace fragile string matching with
-      //   e is FirebaseException && e.code == 'permission-denied'
-      //   (after the cleanup pass).
-      final errStr = e.toString();
-      if (errStr.contains('permission-denied') || errStr.contains('PERMISSION_DENIED')) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
         _coupleSub?.cancel();
         _partnerSub?.cancel();
         _settingsSub?.cancel();
