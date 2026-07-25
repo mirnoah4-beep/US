@@ -106,10 +106,11 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 28),
               _SoloPreviewGrid(s: s),
             ],
-            const SizedBox(height: 28),
+            const SizedBox(height: 14),
             const _WriteOwnIdeaButton(),
             if (hasPartner) ...[
-              const SizedBox(height: 28),
+              if (memProv.pendingPrompt != null || memProv.memories.isNotEmpty)
+                const SizedBox(height: 28),
               if (memProv.pendingPrompt != null)
                 _MemoryPromptCard(
                   prompt: memProv.pendingPrompt!,
