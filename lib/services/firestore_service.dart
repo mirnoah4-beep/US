@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../models/couple_model.dart';
 import '../models/invite_model.dart';
@@ -41,6 +42,74 @@ class FirestoreService {
 
   static Stream<DocumentSnapshot<Map<String, dynamic>>> userStream(String uid) =>
       userRef(uid).snapshots();
+
+  /// Mirrors the UI language onto the user doc so server-sent FCM can be
+  /// rendered in the RECIPIENT's language. Best-effort: a failure here must
+  /// never block a language change, but it is reported rather than swallowed.
+  static Future<void> saveLanguage(String language) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await userRef(uid).set({'language': language}, SetOptions(merge: true));
+    } catch (e, st) {
+      await FirebaseCrashlytics.instance.recordError(e, st, reason: 'saveLanguage');
+    }
+  }
+
+  /// Detects the device's current IANA timezone (e.g. 'Europe/Oslo',
+  /// 'America/New_York') and mirrors it onto the user doc.
+  ///
+  /// The server needs this to know when 19:00 is for this person. It is read
+  /// from the platform, never derived from language or country — several
+  /// countries span multiple zones. Returns the identifier, or null if the
+  /// platform could not supply one.
+  static Future<String?> detectTimeZone() async {
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      final identifier = info.identifier;
+      // Reject anything that is not a real IANA region id — the server applies
+      // the same rule, since a bare offset cannot follow DST.
+      if (identifier.isEmpty) return null;
+      if (!identifier.contains('/') && identifier != 'UTC') return null;
+      return identifier;
+    } catch (e, st) {
+      await FirebaseCrashlytics.instance
+          .recordError(e, st, reason: 'detectTimeZone');
+      return null;
+    }
+  }
+
+  /// Persists the detected IANA timezone for the signed-in user.
+  static Future<void> saveTimeZone(String timeZone) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await userRef(uid).set({'timeZone': timeZone}, SetOptions(merge: true));
+    } catch (e, st) {
+      await FirebaseCrashlytics.instance
+          .recordError(e, st, reason: 'saveTimeZone');
+    }
+  }
+
+  /// Per-user notification preferences. Personal by design — a partner must
+  /// never be able to change what the other person receives.
+  static Future<void> updateNotificationPrefs(Map<String, dynamic> data) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    await userRef(uid).set(data, SetOptions(merge: true));
+  }
+
+  /// Sends a predefined message to the signed-in user's partner.
+  ///
+  /// Only the templateId travels to the server; recipient, sender identity and
+  /// FCM token are all resolved server-side by `sendPartnerNotification`.
+  /// Throws [FirebaseFunctionsException] so callers can show a real message.
+  static Future<bool> sendPartnerNotification(String templateId) async {
+    final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+        .httpsCallable('sendPartnerNotification');
+    final result = await callable.call<Map<String, dynamic>>({'templateId': templateId});
+    return result.data['delivered'] as bool? ?? false;
+  }
 
   // ── Couples ────────────────────────────────────────────────────────────────
 

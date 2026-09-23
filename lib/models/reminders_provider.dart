@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -15,6 +16,18 @@ class RemindersProvider extends ChangeNotifier {
   bool weeklyPlanEnabled = true;
   TimeOfDay weeklyPlanTime = const TimeOfDay(hour: 18, minute: 0);
   bool newIdeasEnabled = true;
+
+  // ── Per-user notification preferences (users/{uid}) ─────────────────────
+  // Deliberately NOT couple-level: notification preferences are personal, and
+  // one partner must never be able to toggle the other's notifications.
+  bool smartRemindersEnabled = true;
+  bool qualityTimeReminderEnabled = true;
+  bool dateReminderEnabled = true;
+  bool weeklyRelationshipReminderEnabled = true;
+  bool partnerMessagesEnabled = true;
+
+  /// The IANA timezone the server will use for this user, shown in settings.
+  String? timeZone;
 
   String? _coupleId;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sub;
@@ -34,11 +47,27 @@ class RemindersProvider extends ChangeNotifier {
             .doc(user.uid)
             .snapshots()
             .listen((snap) {
-          final coupleId = snap.data()?['coupleId'] as String? ?? '';
+          final data = snap.data();
+          final coupleId = data?['coupleId'] as String? ?? '';
           if (coupleId.isNotEmpty && coupleId != _coupleId) {
             _coupleId = coupleId;
             _subscribeSettings(coupleId);
           }
+          // Per-user notification preferences live on the user doc. The UI
+          // shows the intended defaults; the server treats absent fields as
+          // OFF until _ensureRolloutInitialized() persists them.
+          smartRemindersEnabled = data?['smartRemindersEnabled'] as bool? ?? true;
+          qualityTimeReminderEnabled = data?['qualityTimeReminderEnabled'] as bool? ?? true;
+          dateReminderEnabled = data?['dateReminderEnabled'] as bool? ?? true;
+          weeklyRelationshipReminderEnabled =
+              data?['weeklyRelationshipReminderEnabled'] as bool? ?? true;
+          partnerMessagesEnabled = data?['partnerMessagesEnabled'] as bool? ?? true;
+          timeZone = data?['timeZone'] as String?;
+          notifyListeners();
+          _ensureRolloutInitialized(data);
+        }, onError: (Object e, StackTrace st) {
+          FirebaseCrashlytics.instance
+              .recordError(e, st, reason: 'RemindersProvider user stream');
         });
       }
     });
@@ -168,6 +197,103 @@ class RemindersProvider extends ChangeNotifier {
     newIdeasEnabled = v;
     notifyListeners();
     _save({'newIdeasEnabled': v});
+  }
+
+  // ── Rollout gate ────────────────────────────────────────────────────────
+
+  /// Bumped when the client gains the ability to handle a new automatic
+  /// reminder payload. Must match RELATIONSHIP_REMINDERS_VERSION in
+  /// functions/src/relationshipReminders.ts.
+  static const int kRelationshipRemindersVersion = 1;
+
+  bool _rolloutWriteInFlight = false;
+
+  /// Announces to the server that THIS build understands the
+  /// `relationship_reminder` FCM payload, and persists the intended defaults
+  /// explicitly so the server never has to infer them from missing fields.
+  ///
+  /// Until this runs, relationshipReminderScheduler skips the user entirely —
+  /// which is what keeps older installs from receiving a payload they cannot
+  /// route.
+  Future<void> _ensureRolloutInitialized(Map<String, dynamic>? data) async {
+    if (_rolloutWriteInFlight) return;
+
+    // The device timezone can change (travel, DST-region move, OS setting), so
+    // re-check it on every launch and write only when it actually differs.
+    final stored = data?['timeZone'] as String?;
+    final detected = await FirestoreService.detectTimeZone();
+    if (detected != null && detected != stored) {
+      await FirestoreService.saveTimeZone(detected);
+    }
+
+    final version = data?['relationshipRemindersVersion'];
+    if (version is int && version >= kRelationshipRemindersVersion) return;
+
+    // Without a resolvable timezone the server cannot know when this user's
+    // 19:00 is, so do not claim rollout readiness yet — the user stays
+    // ineligible rather than being guessed at.
+    if (detected == null && stored == null) return;
+
+    _rolloutWriteInFlight = true;
+    try {
+      await FirestoreService.updateNotificationPrefs({
+        'relationshipRemindersVersion': kRelationshipRemindersVersion,
+        // Persist explicit values rather than relying on server defaults.
+        'smartRemindersEnabled': data?['smartRemindersEnabled'] as bool? ?? true,
+        'qualityTimeReminderEnabled': data?['qualityTimeReminderEnabled'] as bool? ?? true,
+        'dateReminderEnabled': data?['dateReminderEnabled'] as bool? ?? true,
+        'weeklyRelationshipReminderEnabled':
+            data?['weeklyRelationshipReminderEnabled'] as bool? ?? true,
+        'partnerMessagesEnabled': data?['partnerMessagesEnabled'] as bool? ?? true,
+        if (detected != null) 'timeZone': detected,
+      });
+    } catch (e, st) {
+      await FirebaseCrashlytics.instance
+          .recordError(e, st, reason: 'relationshipRemindersRollout');
+    } finally {
+      _rolloutWriteInFlight = false;
+    }
+  }
+
+  // ── Per-user notification preferences ───────────────────────────────────
+
+  Future<void> _saveUserPref(Map<String, dynamic> data) async {
+    try {
+      await FirestoreService.updateNotificationPrefs(data);
+    } catch (e, st) {
+      await FirebaseCrashlytics.instance
+          .recordError(e, st, reason: 'saveNotificationPref');
+    }
+  }
+
+  void setSmartRemindersEnabled(bool v) {
+    smartRemindersEnabled = v;
+    notifyListeners();
+    _saveUserPref({'smartRemindersEnabled': v});
+  }
+
+  void setQualityTimeReminderEnabled(bool v) {
+    qualityTimeReminderEnabled = v;
+    notifyListeners();
+    _saveUserPref({'qualityTimeReminderEnabled': v});
+  }
+
+  void setDateReminderEnabled(bool v) {
+    dateReminderEnabled = v;
+    notifyListeners();
+    _saveUserPref({'dateReminderEnabled': v});
+  }
+
+  void setWeeklyRelationshipReminderEnabled(bool v) {
+    weeklyRelationshipReminderEnabled = v;
+    notifyListeners();
+    _saveUserPref({'weeklyRelationshipReminderEnabled': v});
+  }
+
+  void setPartnerMessagesEnabled(bool v) {
+    partnerMessagesEnabled = v;
+    notifyListeners();
+    _saveUserPref({'partnerMessagesEnabled': v});
   }
 
   String get formattedEveningTime => _fmt(eveningTime);

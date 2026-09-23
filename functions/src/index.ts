@@ -5,6 +5,29 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { generateForCouple, getWeekNumber } from './generateWeeklyIdeas';
 import OpenAI from 'openai';
+import {
+  isPartnerTemplateId,
+  partnerMessageBody,
+  partnerMessageTitle,
+  reminderBody,
+  reminderTitle,
+} from './notificationStrings';
+import {
+  chooseReminderType,
+  DATE_ACTIVITIES,
+  localParts,
+  REMINDER_HOUR,
+  QUALITY_TIME_ACTIVITIES,
+  isRolloutEligible,
+  readReminderPrefs,
+  reminderStatePatch,
+  type ReminderState,
+} from './relationshipReminders';
+import {
+  partnerRateDecision,
+  resolvePartnerTarget,
+  type PartnerTargetFailure,
+} from './partnerMessaging';
 
 admin.initializeApp();
 
@@ -483,5 +506,264 @@ export const callOpenAI = onCall(
       messages,
     });
     return { reply: completion.choices[0].message.content ?? '' };
+  }
+);
+
+// ─── Relationship notifications ──────────────────────────────────────────────
+
+// Max 3 partner messages per sender per Oslo day, and at least 30 minutes
+// between sends. Stored in `rateLimits` (no security rule → client-inaccessible),
+// same pattern as enforceOpenAIRateLimit above.
+const PARTNER_TARGET_ERROR: Record<
+  PartnerTargetFailure,
+  { code: 'unauthenticated' | 'invalid-argument' | 'not-found' | 'failed-precondition' | 'permission-denied'; message: string }
+> = {
+  'unauthenticated': { code: 'unauthenticated', message: 'Login required' },
+  'invalid-template': { code: 'invalid-argument', message: 'Unknown templateId' },
+  'user-not-found': { code: 'not-found', message: 'User not found' },
+  'no-couple': { code: 'failed-precondition', message: 'No partner connected' },
+  'couple-not-found': { code: 'not-found', message: 'Couple not found' },
+  'not-a-member': { code: 'permission-denied', message: 'Not a member of this couple' },
+  'no-partner': { code: 'failed-precondition', message: 'No partner connected' },
+};
+
+// The daily bucket is the SENDER's own local calendar day — it is their quota.
+// Senders on an old build with no timeZone fall back to the UTC day, so partner
+// messaging keeps working for everyone (its security is unchanged).
+async function enforcePartnerRateLimit(
+  uid: string,
+  now: Date,
+  timeZone: unknown,
+): Promise<void> {
+  const local = localParts(now, timeZone);
+  const day = local?.day ?? now.toISOString().slice(0, 10);
+  const nowMs = now.getTime();
+  const ref = admin.firestore().collection('rateLimits').doc(`partner_${uid}`);
+  await admin.firestore().runTransaction(async (txn) => {
+    const snap = await txn.get(ref);
+    const decision = partnerRateDecision(
+      snap.exists ? snap.data() : undefined,
+      day,
+      nowMs,
+    );
+    if (!decision.allowed) {
+      throw new HttpsError(
+        'resource-exhausted',
+        decision.reason === 'too-soon'
+          ? 'Please wait a little before sending another message.'
+          : 'Daily message limit reached. Try again tomorrow.',
+      );
+    }
+    txn.set(ref, decision.next);
+  });
+}
+
+/// Send a predefined message to the authenticated user's partner.
+///
+/// The client supplies ONLY a templateId. Sender identity, coupleId, partner
+/// uid, the partner's FCM token, the sender's display name and the recipient's
+/// language are all derived server-side. A client can neither name a recipient
+/// nor supply copy.
+export const sendPartnerNotification = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
+    const senderId = request.auth.uid;
+
+    const templateId: unknown = request.data?.templateId;
+    if (!isPartnerTemplateId(templateId)) {
+      throw new HttpsError('invalid-argument', 'Unknown templateId');
+    }
+
+    const firestore = admin.firestore();
+    const senderSnap = await firestore.collection('users').doc(senderId).get();
+    const senderData = senderSnap.exists ? senderSnap.data() : undefined;
+    const senderCoupleId = typeof senderData?.coupleId === 'string' ? senderData.coupleId : '';
+    const coupleSnap = senderCoupleId
+      ? await firestore.collection('couples').doc(senderCoupleId).get()
+      : undefined;
+
+    const target = resolvePartnerTarget(
+      senderId,
+      senderData,
+      coupleSnap?.exists ? coupleSnap.data() : undefined,
+    );
+    if (!target.ok) {
+      throw new HttpsError(
+        PARTNER_TARGET_ERROR[target.reason].code,
+        PARTNER_TARGET_ERROR[target.reason].message,
+      );
+    }
+    const { partnerId, coupleId } = target;
+
+    // Recipient opt-out is personal and authoritative.
+    const partnerSnap = await firestore.collection('users').doc(partnerId).get();
+    if (partnerSnap.data()?.partnerMessagesEnabled === false) {
+      // Not an error for the sender — the message is simply not delivered.
+      return { success: true, delivered: false };
+    }
+
+    // Meter only after every guard has passed, so rejected calls cost no quota.
+    await enforcePartnerRateLimit(senderId, new Date(), senderData?.timeZone);
+
+    const senderName: string = senderSnap.data()?.name
+      ?? senderSnap.data()?.displayName
+      ?? 'Partneren din';
+    const isNorwegian = (partnerSnap.data()?.language ?? 'no') !== 'en';
+
+    // sendToUser no-ops when the recipient has no token — missing/expired
+    // tokens must not fail the caller.
+    try {
+      await sendToUser(
+        partnerId,
+        partnerMessageTitle(isNorwegian),
+        partnerMessageBody(templateId, senderName, isNorwegian),
+        { type: 'partner_message', templateId, coupleId },
+      );
+    } catch (err) {
+      // Never log tokens. Log the shape of the failure only.
+      console.error(
+        `sendPartnerNotification: FCM delivery failed for couple ${coupleId}`,
+        err instanceof Error ? err.message : 'unknown error',
+      );
+      return { success: true, delivered: false };
+    }
+
+    return { success: true, delivered: true };
+  }
+);
+
+/// Latest `lastDone` (ms) across the given activity ids, or 0 if never logged.
+function latestLastDone(
+  docs: admin.firestore.QueryDocumentSnapshot[],
+  ids: readonly string[],
+): number {
+  let latest = 0;
+  for (const doc of docs) {
+    if (!ids.includes(doc.id)) continue;
+    const ts = doc.data()?.lastDone;
+    if (ts instanceof admin.firestore.Timestamp) {
+      latest = Math.max(latest, ts.toMillis());
+    }
+  }
+  return latest;
+}
+
+/// Hourly. Each run evaluates every couple and delivers to a user only when it
+/// is REMINDER_HOUR (19:00) in that user's OWN timezone, so users in different
+/// countries are notified at their own local evening rather than all at once.
+///
+/// Running hourly plus the per-user local-day guard means a user can still only
+/// receive one automatic reminder per local day: the first run that matches
+/// their local 19:00 writes lastReminderDay inside the transaction, and the
+/// remaining 23 runs that day are no-ops for them.
+export const relationshipReminderScheduler = onSchedule(
+  { schedule: '0 * * * *', timeZone: 'Etc/UTC', region: 'europe-west1' },
+  async () => {
+    const firestore = admin.firestore();
+    const now = new Date();
+    const nowMs = now.getTime();
+
+    const couples = await firestore.collection('couples').get();
+    let sent = 0;
+    let failed = 0;
+    let skippedNotRolledOut = 0;
+    let skippedWrongHour = 0;
+
+    for (const coupleDoc of couples.docs) {
+      try {
+        const members: string[] = coupleDoc.data()?.members ?? [];
+        if (members.length === 0) continue;
+
+        // Only read the couple's activity log if at least one member is
+        // actually due right now — most hours, nobody is.
+        let qualityTimeLastDoneMs = -1;
+        let dateLastDoneMs = -1;
+
+        for (const uid of members) {
+          const userSnap = await firestore.collection('users').doc(uid).get();
+          if (!userSnap.exists) continue;
+          const userData = userSnap.data();
+
+          // Rollout gate: requires BOTH the client version marker and a valid
+          // IANA timezone. Checked here to avoid a pointless transaction, and
+          // again inside chooseReminderType as defence in depth.
+          if (!isRolloutEligible(userData)) {
+            skippedNotRolledOut++;
+            continue;
+          }
+
+          // Every date/time decision below is made in THIS user's timezone.
+          const local = localParts(now, userData?.timeZone);
+          if (local === null) {
+            // isRolloutEligible already validated it; this is belt-and-braces.
+            skippedNotRolledOut++;
+            continue;
+          }
+          if (local.hour !== REMINDER_HOUR) {
+            skippedWrongHour++;
+            continue;
+          }
+
+          if (qualityTimeLastDoneMs < 0) {
+            const lastTimeSnap = await coupleDoc.ref.collection('lastTime').get();
+            qualityTimeLastDoneMs = latestLastDone(lastTimeSnap.docs, QUALITY_TIME_ACTIVITIES);
+            dateLastDoneMs = latestLastDone(lastTimeSnap.docs, DATE_ACTIVITIES);
+          }
+
+          const prefs = readReminderPrefs(userData);
+          const stateRef = firestore.collection('rateLimits').doc(`relationship_${uid}`);
+
+          // The decision and the state write share one transaction, so two
+          // overlapping scheduler runs cannot both send to the same user.
+          const chosen = await firestore.runTransaction(async (txn) => {
+            const stateSnap = await txn.get(stateRef);
+            const state: ReminderState = stateSnap.exists ? stateSnap.data() ?? {} : {};
+
+            const type = chooseReminderType({
+              rolloutEligible: true,
+              nowMs,
+              localDay: local.day,
+              localHour: local.hour,
+              isSunday: local.weekday === 0,
+              qualityTimeLastDoneMs,
+              dateLastDoneMs,
+              state,
+              prefs,
+            });
+            if (type === null) return null;
+
+            txn.set(stateRef, reminderStatePatch(type, nowMs, local.day), { merge: true });
+            return type;
+          });
+
+          if (chosen === null) continue;
+
+          const isNorwegian = (userData?.language ?? 'no') !== 'en';
+          await sendToUser(
+            uid,
+            reminderTitle(chosen, isNorwegian),
+            reminderBody(chosen, isNorwegian),
+            { type: 'relationship_reminder', reminderType: chosen, coupleId: coupleDoc.id },
+          );
+          sent++;
+        }
+      } catch (err) {
+        failed++;
+        console.error(
+          `relationshipReminderScheduler: couple ${coupleDoc.id} failed`,
+          err instanceof Error ? err.message : 'unknown error',
+        );
+      }
+    }
+
+    console.log(
+      `Relationship reminders @${now.toISOString()}: sent ${sent}, `
+      + `${skippedWrongHour} not local 19:00, `
+      + `${skippedNotRolledOut} skipped (client not rolled out), `
+      + `${failed} couple(s) failed`,
+    );
   }
 );

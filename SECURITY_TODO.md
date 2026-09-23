@@ -120,6 +120,15 @@ redeploy. Rollback = redeploy without the flag.
    async (request) => {
 ```
 
+```diff
+@@ sendPartnerNotification @@
+-export const sendPartnerNotification = onCall(
+-  { region: 'europe-west1' },
++export const sendPartnerNotification = onCall(
++  { region: 'europe-west1', enforceAppCheck: true },
+   async (request) => {
+```
+
 Then:
 ```bash
 cd functions && npx tsc --noEmit          # expect exit 0

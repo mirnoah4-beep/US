@@ -33,6 +33,7 @@ import 'services/firestore_service.dart';
 import 'services/idea_image_service.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/relationship_reminder_sheet.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -503,6 +504,17 @@ class _MainShellState extends State<MainShell> {
         }
         appState.requestTabNavigation(2);
       } else if (data['type'] == 'idea_accepted') {
+        appState.requestTabNavigation(2);
+      } else if (data['type'] == 'partner_message') {
+        // A message from the partner lands on Home.
+        appState.requestTabNavigation(0);
+      } else if (data['type'] == 'relationship_reminder') {
+        // Automatic reminder: open the sheet with Send / Plan / Not now.
+        showRelationshipReminderSheet(
+          context,
+          reminderType: data['reminderType'] as String? ?? 'quality_time',
+        );
+      } else if (data['type'] == 'plan_something') {
         appState.requestTabNavigation(2);
       }
     });

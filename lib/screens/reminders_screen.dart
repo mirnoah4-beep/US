@@ -76,6 +76,18 @@ class _RemindersScreenState extends State<RemindersScreen> {
               _SectionLabel(s.remindersWeeklySectionLabel),
               const SizedBox(height: 8),
               _buildWeeklyCard(r, s),
+              const SizedBox(height: 24),
+              _SectionLabel(s.smartRemindersSection),
+              const SizedBox(height: 8),
+              _buildSmartRemindersCard(r, s),
+              const SizedBox(height: 24),
+              _SectionLabel(s.partnerMessagesSection),
+              const SizedBox(height: 8),
+              _buildPartnerMessagesCard(r, s),
+              const SizedBox(height: 24),
+              _SectionLabel(s.quietHoursSection),
+              const SizedBox(height: 8),
+              _buildQuietHoursCard(r, s),
             ],
           ),
         ),
@@ -119,6 +131,137 @@ class _RemindersScreenState extends State<RemindersScreen> {
               onToggle: r.toggleEveningDay,
             ),
           ]),
+        ),
+      ),
+    ]);
+  }
+
+  // ── Smart relationship reminders ──────────────────────────────────────────
+  // These preferences are per-user (users/{uid}), not couple-level: one
+  // partner must never be able to change what the other one receives.
+
+  Widget _buildSmartRemindersCard(RemindersProvider r, AppStrings s) {
+    return _Card(children: [
+      _ToggleRow(
+        icon: Icons.favorite_border,
+        iconBg: const Color(0xFFFAECE7),
+        iconColor: AppTheme.accentRose,
+        title: s.smartRemindersMaster,
+        subtitle: s.smartRemindersMasterSubTime,
+        value: r.smartRemindersEnabled,
+        onChanged: r.setSmartRemindersEnabled,
+      ),
+      const _Divider(),
+      AnimatedOpacity(
+        opacity: r.smartRemindersEnabled ? 1.0 : 0.35,
+        duration: const Duration(milliseconds: 200),
+        child: IgnorePointer(
+          ignoring: !r.smartRemindersEnabled,
+          child: Column(children: [
+            _ToggleRow(
+              icon: Icons.local_cafe_outlined,
+              iconBg: const Color(0xFFF1EFE8),
+              iconColor: const Color(0xFF5F5E5A),
+              title: s.smartRemindersQualityTime,
+              subtitle: s.smartRemindersQualityTimeSub,
+              value: r.qualityTimeReminderEnabled,
+              onChanged: r.setQualityTimeReminderEnabled,
+            ),
+            const _Divider(),
+            _ToggleRow(
+              icon: Icons.wine_bar_outlined,
+              iconBg: const Color(0xFFF1EFE8),
+              iconColor: const Color(0xFF5F5E5A),
+              title: s.smartRemindersDate,
+              subtitle: s.smartRemindersDateSub,
+              value: r.dateReminderEnabled,
+              onChanged: r.setDateReminderEnabled,
+            ),
+            const _Divider(),
+            _ToggleRow(
+              icon: Icons.calendar_today_outlined,
+              iconBg: const Color(0xFFF1EFE8),
+              iconColor: const Color(0xFF5F5E5A),
+              title: s.smartRemindersWeekly,
+              subtitle: s.smartRemindersWeeklySub,
+              value: r.weeklyRelationshipReminderEnabled,
+              onChanged: r.setWeeklyRelationshipReminderEnabled,
+            ),
+          ]),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _buildPartnerMessagesCard(RemindersProvider r, AppStrings s) {
+    return _Card(children: [
+      _ToggleRow(
+        icon: Icons.mail_outline,
+        iconBg: const Color(0xFFFAECE7),
+        iconColor: AppTheme.accentRose,
+        title: s.partnerMessagesToggle,
+        subtitle: s.partnerMessagesToggleSub,
+        value: r.partnerMessagesEnabled,
+        onChanged: r.setPartnerMessagesEnabled,
+      ),
+    ]);
+  }
+
+  /// Quiet hours are a fixed server-side rule in v1 (22:00–08:00 in the user's
+  /// own timezone), shown read-only so the behaviour is visible without
+  /// implying it is configurable yet. The zone shown is the IANA identifier the
+  /// server actually uses for this user.
+  Widget _buildQuietHoursCard(RemindersProvider r, AppStrings s) {
+    return _Card(children: [
+      ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1EFE8),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: const Icon(Icons.bedtime_outlined,
+              color: Color(0xFF5F5E5A), size: 20),
+        ),
+        title: Text(
+          s.quietHoursRow,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          s.quietHoursSub,
+          style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle),
+        ),
+      ),
+      const _Divider(),
+      ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1EFE8),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: const Icon(Icons.public,
+              color: Color(0xFF5F5E5A), size: 20),
+        ),
+        title: Text(
+          s.quietHoursTimezone,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        trailing: Text(
+          r.timeZone ?? s.quietHoursTimezoneUnknown,
+          style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
         ),
       ),
     ]);

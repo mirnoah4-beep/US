@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/strings.dart';
+import '../services/firestore_service.dart';
 
 class LanguageProvider extends ChangeNotifier {
   static const _key = 'app_language';
@@ -24,6 +25,9 @@ class LanguageProvider extends ChangeNotifier {
       _isNorwegian = code == 'nb' || code == 'nn' || code == 'no';
     }
     notifyListeners();
+    // Mirror on startup too, so existing installs get a language on their user
+    // doc without having to visit the language setting.
+    FirestoreService.saveLanguage(_isNorwegian ? 'no' : 'en');
   }
 
   Future<void> setNorwegian(bool value) async {
@@ -32,5 +36,8 @@ class LanguageProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, value ? 'no' : 'en');
+    // SharedPreferences stays the source of truth for the UI; Firestore is a
+    // mirror so server-sent FCM can render in the recipient's language.
+    await FirestoreService.saveLanguage(value ? 'no' : 'en');
   }
 }

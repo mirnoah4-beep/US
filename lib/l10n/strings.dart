@@ -817,6 +817,95 @@ class AppStrings {
       ? 'Varsle når ukens idéer er klare'
       : "Notify when this week's ideas are ready";
   String get remindersPreviewLabel => isNorwegian ? 'Slik ser varselet ut' : 'This is what the notification looks like';
+
+  // ── Smart relationship reminders (settings) ─────────────────────────────
+  String get smartRemindersSection => isNorwegian ? 'Smarte påminnelser' : 'Smart reminders';
+  String get smartRemindersMaster => isNorwegian ? 'Smarte påminnelser' : 'Smart reminders';
+  String get smartRemindersMasterSub => isNorwegian
+      ? 'Små påminnelser når det er en stund siden sist'
+      : 'Gentle nudges when it has been a while';
+  String get smartRemindersQualityTime => isNorwegian ? 'Oss-tid' : 'Time together';
+  String get smartRemindersQualityTimeSub => isNorwegian
+      ? 'Hvis dere ikke har logget tid sammen på ca. 3 dager'
+      : 'If no time together has been logged for about 3 days';
+  String get smartRemindersDate => isNorwegian ? 'Date' : 'Date';
+  String get smartRemindersDateSub => isNorwegian
+      ? 'Hvis dere ikke har hatt en date på ca. 7 dager'
+      : 'If you have not had a date for about 7 days';
+  String get smartRemindersWeekly => isNorwegian ? 'Ukentlig' : 'Weekly';
+  String get smartRemindersWeeklySub => isNorwegian
+      ? 'En liten oppsummering søndag kveld'
+      : 'A little check-in on Sunday evening';
+
+  String get partnerMessagesSection => isNorwegian ? 'Fra partneren din' : 'From your partner';
+  String get partnerMessagesToggle => isNorwegian ? 'Meldinger fra partner' : 'Partner messages';
+  String get partnerMessagesToggleSub => isNorwegian
+      ? 'Motta små meldinger partneren din sender deg'
+      : 'Receive little messages your partner sends you';
+
+  String get quietHoursSection => isNorwegian ? 'Stille timer' : 'Quiet hours';
+  String get quietHoursRow => isNorwegian ? 'Ingen varsler om natten' : 'No notifications at night';
+  String get quietHoursSub => isNorwegian
+      ? 'Automatiske påminnelser sendes aldri mellom 22:00 og 08:00 lokal tid'
+      : 'Automatic reminders are never sent between 22:00 and 08:00 local time';
+  String get quietHoursTimezone => isNorwegian ? 'Tidssone' : 'Time zone';
+  String get quietHoursTimezoneUnknown => isNorwegian ? 'Ukjent' : 'Unknown';
+  String get smartRemindersMasterSubTime => isNorwegian
+      ? 'Sendes ca. kl. 19:00 i din tidssone'
+      : 'Delivered around 19:00 in your time zone';
+
+  // ── Relationship reminder sheet ─────────────────────────────────────────
+  String get reminderSheetTitle => isNorwegian ? 'Litt oss-tid?' : 'A little time together?';
+  String get reminderSheetQualityTime => isNorwegian
+      ? 'Har dere hatt litt tid sammen i det siste? ❤️'
+      : 'Have you had some time together lately? ❤️';
+  String get reminderSheetDate => isNorwegian
+      ? 'Kanskje det er på tide med en liten date? ❤️'
+      : 'Maybe it is time for a little date? ❤️';
+  String get reminderSheetWeekly => isNorwegian
+      ? 'Hvordan har uka vært for dere? Kanskje dere skal planlegge litt oss-tid ❤️'
+      : 'How has your week been? Maybe plan some time together ❤️';
+  String get reminderSheetChooseMessage => isNorwegian
+      ? 'Velg en melding'
+      : 'Choose a message';
+  String get reminderSheetSend => isNorwegian ? 'Send til partner' : 'Send to partner';
+  String get reminderSheetPlan => isNorwegian ? 'Planlegg noe' : 'Plan something';
+  String get reminderSheetDismiss => isNorwegian ? 'Ikke nå' : 'Not now';
+  String get reminderSheetSent => isNorwegian ? 'Sendt ❤️' : 'Sent ❤️';
+  String get reminderSheetSendFailed => isNorwegian
+      ? 'Kunne ikke sende meldingen. Prøv igjen.'
+      : 'Could not send the message. Please try again.';
+  String get reminderSheetNoPartner => isNorwegian
+      ? 'Du må være koblet til partneren din for å sende.'
+      : 'You need to be connected to your partner to send.';
+  String get reminderSheetRateLimited => isNorwegian
+      ? 'Du har sendt et par meldinger allerede. Prøv igjen litt senere.'
+      : 'You have sent a few messages already. Try again a little later.';
+
+  /// First-person copy the SENDER picks. The recipient sees a server-rendered
+  /// version in their own language, so these are for the picker only.
+  String partnerTemplateLabel(String templateId) {
+    switch (templateId) {
+      case 'miss_us_time':
+        return isNorwegian
+            ? 'Jeg savner litt oss-tid ❤️'
+            : 'I miss our time together ❤️';
+      case 'tonight':
+        return isNorwegian
+            ? 'Skal vi finne på noe sammen i kveld? ❤️'
+            : 'Shall we do something together tonight? ❤️';
+      case 'date_soon':
+        return isNorwegian
+            ? 'Hva med en liten date snart? ❤️'
+            : 'How about a little date soon? ❤️';
+      case 'time_with_you':
+        return isNorwegian
+            ? 'Jeg har lyst på litt tid sammen med deg ❤️'
+            : 'I would love some time together with you ❤️';
+      default:
+        return '';
+    }
+  }
   String get remindersPreviewTitle => isNorwegian ? 'Tid til dere to?' : 'Time for you two?';
   String get remindersPreviewBody => isNorwegian
       ? 'En liten idé venter — ta en titt når dere har et øyeblikk.'
