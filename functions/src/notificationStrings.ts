@@ -84,3 +84,24 @@ export function reminderBody(type: ReminderType, isNorwegian: boolean): string {
         : 'How has your week been? Maybe plan some time together ❤️';
   }
 }
+
+/// Partner chat push copy, in the recipient's language.
+export function chatMessageTitle(senderName: string, isNorwegian: boolean): string {
+  const name = senderName.trim().length > 0
+    ? senderName.trim()
+    : (isNorwegian ? 'Partneren din' : 'Your partner');
+  return name;
+}
+
+export function chatIdeaBody(
+  senderName: string,
+  ideaTitle: string,
+  isNorwegian: boolean,
+): string {
+  const name = senderName.trim().length > 0
+    ? senderName.trim()
+    : (isNorwegian ? 'Partneren din' : 'Your partner');
+  return isNorwegian
+    ? `${name} delte en idé: ${ideaTitle}`
+    : `${name} shared an idea: ${ideaTitle}`;
+}

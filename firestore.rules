@@ -69,11 +69,84 @@ service cloud.firestore {
         request.auth.uid in resource.data.members;
 
       // Subcollections: settings, lastTime, weeklyPlan, …
+      //
+      // `messages` and `chat` are carved OUT of this generic grant and get
+      // their own stricter rules below. Overlapping matches are additive in
+      // Firestore rules, so a broad allow here cannot be narrowed later — it
+      // has to exclude them explicitly.
       match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null &&
-          request.auth.uid in get(
+        allow read, write: if subcollection != 'messages'
+          && subcollection != 'chat'
+          && request.auth != null
+          && request.auth.uid in get(
             /databases/$(database)/documents/couples/$(coupleId)
           ).data.members;
+      }
+
+      // ── Chat ────────────────────────────────────────────────────────────
+      // Membership is re-read from the couple document on every request, so
+      // a former partner loses access the instant disconnectPartner removes
+      // them from `members` — there is no cached grant to revoke.
+      function isCoupleMember() {
+        return request.auth != null
+          && request.auth.uid in get(
+            /databases/$(database)/documents/couples/$(coupleId)
+          ).data.members;
+      }
+
+      function isValidTextMessage() {
+        return request.resource.data.type == 'text'
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 1
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.keys().hasOnly(
+               ['senderId', 'type', 'text', 'createdAt', 'clientTs']);
+      }
+
+      function isValidIdeaMessage() {
+        let idea = request.resource.data.idea;
+        return request.resource.data.type == 'idea'
+          && idea is map
+          && idea.titleNo is string && idea.titleEn is string
+          && idea.categoryNo is string && idea.categoryEn is string
+          && idea.metaNo is string && idea.metaEn is string
+          && idea.descriptionNo is string && idea.descriptionEn is string
+          && (!('coverImageUrl' in idea) || idea.coverImageUrl is string)
+          && idea.keys().hasOnly([
+               'titleNo', 'titleEn', 'categoryNo', 'categoryEn',
+               'metaNo', 'metaEn', 'descriptionNo', 'descriptionEn',
+               'coverImageUrl'])
+          && request.resource.data.keys().hasOnly(
+               ['senderId', 'type', 'idea', 'createdAt', 'clientTs']);
+      }
+
+      // Messages are immutable: no editing or deleting in the launch MVP,
+      // which also means nobody can tamper with the partner's messages.
+      match /messages/{messageId} {
+        allow read: if isCoupleMember();
+        allow create: if isCoupleMember()
+          // The client cannot impersonate the partner …
+          && request.resource.data.senderId == request.auth.uid
+          // … nor backdate a message.
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.clientTs is number
+          && (isValidTextMessage() || isValidIdeaMessage());
+        allow update, delete: if false;
+      }
+
+      // chat/meta is server-written (last message preview) — clients only read.
+      // chat/read_{uid} is each member's own read state. A user may write only
+      // their own doc, only these two keys, and may only ever RESET unread to
+      // 0 — the count itself is incremented server-side, so it cannot be
+      // fabricated from the client.
+      match /chat/{docId} {
+        allow read: if isCoupleMember();
+        allow create, update: if isCoupleMember()
+          && docId == 'read_' + request.auth.uid
+          && request.resource.data.keys().hasOnly(['lastReadAt', 'unread'])
+          && request.resource.data.lastReadAt is timestamp
+          && request.resource.data.unread == 0;
+        allow delete: if false;
       }
     }
 

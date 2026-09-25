@@ -11,6 +11,8 @@ import {
   partnerMessageTitle,
   reminderBody,
   reminderTitle,
+  chatMessageTitle,
+  chatIdeaBody,
 } from './notificationStrings';
 import {
   chooseReminderType,
@@ -28,6 +30,13 @@ import {
   resolvePartnerTarget,
   type PartnerTargetFailure,
 } from './partnerMessaging';
+import {
+  chatPushData,
+  isFanoutableMessage,
+  messagePreview,
+  metaPreview,
+  resolveChatRecipient,
+} from './chatMessaging';
 
 admin.initializeApp();
 
@@ -775,5 +784,83 @@ export const relationshipReminderScheduler = onSchedule(
       + `${skippedNotRolledOut} skipped (client not rolled out), `
       + `${failed} couple(s) failed`,
     );
+  }
+);
+
+
+// ─── Partner chat ────────────────────────────────────────────────────────────
+
+/// Fan-out for a new chat message: bump the recipient's server-owned unread
+/// counter, refresh the last-message preview, and push.
+///
+/// The recipient is resolved from the couple's CURRENT members — never from
+/// anything on the message the client wrote. Messages themselves are written
+/// directly by the client (so they queue offline); this trigger only reacts.
+export const onChatMessageCreated = onDocumentCreated(
+  { document: 'couples/{coupleId}/messages/{messageId}', region: 'europe-west1' },
+  async (event) => {
+    const data = event.data?.data();
+    const coupleId: string = event.params.coupleId;
+    const messageId: string = event.params.messageId;
+    if (!isFanoutableMessage(data)) return;
+
+    const firestore = admin.firestore();
+    const coupleSnap = await firestore.collection('couples').doc(coupleId).get();
+    if (!coupleSnap.exists) return;
+    const members: unknown = coupleSnap.data()?.members;
+
+    const senderId = data!.senderId as string;
+    const recipientId = resolveChatRecipient(senderId, members);
+    if (!recipientId) return;
+
+    const chat = firestore.collection('couples').doc(coupleId).collection('chat');
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Server-owned state. Rules forbid clients from writing meta at all and
+    // from writing anything but unread:0 to their own read doc.
+    await Promise.all([
+      chat.doc(`read_${recipientId}`).set(
+        { unread: admin.firestore.FieldValue.increment(1) },
+        { merge: true },
+      ),
+      chat.doc('meta').set({
+        lastMessageAt: now,
+        lastMessagePreview: metaPreview(data!),
+        lastMessageSenderId: senderId,
+        lastMessageType: data!.type,
+      }, { merge: true }),
+    ]);
+
+    // Push, in the recipient's language, with the sender's display name.
+    const [senderSnap, recipientSnap] = await Promise.all([
+      firestore.collection('users').doc(senderId).get(),
+      firestore.collection('users').doc(recipientId).get(),
+    ]);
+    const isNorwegian = (recipientSnap.data()?.language ?? 'no') !== 'en';
+    const senderName: string = senderSnap.data()?.displayName ?? senderSnap.data()?.name ?? '';
+
+    let body: string;
+    if (data!.type === 'text') {
+      body = messagePreview(data!.text as string);
+    } else {
+      const idea = data!.idea as { titleNo?: string; titleEn?: string };
+      const title = (isNorwegian ? idea.titleNo : idea.titleEn) || idea.titleNo || idea.titleEn || '';
+      body = chatIdeaBody(senderName, title, isNorwegian);
+    }
+
+    try {
+      await sendToUser(
+        recipientId,
+        chatMessageTitle(senderName, isNorwegian),
+        body,
+        chatPushData(coupleId, messageId),
+      );
+    } catch (err) {
+      // Never log message content or tokens.
+      console.error(
+        `onChatMessageCreated: push failed for couple ${coupleId}:`,
+        err instanceof Error ? err.message : 'unknown error',
+      );
+    }
   }
 );

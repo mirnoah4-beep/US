@@ -1041,4 +1041,35 @@ class AppStrings {
   String get onbNext => isNorwegian ? 'Neste' : 'Next';
   String get onbFinish => isNorwegian ? 'Ferdig →' : 'Finish →';
   String get onbCancel => isNorwegian ? 'Avbryt' : 'Cancel';
+
+  // ── Partner chat ────────────────────────────────────────────────────────
+  String get navChat => isNorwegian ? 'Chat' : 'Chat';
+  String get chatTitleFallback => isNorwegian ? 'Partneren din' : 'Your partner';
+  String get chatInputHint => isNorwegian ? 'Skriv en melding…' : 'Write a message…';
+  String get chatSend => isNorwegian ? 'Send' : 'Send';
+  String get chatSeen => isNorwegian ? 'Sett' : 'Seen';
+  String get chatSending => isNorwegian ? 'Sender…' : 'Sending…';
+  String get chatEmptyTitle => isNorwegian ? 'Si hei ❤️' : 'Say hi ❤️';
+  String get chatEmptySub => isNorwegian
+      ? 'Her kan dere to snakke sammen, dele ideer og planlegge litt oss-tid.'
+      : 'This is your private space to talk, share ideas and plan time together.';
+  String get chatNoPartnerTitle => isNorwegian ? 'Koble til partneren din' : 'Connect your partner';
+  String get chatNoPartnerSub => isNorwegian
+      ? 'Chatten åpner når dere er koblet sammen.'
+      : 'Chat opens once you are connected.';
+  String get chatErrorTitle => isNorwegian ? 'Kunne ikke laste chatten' : 'Could not load the chat';
+  String get chatRetry => isNorwegian ? 'Prøv igjen' : 'Try again';
+  String get chatOffline => isNorwegian ? 'Frakoblet – meldinger sendes når du er på nett' : 'Offline – messages send when you are back online';
+  String get chatLoadingOlder => isNorwegian ? 'Henter eldre meldinger…' : 'Loading older messages…';
+  String get chatSendFailed => isNorwegian ? 'Kunne ikke sende. Prøv igjen.' : 'Could not send. Try again.';
+  String chatTooLong(int max) => isNorwegian ? 'Maks $max tegn' : 'Max $max characters';
+  String get chatToday => isNorwegian ? 'I dag' : 'Today';
+  String get chatYesterday => isNorwegian ? 'I går' : 'Yesterday';
+  String get chatIdeaLabel => isNorwegian ? 'Idé' : 'Idea';
+  String chatIdeaSharedBy(String name) => isNorwegian ? '$name delte en idé' : '$name shared an idea';
+  String get chatIdeaSharedByYou => isNorwegian ? 'Du delte en idé' : 'You shared an idea';
+  String get chatIdeaPlan => isNorwegian ? 'Planlegg noe' : 'Plan something';
+  String get chatIdeaClose => isNorwegian ? 'Lukk' : 'Close';
+  String get ideasShareToChat => isNorwegian ? 'Del i chat' : 'Share in chat';
+  String get ideasSharedToChat => isNorwegian ? 'Delt i chatten ❤️' : 'Shared in chat ❤️';
 }

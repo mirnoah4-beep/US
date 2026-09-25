@@ -44,7 +44,13 @@ class AppState extends ChangeNotifier {
   List<DateIdea> ideas = buildInitialIdeas();
 
   // ── Subscription ───────────────────────────────────────────────────────────
-  String subscriptionTier = 'premium';
+  // Firestore is authoritative: read from couples/{coupleId}.subscriptionTier
+  // (server-owned; the rules block client writes) and default to FREE.
+  // Never hard-code premium here — the server gates every premium feature on
+  // the same field, so a client-side 'premium' would only ever be a lie.
+  String _subscriptionTier = 'free';
+  String get subscriptionTier => _subscriptionTier;
+  bool get isPremium => _subscriptionTier == 'premium';
 
   // ── LastTime derived data ──────────────────────────────────────────────────
   Map<String, DateTime> _lastTimestamps = {};
@@ -139,6 +145,7 @@ class AppState extends ChangeNotifier {
       _partnerName = '';
       _partnerEmail = '';
       partnerAvatarUrl = null;
+      _subscriptionTier = 'free';
       coupleCreatedAt = null;
       _partnerId = '';
       togetherSince = null;
@@ -196,6 +203,7 @@ class AppState extends ChangeNotifier {
           _partnerName = '';
           _partnerEmail = '';
           partnerAvatarUrl = null;
+          _subscriptionTier = 'free';
           coupleCreatedAt = null;
           _partnerId = '';
           togetherSince = null;
@@ -234,9 +242,11 @@ class AppState extends ChangeNotifier {
              proposedBy: proposalMap['proposedBy'] as String? ?? '')
           : null;
       final newStreakRecord = d['streakRecord'] as int? ?? 0;
+      final newTier = (d['subscriptionTier'] as String?) ?? 'free';
 
       bool changed = false;
       if (newStreakRecord != _streakRecord) { _streakRecord = newStreakRecord; changed = true; }
+      if (newTier != _subscriptionTier) { _subscriptionTier = newTier; changed = true; }
       if (newPartnerId != _partnerId) {
         _partnerId = newPartnerId;
         changed = true;
@@ -268,6 +278,7 @@ class AppState extends ChangeNotifier {
         _partnerName = '';
         _partnerEmail = '';
         partnerAvatarUrl = null;
+        _subscriptionTier = 'free';
         coupleCreatedAt = null;
         togetherSince = null;
         togetherSinceProposal = null;

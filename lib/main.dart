@@ -14,12 +14,14 @@ import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
 import 'models/app_state.dart';
+import 'models/chat_provider.dart';
 import 'models/couple_model.dart';
 import 'models/language_provider.dart';
 import 'models/memories_provider.dart';
 import 'models/reminders_provider.dart';
 import 'models/user_model.dart';
 import 'models/weekly_ideas_provider.dart';
+import 'screens/chat_screen.dart';
 import 'screens/couple_setup_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/home_screen.dart';
@@ -69,6 +71,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => WeeklyIdeasProvider()),
           ChangeNotifierProvider(create: (_) => MemoriesProvider()),
           ChangeNotifierProvider(create: (_) => RemindersProvider()),
+          ChangeNotifierProvider(create: (_) => ChatProvider()),
         ],
         child: const UsApp(),
       ),
@@ -414,13 +417,25 @@ class _MainShellState extends State<MainShell> {
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
   ];
 
   static const _tabScreens = [
     HomeScreen(),
     LastTimeScreen(),
     PlanScreen(),
+    ChatScreen(),
   ];
+
+  static const _chatTabIndex = 3;
+
+  void _selectTab(int index) {
+    setState(() => _currentIndex = index);
+    // The chat tab stays mounted inside the IndexedStack, so it cannot tell
+    // on its own whether it is on screen — the shell has to say so, and only
+    // a visible chat may mark messages as read.
+    context.read<ChatProvider>().setTabVisible(index == _chatTabIndex);
+  }
 
   @override
   void initState() {
@@ -516,6 +531,9 @@ class _MainShellState extends State<MainShell> {
         );
       } else if (data['type'] == 'plan_something') {
         appState.requestTabNavigation(2);
+      } else if (data['type'] == 'chat_message') {
+        // Push carries only ids; the message itself streams from Firestore.
+        appState.requestTabNavigation(_chatTabIndex);
       }
     });
   }
@@ -525,10 +543,11 @@ class _MainShellState extends State<MainShell> {
     final s = context.watch<LanguageProvider>().s;
     final appState = context.watch<AppState>();
     final pendingIdeas = context.watch<WeeklyIdeasProvider>().pendingIncomingCount;
+    final unreadChat = context.watch<ChatProvider>().unread;
     if (appState.pendingTabIndex != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(() => _currentIndex = appState.pendingTabIndex!);
+        _selectTab(appState.pendingTabIndex!);
         appState.consumeTabNavigation();
       });
     }
@@ -574,7 +593,7 @@ class _MainShellState extends State<MainShell> {
             ),
             child: BottomNavigationBar(
               currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
+              onTap: _selectTab,
               backgroundColor: Colors.transparent,
               elevation: 0,
               enableFeedback: false,
@@ -602,6 +621,19 @@ class _MainShellState extends State<MainShell> {
                     child: const Icon(Icons.calendar_today_rounded),
                   ),
                   label: s.navPlan,
+                ),
+                BottomNavigationBarItem(
+                  icon: Badge(
+                    isLabelVisible: unreadChat > 0,
+                    label: Text(unreadChat > 99 ? '99+' : '$unreadChat'),
+                    child: const Icon(Icons.chat_bubble_outline),
+                  ),
+                  activeIcon: Badge(
+                    isLabelVisible: unreadChat > 0,
+                    label: Text(unreadChat > 99 ? '99+' : '$unreadChat'),
+                    child: const Icon(Icons.chat_bubble_rounded),
+                  ),
+                  label: s.navChat,
                 ),
               ],
             ),

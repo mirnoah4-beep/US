@@ -10,6 +10,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_state.dart';
+import '../models/chat_message.dart';
+import '../models/chat_provider.dart';
 import '../models/language_provider.dart';
 import '../models/weekly_idea.dart';
 import '../models/weekly_ideas_provider.dart';
@@ -385,6 +387,47 @@ class _IdeasScreenState extends State<IdeasScreen> {
     );
   }
 
+  /// Shares a library idea into the partner chat as a structured `idea`
+  /// message (rendered as a compact card there), then takes the user to the
+  /// Chat tab. Leaves the existing ideaRequests flow untouched.
+  Future<void> _shareToChat(_IdeaItem idea) async {
+    final s = context.read<LanguageProvider>().s;
+    final chat = context.read<ChatProvider>();
+    // Reuses the same cover the Ideas screen already resolved (cached).
+    final cover = await IdeaImageService.fetchCoverUrl(idea.id);
+    if (!mounted) return;
+    final ok = await chat.sendIdea(ChatIdea(
+      titleNo: idea.titleNo,
+      titleEn: idea.titleEn,
+      categoryNo: idea.categoryNo,
+      categoryEn: idea.categoryEn,
+      metaNo: idea.durationNo,
+      metaEn: idea.durationEn,
+      descriptionNo: idea.descNo,
+      descriptionEn: idea.descEn,
+      coverImageUrl: cover,
+    ));
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(s.chatSendFailed),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppTheme.textPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(s.ideasSharedToChat),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppTheme.textPrimary,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+    // IdeasScreen is pushed from Home; pop back to the shell, then switch tab.
+    Navigator.of(context).maybePop();
+    context.read<AppState>().requestTabNavigation(3);
+  }
+
   void _openDetail(BuildContext context, _IdeaItem idea, _Palette palette) {
     showModalBottomSheet(
       context: context,
@@ -395,6 +438,12 @@ class _IdeasScreenState extends State<IdeasScreen> {
         idea: idea,
         palette: palette,
         isSaved: _savedIds.contains(idea.id),
+        onShareToChat: context.read<ChatProvider>().hasPartner
+            ? () {
+                Navigator.pop(ctx);
+                _shareToChat(idea);
+              }
+            : null,
         onSave: () {
           Navigator.pop(ctx);
           _toggleSave(idea.id);
@@ -1331,6 +1380,8 @@ class _IdeaDetailSheet extends StatelessWidget {
   final bool isSaved;
   final VoidCallback onSave;
   final VoidCallback? onSend;
+  /// Null when there is no connected partner — the button is then hidden.
+  final VoidCallback? onShareToChat;
 
   const _IdeaDetailSheet({
     required this.idea,
@@ -1338,6 +1389,7 @@ class _IdeaDetailSheet extends StatelessWidget {
     required this.isSaved,
     required this.onSave,
     required this.onSend,
+    this.onShareToChat,
   });
 
   @override
@@ -1430,6 +1482,24 @@ class _IdeaDetailSheet extends StatelessWidget {
               child: Text(onSend != null ? s.homeIdeaSendToPartner : s.ideasAlreadySent),
             ),
           ),
+          if (onShareToChat != null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onShareToChat,
+                icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                label: Text(s.ideasShareToChat),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.accentRose, width: 1.5),
+                  foregroundColor: AppTheme.accentRose,
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
