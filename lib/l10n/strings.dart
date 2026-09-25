@@ -1048,6 +1048,7 @@ class AppStrings {
   String get chatInputHint => isNorwegian ? 'Skriv en melding…' : 'Write a message…';
   String get chatSend => isNorwegian ? 'Send' : 'Send';
   String get chatSeen => isNorwegian ? 'Sett' : 'Seen';
+  String get chatSent => isNorwegian ? 'Sendt' : 'Sent';
   String get chatSending => isNorwegian ? 'Sender…' : 'Sending…';
   String get chatEmptyTitle => isNorwegian ? 'Si hei ❤️' : 'Say hi ❤️';
   String get chatEmptySub => isNorwegian

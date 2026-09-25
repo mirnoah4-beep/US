@@ -6,6 +6,7 @@ import '../l10n/strings.dart';
 import '../models/app_state.dart';
 import '../models/chat_message.dart';
 import '../models/chat_provider.dart';
+import '../models/chat_read_state.dart';
 import '../models/language_provider.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
@@ -254,12 +255,8 @@ class _MessageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Index of my newest message — the only one that shows "Seen".
-    final myNewestIdx = messages.indexWhere((m) => m.isMine(myUid));
-    final seen = myNewestIdx != -1 &&
-        partnerLastReadAt != null &&
-        !messages[myNewestIdx].isPending &&
-        !partnerLastReadAt!.isBefore(messages[myNewestIdx].createdAt!);
+    // Only my newest message carries a delivery status label.
+    final myNewestIdx = newestOutgoingIndex(messages, myUid);
 
     return ListView.builder(
       controller: controller,
@@ -298,7 +295,11 @@ class _MessageList extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 3, right: 6, bottom: 4),
                 child: Text(
-                  m.isPending ? s.chatSending : (seen ? s.chatSeen : ''),
+                  switch (outgoingStatusFor(m, partnerLastReadAt)) {
+                    OutgoingStatus.sending => s.chatSending,
+                    OutgoingStatus.sent => s.chatSent,
+                    OutgoingStatus.seen => s.chatSeen,
+                  },
                   textAlign: TextAlign.right,
                   style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
                 ),

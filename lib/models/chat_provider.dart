@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 
 import '../services/chat_service.dart';
 import 'chat_message.dart';
+import 'chat_read_state.dart';
 
 /// State for the partner chat tab.
 ///
@@ -31,6 +32,9 @@ class ChatProvider extends ChangeNotifier {
   List<ChatMessage> get messages => _messages;
   int get unread => _unread;
   DateTime? get partnerLastReadAt => _partnerLastReadAt;
+  /// My own read watermark, from chat/read_{me}. Drives the read receipt
+  /// independently of the badge counter.
+  DateTime? get myLastReadAt => _myLastReadAt;
   String get coupleId => _coupleId;
   String get userId => _uid;
   String get partnerId => _partnerId;
@@ -52,6 +56,11 @@ class ChatProvider extends ChangeNotifier {
   String? _error;
   int _unread = 0;
   DateTime? _partnerLastReadAt;
+  DateTime? _myLastReadAt;
+  // Read-receipt write guards: the newest boundary we already wrote for, and
+  // whether a markRead write is currently awaiting the server.
+  DateTime? _lastMarkedBoundary;
+  bool _markReadInFlight = false;
 
   List<ChatMessage> _live = const [];
   final List<ChatMessage> _older = [];
@@ -152,10 +161,16 @@ class ChatProvider extends ChangeNotifier {
 
   void _subscribeMyRead(String coupleId) {
     _readSub = ChatService.readRef(coupleId, _uid).snapshots().listen((snap) {
-      final n = snap.data()?['unread'];
-      final next = n is num ? n.toInt() : 0;
-      if (next != _unread) {
-        _unread = next;
+      final data = snap.data();
+      final nextUnread = parseUnreadField(data?['unread']);
+      final ts = data?['lastReadAt'];
+      // A pending local write reports a null server timestamp; keep the last
+      // known watermark rather than regressing to "never read".
+      final nextRead = ts is Timestamp ? ts.toDate() : _myLastReadAt;
+      var changed = false;
+      if (nextUnread != _unread) { _unread = nextUnread; changed = true; }
+      if (nextRead != _myLastReadAt) { _myLastReadAt = nextRead; changed = true; }
+      if (changed) {
         notifyListeners();
         _maybeMarkRead();
       }
@@ -197,6 +212,9 @@ class ChatProvider extends ChangeNotifier {
     _hasMore = true;
     _unread = 0;
     _partnerLastReadAt = null;
+    _myLastReadAt = null;
+    _lastMarkedBoundary = null;
+    _markReadInFlight = false;
     _error = null;
   }
 
@@ -221,17 +239,38 @@ class ChatProvider extends ChangeNotifier {
     _maybeMarkRead();
   }
 
-  bool get _isReallyVisible => _tabVisible && _foreground;
-
-  /// Marks the chat read only when the user can actually see it, and only
-  /// when there is something unread — so backgrounded devices never
-  /// silently consume the badge.
+  /// Advances my read watermark / clears my badge — but only while the chat
+  /// is really visible (tab active AND app foregrounded).
+  ///
+  /// The read receipt is decided from the MESSAGES, not the badge counter:
+  /// if a server-confirmed incoming message is newer than my watermark, it is
+  /// marked read even when `unread` is still 0 because the Cloud Function
+  /// increment has not arrived yet. The counter is a second, independent
+  /// trigger so the badge always clears. Guards dedupe repeated snapshot
+  /// emissions so a single new message costs a single write.
   void _maybeMarkRead() {
-    if (!_isReallyVisible || _coupleId.isEmpty || _uid.isEmpty) return;
-    if (_unread == 0) return;
+    if (_coupleId.isEmpty || _uid.isEmpty) return;
+    final boundary = unreadBoundary(
+      newestFirst: _messages,
+      myUid: _uid,
+      myLastReadAt: _myLastReadAt,
+    );
+    final go = shouldMarkRead(
+      tabVisible: _tabVisible,
+      foreground: _foreground,
+      boundary: boundary,
+      unread: _unread,
+      lastMarkedBoundary: _lastMarkedBoundary,
+      inFlight: _markReadInFlight,
+    );
+    if (!go) return;
+    if (boundary != null) _lastMarkedBoundary = boundary;
+    _markReadInFlight = true;
     ChatService.markRead(_coupleId, _uid).catchError((Object e, StackTrace st) {
+      // Allow a retry on the next trigger if this write failed.
+      _lastMarkedBoundary = null;
       FirebaseCrashlytics.instance.recordError(e, st, reason: 'chat markRead');
-    });
+    }).whenComplete(() => _markReadInFlight = false);
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────
