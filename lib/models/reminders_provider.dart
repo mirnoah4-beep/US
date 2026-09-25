@@ -236,7 +236,7 @@ class RemindersProvider extends ChangeNotifier {
 
     _rolloutWriteInFlight = true;
     try {
-      await FirestoreService.updateNotificationPrefs({
+      final prefs = <String, dynamic>{
         'relationshipRemindersVersion': kRelationshipRemindersVersion,
         // Persist explicit values rather than relying on server defaults.
         'smartRemindersEnabled': data?['smartRemindersEnabled'] as bool? ?? true,
@@ -245,8 +245,9 @@ class RemindersProvider extends ChangeNotifier {
         'weeklyRelationshipReminderEnabled':
             data?['weeklyRelationshipReminderEnabled'] as bool? ?? true,
         'partnerMessagesEnabled': data?['partnerMessagesEnabled'] as bool? ?? true,
-        if (detected != null) 'timeZone': detected,
-      });
+      };
+      if (detected != null) prefs['timeZone'] = detected;
+      await FirestoreService.updateNotificationPrefs(prefs);
     } catch (e, st) {
       await FirebaseCrashlytics.instance
           .recordError(e, st, reason: 'relationshipRemindersRollout');

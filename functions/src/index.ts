@@ -33,7 +33,16 @@ admin.initializeApp();
 
 // Scheduled: every Sunday at 18:00 Oslo time
 export const generateWeeklyIdeasScheduled = onSchedule(
-  { schedule: '0 18 * * 0', timeZone: 'Europe/Oslo', region: 'europe-west1' },
+  // generateForCouple -> callOpenAI and ensureCoverImages both read
+  // process.env.OPENAI_API_KEY. A secret declared on a helper's own callable
+  // does NOT propagate to other functions — it must be bound on every deployed
+  // function that executes the code.
+  {
+    schedule: '0 18 * * 0',
+    timeZone: 'Europe/Oslo',
+    region: 'europe-west1',
+    secrets: ['OPENAI_API_KEY'],
+  },
   async () => {
     const snap = await admin.firestore()
       .collection('couples')
@@ -236,7 +245,8 @@ export const onCoupleActivated = onDocumentUpdated(
 
 // On-demand callable: triggered from app when weeklyIdeas is missing or stale
 export const generateWeeklyIdeasNow = onCall(
-  { region: 'europe-west1' },
+  // See the note on generateWeeklyIdeasScheduled — same transitive dependency.
+  { region: 'europe-west1', secrets: ['OPENAI_API_KEY'] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');

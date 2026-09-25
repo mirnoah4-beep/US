@@ -1,10 +1,18 @@
 import * as admin from 'firebase-admin';
 import OpenAI from 'openai';
+import { ensureCoverImages, isImageGenEnabledFor, type CoverImageResult } from './ideaImages';
 
 // Set key via: firebase functions:secrets:set OPENAI_API_KEY
 // Instantiated lazily inside callOpenAI so module load never crashes without the key.
 
 const db = admin.firestore;
+
+/// How a weekly set was produced. 'fallback' means OpenAI failed and the
+/// hardcoded list was served — it must never be reported as 'ai'.
+export type GeneratedBy = 'ai' | 'curated' | 'fallback';
+
+/// Control-flow marker for "images intentionally not generated" — not an error.
+class SkipImages extends Error {}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,26 +39,96 @@ export interface IdeaObject {
 
 // ─── Main entry ──────────────────────────────────────────────────────────────
 
-export async function generateForCouple(coupleId: string): Promise<void> {
+/// Summary of what a run did, so callers (and the pre-launch test trigger) can
+/// report accurate numbers instead of inferring them from logs.
+export interface GenerationSummary {
+  coupleId: string;
+  subscriptionTier: string;
+  generatedBy: GeneratedBy | null;
+  /// True when OpenAI failed and the hardcoded fallback list was served.
+  usedFallback: boolean;
+  titles: string[];
+  archivedTo: string | null;
+  images: CoverImageResult | null;
+  imageError: string | null;
+}
+
+export async function generateForCouple(coupleId: string): Promise<GenerationSummary> {
+  const summary: GenerationSummary = {
+    coupleId,
+    subscriptionTier: 'unknown',
+    generatedBy: null,
+    usedFallback: false,
+    titles: [],
+    archivedTo: null,
+    images: null,
+    imageError: null,
+  };
   const firestore = db();
   const coupleRef = firestore.collection('couples').doc(coupleId);
   const coupleSnap = await coupleRef.get();
   if (!coupleSnap.exists) {
     console.warn(`Couple ${coupleId} not found — skipping`);
-    return;
+    return summary;
   }
   const data = coupleSnap.data()!;
   const subscriptionTier: string = data.subscriptionTier ?? 'free';
+  summary.subscriptionTier = subscriptionTier;
 
   const ctx = await buildContext(firestore, coupleId, data);
   const weekNumber = getWeekNumber();
 
   let ideas: IdeaObject[];
-  let generatedBy: 'ai' | 'curated';
+  let generatedBy: GeneratedBy;
 
   if (subscriptionTier === 'premium') {
-    ideas = await callOpenAI(buildPrompt(ctx));
-    generatedBy = 'ai';
+    // callOpenAI reports whether the hardcoded fallback was served, so a
+    // failed OpenAI call is never mislabelled as AI content.
+    const aiResult = await callOpenAI(buildPrompt(ctx));
+    ideas = aiResult.ideas;
+    generatedBy = aiResult.usedFallback ? 'fallback' : 'ai';
+    summary.usedFallback = aiResult.usedFallback;
+
+    // Premium only, and only for couples on the image rollout allowlist, so a
+    // paid image call can never be triggered by organic traffic during testing.
+    // Never throws — a failed image must not cost the couple their weekly ideas.
+    try {
+      const members: string[] = data.members ?? [];
+      // Pre-launch diagnostic: makes the uid -> couple -> tier mapping visible
+      // in the logs without any client-side inspection. Read-only.
+      console.log(
+        `ideaImages diagnostic: couple ${coupleId} tier=${subscriptionTier} `
+        + `members=${JSON.stringify(members)} `
+        + `allowlisted=${isImageGenEnabledFor(members)}`,
+      );
+      // Never buy cover images for fallback content: if OpenAI could not
+      // produce the ideas, paying for images of them is wasted spend.
+      if (aiResult.usedFallback) {
+        console.log(`ideaImages: couple ${coupleId} served fallback ideas — image step skipped`);
+        throw new SkipImages();
+      }
+      if (!isImageGenEnabledFor(members)) {
+        console.log(`ideaImages: couple ${coupleId} has no allowlisted member — skipped`);
+        throw new SkipImages();
+      }
+      summary.images = await ensureCoverImages(
+        {
+          firestore,
+          bucket: admin.storage().bucket(),
+          openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+        },
+        ideas,
+        coupleId,
+      );
+    } catch (err) {
+      if (!(err instanceof SkipImages)) {
+        summary.imageError = err instanceof Error ? err.message : 'unknown error';
+        console.error(
+          `generateForCouple: cover image step failed for ${coupleId}:`,
+          summary.imageError,
+        );
+      }
+    }
 
     // FCM: notify both partners — tokens live on user docs, not the couple doc
     const members: string[] = data.members ?? [];
@@ -76,12 +154,61 @@ export async function generateForCouple(coupleId: string): Promise<void> {
     generatedBy = 'curated';
   }
 
+  // Archive the outgoing set BEFORE overwriting it. buildContext() has always
+  // read weeklyIdeasHistory to steer the prompt away from recent repeats, but
+  // nothing ever wrote that collection — so the anti-repetition context was
+  // permanently empty. Writing it here makes the existing read work.
+  try {
+    const currentRef = coupleRef.collection('weeklyIdeas').doc('current');
+    const previous = await currentRef.get();
+    if (previous.exists) {
+      const prev = previous.data() ?? {};
+      const archiveId = `week_${prev.weekNumber ?? 'unknown'}_${previous.updateTime?.toMillis() ?? Date.now()}`;
+      summary.archivedTo = `couples/${coupleId}/weeklyIdeasHistory/${archiveId}`;
+      await coupleRef.collection('weeklyIdeasHistory').doc(archiveId).set({
+        generatedAt: prev.generatedAt ?? admin.firestore.FieldValue.serverTimestamp(),
+        weekNumber: prev.weekNumber ?? null,
+        generatedBy: prev.generatedBy ?? null,
+        ideas: prev.ideas ?? [],
+      });
+      await pruneHistory(coupleRef);
+    }
+  } catch (err) {
+    // Archiving is best-effort: never block this week's ideas on it.
+    console.error(
+      `generateForCouple: history archive failed for ${coupleId}:`,
+      err instanceof Error ? err.message : 'unknown error',
+    );
+  }
+
   await coupleRef.collection('weeklyIdeas').doc('current').set({
     generatedAt: admin.firestore.FieldValue.serverTimestamp(),
     weekNumber,
     generatedBy,
     ideas,
   });
+
+  summary.generatedBy = generatedBy;
+  summary.titles = ideas.map((i) => (i.titleNo ?? '').trim() || i.title || '');
+  return summary;
+}
+
+/// Keep a bounded window of recent weeks — buildContext() only reads the last
+/// 3, so anything older is dead weight.
+const HISTORY_KEEP = 8;
+
+async function pruneHistory(
+  coupleRef: FirebaseFirestore.DocumentReference,
+): Promise<void> {
+  const snap = await coupleRef
+    .collection('weeklyIdeasHistory')
+    .orderBy('generatedAt', 'desc')
+    .offset(HISTORY_KEEP)
+    .get();
+  if (snap.empty) return;
+  const batch = coupleRef.firestore.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
 }
 
 // ─── Context gathering ───────────────────────────────────────────────────────
@@ -245,7 +372,12 @@ kitchen_outlined, hiking_outlined, casino_outlined,
 palette_outlined, theater_comedy_outlined`;
 }
 
-async function callOpenAI(prompt: string): Promise<IdeaObject[]> {
+export interface OpenAIIdeasResult {
+  ideas: IdeaObject[];
+  usedFallback: boolean;
+}
+
+async function callOpenAI(prompt: string): Promise<OpenAIIdeasResult> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const required = ['title', 'category', 'meta', 'cardColor', 'tagColor', 'tagTextColor', 'iconName', 'description'];
 
@@ -269,13 +401,16 @@ async function callOpenAI(prompt: string): Promise<IdeaObject[]> {
           if (!(field in idea)) throw new Error(`Missing field: ${field}`);
         }
       }
-      return ideas as unknown as IdeaObject[];
+      return { ideas: ideas as unknown as IdeaObject[], usedFallback: false };
     } catch (err) {
-      console.error(`OpenAI attempt ${attempt + 1} failed:`, err);
-      if (attempt === 1) return getHardcodedFallback();
+      console.error(
+        `OpenAI attempt ${attempt + 1} failed: `
+        + `${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+      if (attempt === 1) return { ideas: getHardcodedFallback(), usedFallback: true };
     }
   }
-  return getHardcodedFallback();
+  return { ideas: getHardcodedFallback(), usedFallback: true };
 }
 
 // ─── Free tier: scored curation ──────────────────────────────────────────────
