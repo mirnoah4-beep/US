@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
 import 'chat_grouping.dart';
+import 'chat_image_send.dart';
 import 'chat_message.dart';
 import 'chat_read_state.dart';
 
@@ -528,7 +529,7 @@ class ChatProvider extends ChangeNotifier {
     final upload = PendingUpload(id: id, localPath: picked.path, file: picked);
     _uploads.insert(0, upload);
     notifyListeners();
-    await _runUpload(upload);
+    await _runUpload(upload, isRetry: false);
   }
 
   Future<void> retryUpload(String id) async {
@@ -537,7 +538,7 @@ class ChatProvider extends ChangeNotifier {
     u.status = UploadStatus.uploading;
     u.error = null;
     notifyListeners();
-    await _runUpload(u);
+    await _runUpload(u, isRetry: true);
   }
 
   void removeUpload(String id) {
@@ -545,24 +546,30 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _runUpload(PendingUpload u) async {
+  Future<void> _runUpload(PendingUpload u, {required bool isRetry}) async {
     final coupleId = _coupleId;
     final uid = _uid;
     final path = 'couples/$coupleId/chatImages/${u.id}.jpg';
     try {
-      final r = await StorageService.uploadChatImage(coupleId, u.id, u.file);
-      try {
-        // The document write may itself queue offline; that is fine — the
-        // file is already safely in Storage.
-        await ChatService.sendImage(
-          coupleId, uid, u.id,
-          storagePath: r.storagePath, width: r.width, height: r.height,
-        );
-      } catch (e) {
-        // Storage succeeded but the message did not — reported as its own
-        // step, never folded into a generic "could not send".
-        throw ChatImageSendException(ChatImageStep.firestore, e,
-            path: r.storagePath, bytes: r.bytes, contentType: 'image/jpeg');
+      // Same message id and path on every attempt. On a retry the pipeline
+      // reuses an object that already landed (skipping the upload the rules
+      // would refuse as an overwrite) and only completes the message.
+      final outcome = await sendChatImage(
+        ChatImageSendSteps(
+          objectExists: () => StorageService.chatImageObjectExists(path),
+          upload: ({required bool skipUpload}) =>
+              StorageService.uploadChatImage(coupleId, u.id, u.file, skipUpload: skipUpload),
+          // The document write may itself queue offline; that is fine — the
+          // file is already safely in Storage.
+          sendMessage: (r) => ChatService.sendImage(
+            coupleId, uid, u.id,
+            storagePath: r.storagePath, width: r.width, height: r.height,
+          ),
+        ),
+        isRetry: isRetry,
+      );
+      if (kDebugMode && outcome.reusedExistingObject) {
+        debugPrint('[chatImage] retry reused existing object, message completed');
       }
       _stopTypingWrite();
       _uploads.removeWhere((x) => x.id == u.id);

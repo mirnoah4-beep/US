@@ -64,11 +64,17 @@ class StorageService {
   /// Chat image: uploads to the couple-scoped, immutable path the Storage
   /// rules allow, and returns the PATH (not a URL) plus dimensions. The path
   /// is what the message stores; readers resolve it through Storage rules.
+  ///
+  /// [skipUpload] is the orphan-recovery path (see `sendChatImage`): the
+  /// object is already there from an earlier attempt, so `putFile` is
+  /// skipped — the rules would deny the overwrite anyway — and only the
+  /// verify step runs. Dimensions still come from the local file.
   static Future<({String storagePath, int width, int height, int bytes})> uploadChatImage(
     String coupleId,
     String messageId,
-    XFile picked,
-  ) async {
+    XFile picked, {
+    bool skipUpload = false,
+  }) async {
     const contentType = 'image/jpeg';
     final path = 'couples/$coupleId/chatImages/$messageId.jpg';
 
@@ -88,13 +94,15 @@ class StorageService {
     }
 
     final ref = FirebaseStorage.instance.ref(path);
-    try {
-      // contentType is set EXPLICITLY — the Storage rule requires image/*
-      // and must never depend on MIME sniffing.
-      await ref.putFile(file, SettableMetadata(contentType: contentType));
-    } catch (e) {
-      throw ChatImageSendException(ChatImageStep.upload, e,
-          path: path, bytes: bytes, contentType: contentType);
+    if (!skipUpload) {
+      try {
+        // contentType is set EXPLICITLY — the Storage rule requires image/*
+        // and must never depend on MIME sniffing.
+        await ref.putFile(file, SettableMetadata(contentType: contentType));
+      } catch (e) {
+        throw ChatImageSendException(ChatImageStep.upload, e,
+            path: path, bytes: bytes, contentType: contentType);
+      }
     }
 
     // Prove the object landed with the metadata we sent, before we write a
@@ -110,6 +118,20 @@ class StorageService {
     }
 
     return (storagePath: path, width: dims.width, height: dims.height, bytes: bytes);
+  }
+
+  /// Retry probe: does the object exist and is it readable by this member?
+  /// `true` / `false` (object-not-found), or `null` when it cannot be
+  /// determined — the caller then runs the full upload again.
+  static Future<bool?> chatImageObjectExists(String path) async {
+    try {
+      await FirebaseStorage.instance.ref(path).getMetadata();
+      return true;
+    } on FirebaseException catch (e) {
+      return e.code == 'object-not-found' ? false : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Post-failure probe: does the object exist? (object-not-found → false;

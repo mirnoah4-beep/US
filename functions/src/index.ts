@@ -38,6 +38,8 @@ import {
   metaPreview,
   resolveChatRecipient,
 } from './chatMessaging';
+import { dissolveCouple, deleteUserData } from './coupleLifecycle';
+import { cleanupCoupleStorage } from './storageCleanup';
 
 admin.initializeApp();
 
@@ -278,36 +280,9 @@ export const generateWeeklyIdeasNow = onCall(
   }
 );
 
-// Fully dissolves a couple: unlinks every member (coupleId -> null), deletes
-// any pending invite, deletes the couple's Storage files, and recursively
-// deletes the couple doc + subcollections. Best-effort on each sub-step.
-// Shared by deleteAccount and disconnectPartner.
-async function dissolveCouple(coupleId: string): Promise<void> {
-  const firestore = admin.firestore();
-  const bucket = admin.storage().bucket();
-  const coupleRef = firestore.collection('couples').doc(coupleId);
-  const coupleSnap = await coupleRef.get();
-  if (!coupleSnap.exists) return;
-
-  const members: string[] = coupleSnap.data()?.members ?? [];
-  const inviteCode: string | undefined = coupleSnap.data()?.inviteCode ?? undefined;
-
-  // Unlink every member so both partners return to the solo/invite screen.
-  await Promise.all(
-    members.map((m) =>
-      firestore.collection('users').doc(m).update({ coupleId: null }).catch(() => {})
-    )
-  );
-  if (inviteCode) {
-    await firestore.collection('invites').doc(inviteCode).delete().catch(() => {});
-  }
-  await bucket.deleteFiles({ prefix: `couples/${coupleId}/` }).catch(() => {});
-  await firestore.recursiveDelete(coupleRef);
-}
-
 // Callable: fully delete the caller's account. Runs with the Admin SDK so it
 // can delete the Auth user WITHOUT a recent re-login. Ordering: Storage files
-// and Firestore data first (best-effort), then the Auth account last, so a
+// and Firestore data first (idempotent), then the Auth account last, so a
 // failure never leaves an orphaned login with its data already gone.
 // Deleting your account dissolves the couple entirely: any partner is
 // disconnected (their coupleId cleared) and the couple doc, subcollections,
@@ -319,34 +294,14 @@ export const deleteAccount = onCall(
       throw new HttpsError('unauthenticated', 'Login required');
     }
     const uid = request.auth.uid;
-    const firestore = admin.firestore();
-    const bucket = admin.storage().bucket();
-    const warnings: string[] = [];
 
-    // Look up the couple before deleting the user doc.
-    let coupleId: string | undefined;
-    try {
-      const userSnap = await firestore.collection('users').doc(uid).get();
-      coupleId = userSnap.data()?.coupleId ?? undefined;
-    } catch { warnings.push('read-user'); }
-
-    // 1. Delete the user's Storage files (avatar, etc.).
-    try {
-      await bucket.deleteFiles({ prefix: `users/${uid}/` });
-    } catch { warnings.push('storage-user'); }
-
-    // 2. Dissolve the couple (unlinks every member, deletes the couple doc +
-    //    subcollections, its invite, and its Storage files).
-    if (coupleId) {
-      try {
-        await dissolveCouple(coupleId);
-      } catch { warnings.push('couple'); }
+    // 1–3. Storage (users/{uid}/ and couples/{coupleId}/), the couple and the
+    //      Firestore user doc — see coupleLifecycle.ts. Residual Storage
+    //      failures are logged there and returned as warnings, never hidden.
+    const { warnings } = await deleteUserData(admin.firestore(), admin.storage().bucket(), uid);
+    if (warnings.length > 0) {
+      console.error(`[lifecycle] deleteAccount finished with warnings: ${warnings.join(',')}`);
     }
-
-    // 3. Delete the Firestore user doc (and any subcollections).
-    try {
-      await firestore.recursiveDelete(firestore.collection('users').doc(uid));
-    } catch { warnings.push('firestore-user'); }
 
     // 4. Delete the Auth account LAST. If this throws, the account still
     //    exists and the client can retry; the data steps above are idempotent.
@@ -440,8 +395,25 @@ export const disconnectPartner = onCall(
     if (!members.includes(request.auth.uid)) {
       throw new HttpsError('permission-denied', 'Not a member of this couple');
     }
-    await dissolveCouple(coupleId);
+    await dissolveCouple(admin.firestore(), admin.storage().bucket(), coupleId);
     return { success: true };
+  }
+);
+
+// Firestore trigger: safety net for couple Storage. dissolveCouple() is the
+// primary cleanup path (files first, then the document); this re-runs the
+// SAME idempotent helper after the document is gone, so a couple deleted by
+// any other route (Console, script, a partial earlier run) never leaves
+// chat images or memories behind. Zero files → no-op.
+export const onCoupleDeleted = onDocumentDeleted(
+  { document: 'couples/{coupleId}', region: 'europe-west1' },
+  async (event) => {
+    const coupleId: string = event.params.coupleId;
+    try {
+      await cleanupCoupleStorage(admin.storage().bucket(), coupleId);
+    } catch (e) {
+      console.error('[storageCleanup] onCoupleDeleted failed', (e as { code?: unknown })?.code ?? 'unknown');
+    }
   }
 );
 

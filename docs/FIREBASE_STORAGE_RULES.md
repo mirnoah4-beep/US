@@ -72,3 +72,21 @@ If a Storage rule works in the emulator but fails on-device with
   `chatImages` path
 
 Keep this policy closed to outsiders.
+
+## Data lifecycle (server-side cleanup)
+
+Storage objects are deleted only by the Admin SDK, never by a client grant:
+
+- `disconnectPartner` and `deleteAccount` both run `dissolveCouple()`
+  (`functions/src/coupleLifecycle.ts`), which deletes exactly the prefix
+  `couples/{coupleId}/` (chat images + memories) and then the couple's
+  Firestore data. `deleteAccount` additionally deletes `users/{uid}/`.
+- `onCoupleDeleted` is a safety net that re-runs the same idempotent helper
+  once the couple document is gone.
+- Ids are validated (`^[A-Za-z0-9_-]{1,128}$`) before a prefix is built; the
+  trailing slash makes `couples/c1/` unable to match `couples/c10/`. Client
+  paths are never accepted.
+- Deletion uses `force: true` with one retry; logs carry counts and error
+  codes only.
+- Former partners are denied immediately because every rule above resolves
+  membership through the (now deleted) couple document.

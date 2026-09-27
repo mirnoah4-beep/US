@@ -55,9 +55,14 @@
 - [ ] No temporary Cloud Functions are deployed
 
 ## Data lifecycle
-- [ ] Confirm and document whether `couples/{coupleId}/chatImages/*` is deleted when a couple is dissolved or an account is deleted, or only becomes inaccessible.
-- [ ] If chat images are retained after dissolve/delete, define and implement the intended cleanup/retention policy before public launch if required by the product's deletion promises.
-- [ ] Confirm historic chat deletion behaviour matches the product/privacy wording.
+Final behaviour (implemented in `functions/src/coupleLifecycle.ts` + `storageCleanup.ts`, tested in `functions/src/__rules__/lifecycle.emulator.test.ts`):
+- [x] **Disconnect** (`disconnectPartner` → `dissolveCouple`) deletes the couple's Firestore data (couple doc + every subcollection: messages, chat state, memories, plans, settings …) **and all couple Storage under `couples/{coupleId}/`** (chat images and memories are permanently deleted, not just made inaccessible). Members are unlinked and the invite removed.
+- [x] **Account deletion** (`deleteAccount`) does the same for the couple and additionally deletes **`users/{uid}/`** in Storage and the user document, then the Auth user last.
+- [x] **Former partner immediately loses access**: every Firestore and Storage rule resolves membership through the couple document, which is deleted — reads, writes and new uploads into the old prefix are denied from that moment.
+- [x] Cleanup is **idempotent and server-authoritative** (Admin SDK only; the client has no broad delete permission). Prefixes are built server-side from validated ids (never client paths), deleted with `force: true`, paginated, empty prefixes are a no-op, repeated runs are safe. Counts and error codes are logged — never file names or contents; residual failures surface as `deleteAccount` warnings / error logs instead of being swallowed.
+- [x] Safety net: `onCoupleDeleted` (Firestore trigger on `couples/{coupleId}`) re-runs the same helper after the document is gone, so a couple removed by any other route never leaves files behind. `dissolveCouple` remains the primary path.
+- [x] Orphaned chat images (upload succeeded, message write failed): the retry keeps the same id/path, detects the existing object and completes only the Firestore message — no overwrite, no client delete. Objects from a *never*-retried failure stay under the couple prefix until dissolve/delete removes them.
+- [ ] Confirm the privacy wording says: leaving a couple or deleting an account permanently deletes the shared chat, chat images and memories for **both** partners.
 
 ## App Store / Play Store
 - [ ] App icon (all sizes)
