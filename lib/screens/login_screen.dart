@@ -71,14 +71,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleAuthSuccess(User user, {bool needsEmailVerification = false}) async {
+    // The full user document FIRST. saveFcmToken is a merge write: if it ran
+    // before ensureUserDoc it created a doc without `coupleId`, which the
+    // pairing rules then could not read — the "already has a partner" bug.
+    await FirestoreService.ensureUserDoc(user, needsEmailVerification: needsEmailVerification);
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
         await FirestoreService.saveFcmToken(user.uid, token);
       }
     } catch (_) {}
-
-    await FirestoreService.ensureUserDoc(user, needsEmailVerification: needsEmailVerification);
     // AuthGate stream handles all navigation from here.
   }
 

@@ -16,9 +16,21 @@ class FirestoreService {
   static DocumentReference<Map<String, dynamic>> userRef(String uid) =>
       _db.collection('users').doc(uid);
 
+  /// Creates the user document on first login. On later logins it only
+  /// self-heals a document that has NO `coupleId` key at all (older builds
+  /// could create one via a merge write before [createUser] ran): the key is
+  /// added as null. An existing coupleId — valid or not — is never touched
+  /// here; relationship validity is the server's call (joinCouple /
+  /// createInvite).
   static Future<void> ensureUserDoc(User user, {bool needsEmailVerification = false}) async {
     final snap = await userRef(user.uid).get();
-    if (!snap.exists) await createUser(user, needsEmailVerification: needsEmailVerification);
+    if (!snap.exists) {
+      await createUser(user, needsEmailVerification: needsEmailVerification);
+      return;
+    }
+    if (!(snap.data() ?? const {}).containsKey('coupleId')) {
+      await userRef(user.uid).set({'coupleId': null}, SetOptions(merge: true));
+    }
   }
 
   static Future<void> createUser(User user, {bool needsEmailVerification = false}) =>
@@ -166,68 +178,35 @@ class FirestoreService {
     return (code: code, coupleId: coupleId);
   }
 
-  /// Joins a couple via an invite [code]. Returns a [JoinResult].
-  /// Uses a transaction so all reads and writes are atomic.
+  /// Joins a couple via an invite [code] through the `joinCouple` callable.
+  ///
+  /// Server-authoritative: the code is the only input; the function verifies
+  /// the invite, the pending couple, that neither side already has an
+  /// ACTIVE partner (a stale coupleId is cleared server-side), and consumes
+  /// the invite in the same transaction. The [currentUserId] argument is
+  /// ignored — the server derives the caller from the auth context — and is
+  /// kept so the call site stays unchanged.
   static Future<JoinResult> joinByCode(
       String code, String currentUserId) async {
     try {
-      return await _db.runTransaction<JoinResult>((txn) async {
-        // 1. Read the invite.
-        final inviteSnap =
-            await txn.get(_db.collection('invites').doc(code));
-        if (!inviteSnap.exists) {
-          return const JoinFailure(JoinFailureReason.invalidCode);
-        }
-        final invite = InviteModel.fromFirestore(inviteSnap);
-
-        // 2. Block self-join.
-        if (invite.fromUserId == currentUserId) {
-          return const JoinFailure(JoinFailureReason.ownInvite);
-        }
-
-        // 3. Verify the couple is still pending.
-        final coupleSnap =
-            await txn.get(_db.collection('couples').doc(invite.coupleId));
-        if (!coupleSnap.exists ||
-            coupleSnap.data()?['status'] != 'pending') {
-          return const JoinFailure(JoinFailureReason.inviteExpired);
-        }
-
-        // 4. All valid — commit the join atomically. We no longer read the
-        //    inviter's user doc (the rules forbid reading a stranger's
-        //    profile). The "inviter already partnered" case is enforced
-        //    server-side: the rules only permit setting the inviter's coupleId
-        //    when it is currently null, so if the inviter is already in a
-        //    couple the update below is rejected and the transaction aborts
-        //    (surfaced as alreadyPartnered in the catch).
-        txn.update(_db.collection('couples').doc(invite.coupleId), {
-          'members': FieldValue.arrayUnion([currentUserId]),
-          'status': 'active',
-          'inviteCode': null,
-        });
-        txn.update(
-            _db.collection('users').doc(currentUserId),
-            {'coupleId': invite.coupleId});
-        txn.update(
-            _db.collection('users').doc(invite.fromUserId),
-            {'coupleId': invite.coupleId});
-        // Invite cleanup is handled by the onCoupleActivated Cloud Function
-        // (deletes /invites/{inviteCode} when the couple flips to 'active'),
-        // so the joiner no longer needs delete permission on the invite.
-
-        return JoinSuccess(invite.coupleId);
-      });
-    } catch (e, st) {
-      // Record for triage. The Firestore exception message is generic (no
-      // document path), and we never add the invite code or a UID to it, so
-      // nothing sensitive is logged.
-      FirebaseCrashlytics.instance.recordError(e, st);
-      if (e is FirebaseException && e.code == 'permission-denied') {
-        // On an otherwise-valid join the only write the rules can reject is the
-        // inviter's coupleId update (blocked when the inviter is already in a
-        // couple). Map it to alreadyPartnered rather than a generic error.
-        return const JoinFailure(JoinFailureReason.alreadyPartnered);
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('joinCouple');
+      final result = await callable.call<Map<String, dynamic>>({'code': code});
+      final coupleId = result.data['coupleId'] as String?;
+      if (coupleId == null || coupleId.isEmpty) {
+        return const JoinFailure(JoinFailureReason.networkError);
       }
+      return JoinSuccess(coupleId);
+    } on FirebaseFunctionsException catch (e) {
+      final reason = mapPairingError(code: e.code, details: e.details);
+      if (reason == JoinFailureReason.networkError) {
+        // Only unexpected failures are worth a crash report; the structured
+        // reasons are ordinary user outcomes. No code or uid is attached.
+        FirebaseCrashlytics.instance.recordError(e, StackTrace.current, reason: 'joinCouple');
+      }
+      return JoinFailure(reason);
+    } catch (e, st) {
+      FirebaseCrashlytics.instance.recordError(e, st, reason: 'joinCouple');
       return const JoinFailure(JoinFailureReason.networkError);
     }
   }

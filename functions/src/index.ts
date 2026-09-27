@@ -1,6 +1,5 @@
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { randomBytes } from 'crypto';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { generateForCouple, getWeekNumber } from './generateWeeklyIdeas';
@@ -40,6 +39,7 @@ import {
 } from './chatMessaging';
 import { dissolveCouple, deleteUserData } from './coupleLifecycle';
 import { cleanupCoupleStorage } from './storageCleanup';
+import { createInviteTx, joinCoupleTx } from './pairing';
 
 admin.initializeApp();
 
@@ -316,62 +316,40 @@ export const deleteAccount = onCall(
 );
 
 // Callable: create (or reuse) a pairing invite for the caller.
-// Runs server-side so the "reuse existing invite" lookup can query the invites
-// collection with the Admin SDK — the client can no longer list/query invites
-// (see firestore.rules). Creates the pending couple + invite docs atomically.
+// Server-side on purpose (see pairing.ts): the caller's current relationship
+// is validated with the Admin SDK — an ACTIVE couple rejects, a stale
+// reference (couple gone / not a member / ended) is cleared — and the
+// pending couple + invite are created atomically. The client never lists
+// invites (the code is a shared secret).
 export const createInvite = onCall(
   { region: 'europe-west1' },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
-    const uid = request.auth.uid;
-    const firestore = admin.firestore();
+    const r = await createInviteTx(admin.firestore(), request.auth.uid);
+    if (r.clearedStale) console.log('[pairing] createInvite cleared a stale coupleId');
+    return { code: r.code, coupleId: r.coupleId };
+  }
+);
 
-    // Reuse an existing pending invite for this user, if any.
-    const existing = await firestore
-      .collection('invites')
-      .where('fromUserId', '==', uid)
-      .limit(1)
-      .get();
-    if (!existing.empty) {
-      const doc = existing.docs[0];
-      const coupleId: string = doc.data().coupleId ?? '';
-      return { code: doc.id, coupleId };
+// Callable: join a pending couple by invite code. The code is the ONLY
+// client input; the couple, inviter and both relationships are derived and
+// validated server-side in one transaction, and the invite is consumed in
+// the same commit (see pairing.ts). Failures carry details.reason:
+// invalid-code | invite-expired | own-invite | already-paired |
+// inviter-already-paired.
+export const joinCouple = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
     }
-
-    // Generate a unique 8-char code. Charset excludes O/0/I/1 (32 chars, which
-    // divides 256 evenly, so `byte % 32` has no modulo bias).
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code: string | null = null;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const bytes = randomBytes(8);
-      let candidate = '';
-      for (let i = 0; i < 8; i++) candidate += alphabet[bytes[i] % alphabet.length];
-      const snap = await firestore.collection('invites').doc(candidate).get();
-      if (!snap.exists) { code = candidate; break; }
+    const r = await joinCoupleTx(admin.firestore(), request.auth.uid, request.data?.code);
+    if (r.cleared.joiner || r.cleared.inviter) {
+      console.log(`[pairing] joinCouple cleared stale coupleId joiner=${r.cleared.joiner} inviter=${r.cleared.inviter}`);
     }
-    if (!code) {
-      throw new HttpsError('resource-exhausted', 'Could not generate a unique invite code. Try again.');
-    }
-
-    // Atomically create the pending couple doc and the invite doc.
-    const coupleRef = firestore.collection('couples').doc();
-    const batch = firestore.batch();
-    batch.set(coupleRef, {
-      members: [uid],
-      status: 'pending',
-      inviteCode: code,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    batch.set(firestore.collection('invites').doc(code), {
-      fromUserId: uid,
-      coupleId: coupleRef.id,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
-
-    return { code, coupleId: coupleRef.id };
+    return { coupleId: r.coupleId };
   }
 );
 

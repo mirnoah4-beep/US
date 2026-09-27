@@ -600,6 +600,19 @@ class AppStrings {
   String get settingsPrivacySub => isNorwegian ? 'Kontroller hva som lagres og deles' : 'Control what is saved and shared';
   String get settingsAppearance => isNorwegian ? 'Utseende' : 'Appearance';
   String get settingsAppearanceSub => isNorwegian ? 'Tema og visningsinnstillinger' : 'Theme and display settings';
+  // ── Pairing (couple setup) ──────────────────────────────────────────────
+  String get pairInvalidCode => isNorwegian ? 'Ugyldig kode.' : 'Invalid code.';
+  String get pairOwnInvite => isNorwegian ? 'Du kan ikke bruke din egen kode.' : 'You can\'t use your own code.';
+  String get pairSelfAlreadyPartnered =>
+      isNorwegian ? 'Du har allerede en partner.' : 'You already have a partner.';
+  String get pairInviterAlreadyPartnered =>
+      isNorwegian ? 'Denne personen har allerede en partner.' : 'This person already has a partner.';
+  String get pairInviteExpired => isNorwegian ? 'Koden er ikke lenger gyldig.' : 'This code is no longer valid.';
+  String get pairNetworkError => isNorwegian ? 'Nettverksfeil, prøv igjen.' : 'Network error, please try again.';
+  String get pairCreateInviteFailed =>
+      isNorwegian ? 'Kunne ikke opprette invitasjon. Prøv igjen.' : 'Could not create an invite. Please try again.';
+  String get pairCancelInviteFailed =>
+      isNorwegian ? 'Kunne ikke avbryte invitasjonen. Prøv igjen.' : 'Could not cancel the invite. Please try again.';
   String get settingsLanguage => isNorwegian ? 'Språk' : 'Language';
   String get settingsLanguageSub => isNorwegian ? 'Appens språk og region' : 'App language and region';
   String get settingsSignOut => isNorwegian ? 'Logg ut' : 'Sign out';

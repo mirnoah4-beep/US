@@ -1,10 +1,14 @@
 import 'dart:async';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/strings.dart';
 import '../models/couple_model.dart';
 import '../models/join_result.dart';
+import '../models/language_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 
@@ -73,8 +77,16 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
         _inviteCode = result.code;
       });
       _watchCouple(result.coupleId);
+    } on FirebaseFunctionsException catch (e) {
+      final s = _s;
+      // The server refuses to create an invite for someone with a valid
+      // partner; anything else is a transport/server failure.
+      _showError(mapPairingError(code: e.code, details: e.details) ==
+              JoinFailureReason.selfAlreadyPartnered
+          ? s.pairSelfAlreadyPartnered
+          : s.pairCreateInviteFailed);
     } catch (_) {
-      _showError('Kunne ikke opprette invitasjon. Prøv igjen.');
+      _showError(_s.pairCreateInviteFailed);
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
@@ -104,7 +116,7 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
         _inviteCode = null;
       });
     } catch (_) {
-      _showError('Kunne ikke avbryte invitasjonen. Prøv igjen.');
+      _showError(_s.pairCancelInviteFailed);
     } finally {
       if (mounted) setState(() => _isCancelling = false);
     }
@@ -130,13 +142,15 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
     }
   }
 
+  AppStrings get _s => context.read<LanguageProvider>().s;
+
   String _failureMessage(JoinFailureReason reason) => switch (reason) {
-        JoinFailureReason.invalidCode => 'Ugyldig kode.',
-        JoinFailureReason.ownInvite => 'Du kan ikke bruke din egen kode.',
-        JoinFailureReason.alreadyPartnered =>
-          'Denne personen har allerede en partner.',
-        JoinFailureReason.inviteExpired => 'Koden er ikke lenger gyldig.',
-        JoinFailureReason.networkError => 'Nettverksfeil, prøv igjen.',
+        JoinFailureReason.invalidCode => _s.pairInvalidCode,
+        JoinFailureReason.ownInvite => _s.pairOwnInvite,
+        JoinFailureReason.selfAlreadyPartnered => _s.pairSelfAlreadyPartnered,
+        JoinFailureReason.inviterAlreadyPartnered => _s.pairInviterAlreadyPartnered,
+        JoinFailureReason.inviteExpired => _s.pairInviteExpired,
+        JoinFailureReason.networkError => _s.pairNetworkError,
       };
 
   void _showError(String message,
