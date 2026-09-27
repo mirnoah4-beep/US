@@ -1,6 +1,16 @@
 import * as admin from 'firebase-admin';
 import OpenAI from 'openai';
 import { ensureCoverImages, isImageGenEnabledFor, type CoverImageResult } from './ideaImages';
+import {
+  applyOverrides,
+  deriveCoupleProfile,
+  legacyPrefsFromMain,
+  lifestyleContextLines,
+  normalizeUserPrefs,
+  preferredEffort,
+  type CoupleProfile,
+  type SessionOverrides,
+} from './preferences';
 
 // Set key via: firebase functions:secrets:set OPENAI_API_KEY
 // Instantiated lazily inside callOpenAI so module load never crashes without the key.
@@ -53,7 +63,16 @@ export interface GenerationSummary {
   imageError: string | null;
 }
 
-export async function generateForCouple(coupleId: string): Promise<GenerationSummary> {
+export interface GenerateOptions {
+  /// "For tonight" per-request overrides (already validated by the caller).
+  /// Applied to this generation only — never written to anyone's preferences.
+  overrides?: SessionOverrides | null;
+}
+
+export async function generateForCouple(
+  coupleId: string,
+  options: GenerateOptions = {},
+): Promise<GenerationSummary> {
   const summary: GenerationSummary = {
     coupleId,
     subscriptionTier: 'unknown',
@@ -75,8 +94,13 @@ export async function generateForCouple(coupleId: string): Promise<GenerationSum
   const subscriptionTier: string = data.subscriptionTier ?? 'free';
   summary.subscriptionTier = subscriptionTier;
 
-  const ctx = await buildContext(firestore, coupleId, data);
+  const ctx = await buildContext(firestore, coupleId, data, options.overrides ?? null);
   const weekNumber = getWeekNumber();
+  console.log(
+    `generateForCouple: profile source=${ctx.profile.source} overridden=${ctx.profile.overridden} `
+    + `time=${ctx.profile.availableTime} parent=${ctx.profile.isParent} care=${ctx.profile.childcareState} `
+    + `locations=${ctx.profile.locations.map((l) => `${l.id}:${l.weight}`).join(',')}`,
+  );
 
   let ideas: IdeaObject[];
   let generatedBy: GeneratedBy;
@@ -150,7 +174,7 @@ export async function generateForCouple(coupleId: string): Promise<GenerationSum
     }
   } else {
     // Free: score /ideas collection by season, battery, and recency
-    ideas = await getCuratedIdeas(firestore, coupleId, ctx.batteryLevel, ctx.season);
+    ideas = await getCuratedIdeas(firestore, coupleId, ctx.batteryLevel, ctx.season, preferredEffort(ctx.profile));
     generatedBy = 'curated';
   }
 
@@ -186,6 +210,11 @@ export async function generateForCouple(coupleId: string): Promise<GenerationSum
     weekNumber,
     generatedBy,
     ideas,
+    // Present only when this set was made for a one-off "For tonight"
+    // request, so the client can label it. Never copied into preferences.
+    forTonight: options.overrides
+      ? { ...options.overrides, at: admin.firestore.FieldValue.serverTimestamp() }
+      : null,
   });
 
   summary.generatedBy = generatedBy;
@@ -213,15 +242,6 @@ async function pruneHistory(
 
 // ─── Context gathering ───────────────────────────────────────────────────────
 
-interface LifestyleData {
-  weekdayTime: string;
-  weekendTime: string;
-  preference: string;
-  parentMode: boolean;
-  bedtimeWeekday?: string;
-  bedtimeWeekend?: string;
-}
-
 interface CoupleContext {
   name1: string;
   name2: string;
@@ -232,13 +252,14 @@ interface CoupleContext {
   season: string;
   lastTimeSummary: string;
   recentIdeas: string;
-  lifestyle: LifestyleData | null;
+  profile: CoupleProfile;
 }
 
 async function buildContext(
   firestore: admin.firestore.Firestore,
   coupleId: string,
-  coupleData: admin.firestore.DocumentData
+  coupleData: admin.firestore.DocumentData,
+  overrides: SessionOverrides | null,
 ): Promise<CoupleContext> {
   const name1: string = coupleData.name1 ?? 'Noah';
   const name2: string = coupleData.name2 ?? 'Sarah';
@@ -272,13 +293,20 @@ async function buildContext(
     ? recentTitles.join(', ')
     : 'Ingen nylige ideer.';
 
-  // Lifestyle preferences — written by the app to settings/main
-  const lifestyleSnap = await firestore
-    .collection('couples').doc(coupleId)
-    .collection('settings').doc('main').get();
-  const lifestyle: LifestyleData | null = lifestyleSnap.exists
-    ? (lifestyleSnap.data() as LifestyleData)
-    : null;
+  // Preferences: per-user raw answers (settings/prefs_{uid}) derived into one
+  // couple profile; legacy settings/main is the fallback for RC1 couples;
+  // defaults only when neither exists. Every field is optional.
+  const settings = firestore.collection('couples').doc(coupleId).collection('settings');
+  const members: string[] = Array.isArray(coupleData.members)
+    ? coupleData.members.filter((m: unknown): m is string => typeof m === 'string')
+    : [];
+  const [mainSnap, ...prefSnaps] = await Promise.all([
+    settings.doc('main').get(),
+    ...members.map((uid) => settings.doc(`prefs_${uid}`).get()),
+  ]);
+  const users = prefSnaps.map((s) => (s.exists ? normalizeUserPrefs(s.data() ?? {}) : null));
+  const legacy = mainSnap.exists ? legacyPrefsFromMain(mainSnap.data() ?? {}) : null;
+  const profile = applyOverrides(deriveCoupleProfile(users, legacy), overrides);
 
   return {
     name1,
@@ -290,46 +318,20 @@ async function buildContext(
     season,
     lastTimeSummary,
     recentIdeas,
-    lifestyle,
+    profile,
   };
 }
 
 // ─── OpenAI ──────────────────────────────────────────────────────────────────
 
-function buildLifestyleContext(lifestyle: LifestyleData | null): string {
-  if (!lifestyle) return '';
-  const weekdayMap: Record<string, string> = {
-    under30: 'under 30 minutter',
-    '30to60': '30–60 minutter',
-    '2plus': '2+ timer',
-  };
-  const weekendMap: Record<string, string> = {
-    little: 'litt tid (1–2 timer)',
-    halfday: 'halv dag',
-    fullday: 'hel dag',
-  };
-  const preferenceMap: Record<string, string> = {
-    home: 'hjemme',
-    out: 'ute',
-    both: 'begge deler (hjemme og ute)',
-  };
-  const lines = [
-    `Tilgjengelig tid hverdager: ${weekdayMap[lifestyle.weekdayTime] ?? lifestyle.weekdayTime}`,
-    `Tilgjengelig tid helger: ${weekendMap[lifestyle.weekendTime] ?? lifestyle.weekendTime}`,
-    `Preferanse: ${preferenceMap[lifestyle.preference] ?? lifestyle.preference}`,
-    `Foreldremodus: ${lifestyle.parentMode ? 'ja' : 'nei'}`,
-  ];
-  if (lifestyle.parentMode) {
-    if (lifestyle.bedtimeWeekday) lines.push(`Leggetid hverdager: ${lifestyle.bedtimeWeekday}`);
-    if (lifestyle.bedtimeWeekend) lines.push(`Leggetid helger: ${lifestyle.bedtimeWeekend}`);
-  }
-  return '\n' + lines.join('\n');
+function buildLifestyleContext(profile: CoupleProfile): string {
+  return '\n' + lifestyleContextLines(profile).join('\n');
 }
 
 function buildPrompt(ctx: CoupleContext): string {
   return `You are a warm creative assistant helping a couple called ${ctx.name1} and ${ctx.name2} who live in ${ctx.city}.
 Together for ${ctx.duration}. Relationship battery: ${ctx.batteryLevel}% (${ctx.moodLabel}).
-Season: ${ctx.season}.${buildLifestyleContext(ctx.lifestyle)}
+Season: ${ctx.season}.${buildLifestyleContext(ctx.profile)}
 
 Recent activities: ${ctx.lastTimeSummary}
 Ideas seen recently: ${ctx.recentIdeas}
@@ -340,6 +342,8 @@ Rules:
 - Reference their city in 1-2 ideas naturally
 - Match energy to battery (low = cosy, high = adventurous)
 - Avoid anything done in last 2 weeks
+- Respect the available time and the parent/childcare situation above; if a line starts with "I KVELD" it describes tonight only and outranks the usual preferences
+- Prefer the places they like; places both prefer come first
 - Titles max 4 words
 - Norwegian language
 
@@ -419,7 +423,8 @@ async function getCuratedIdeas(
   firestore: admin.firestore.Firestore,
   coupleId: string,
   batteryLevel: number,
-  season: string
+  season: string,
+  effortNudge: 'low' | 'high' | null = null,
 ): Promise<IdeaObject[]> {
   // Fetch lastTime to know what to avoid
   const lastTimeSnap = await firestore
@@ -445,6 +450,9 @@ async function getCuratedIdeas(
       if (data.season === season || !data.season) score += 1;
       if (batteryLevel < 60 && data.effort === 'low') score += 2;
       if (batteryLevel >= 70 && data.effort === 'high') score += 2;
+      // Time available (derived couple profile / "For tonight"): a few hours
+      // favours low-effort ideas, a whole day favours high-effort ones.
+      if (effortNudge && data.effort === effortNudge) score += 2;
       return { data, score };
     });
 

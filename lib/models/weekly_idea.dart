@@ -121,11 +121,15 @@ class WeeklyIdeasDoc {
   final String generatedBy;
   final List<WeeklyIdea> ideas;
 
+  /// True when this set was generated for a one-off "For tonight" request.
+  final bool forTonight;
+
   const WeeklyIdeasDoc({
     required this.generatedAt,
     required this.weekNumber,
     required this.generatedBy,
     required this.ideas,
+    this.forTonight = false,
   });
 
   bool get isAiGenerated => generatedBy == 'ai';
@@ -154,6 +158,7 @@ class WeeklyIdeasDoc {
       weekNumber: data['weekNumber'] as int? ?? 0,
       generatedBy: data['generatedBy'] as String? ?? 'curated',
       ideas: ideas,
+      forTonight: data['forTonight'] is Map,
     );
   }
 }

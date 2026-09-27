@@ -65,10 +65,48 @@ service cloud.firestore {
       match /{subcollection}/{docId} {
         allow read, write: if subcollection != 'messages'
           && subcollection != 'chat'
+          && subcollection != 'settings'
           && request.auth != null
           && request.auth.uid in get(
             /databases/$(database)/documents/couples/$(coupleId)
           ).data.members;
+      }
+
+      // ── Settings ─────────────────────────────────────────────────────────
+      // settings/main: couple-level document (legacy onboarding summary,
+      // lifestyle, reminder toggles) — any member may read and write it.
+      // settings/prefs_{uid}: ONE user's raw onboarding answers. Both
+      // partners may read both, but a user may only create/update/delete
+      // their own — a partner can never overwrite the other's answers.
+      // Everything else under settings/ is closed.
+      match /settings/{docId} {
+        function isSettingsMember() {
+          return request.auth != null
+            && request.auth.uid in get(
+              /databases/$(database)/documents/couples/$(coupleId)
+            ).data.members;
+        }
+        function isOwnPrefs() {
+          return docId == 'prefs_' + request.auth.uid;
+        }
+        function isValidPrefs() {
+          let d = request.resource.data;
+          return d.keys().hasOnly([
+              'locationPreferences', 'pace', 'availableTime', 'isParent',
+              'childcareState', 'bedtimeWeekday', 'bedtimeWeekend',
+              'updatedAt', 'completedAt', 'schemaVersion'])
+            && (!('locationPreferences' in d) || (d.locationPreferences is list && d.locationPreferences.size() <= 4))
+            && (!('availableTime' in d) || d.availableTime in ['fewHours', 'evening', 'fullDay'])
+            && (!('childcareState' in d) || d.childcareState in ['kidsHome', 'kidFree'])
+            && (!('pace' in d) || d.pace in ['calm', 'mixed', 'active'])
+            && (!('isParent' in d) || d.isParent is bool)
+            && (!('bedtimeWeekday' in d) || d.bedtimeWeekday is string)
+            && (!('bedtimeWeekend' in d) || d.bedtimeWeekend is string);
+        }
+        allow read: if isSettingsMember();
+        allow write: if docId == 'main' && isSettingsMember();
+        allow create, update: if docId.matches('^prefs_.*$') && isSettingsMember() && isOwnPrefs() && isValidPrefs();
+        allow delete: if docId.matches('^prefs_.*$') && isSettingsMember() && isOwnPrefs();
       }
 
       // ── Chat ────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../models/couple_model.dart';
+import '../models/couple_preferences.dart';
 import '../models/invite_model.dart';
 import '../models/join_result.dart';
 
@@ -148,6 +149,55 @@ class FirestoreService {
         'newIdeasEnabled': true,
         'momentsThisMonth': 0,
       }, SetOptions(merge: true));
+
+  // ── Per-user preferences (settings/prefs_{uid}) ──────────────────────────
+
+  static DocumentReference<Map<String, dynamic>> prefsRef(String coupleId, String uid) =>
+      _db.collection('couples').doc(coupleId).collection('settings').doc('prefs_$uid');
+
+  /// True when THIS user has completed their own onboarding for this couple.
+  /// The legacy couple-level `onboardingDone` is deliberately not consulted —
+  /// it only records that *someone* finished.
+  static Future<bool> hasOwnPreferences(String coupleId, String uid) async =>
+      (await prefsRef(coupleId, uid).get()).exists;
+
+  /// Saves the caller's raw answers to their OWN prefs doc, then refreshes
+  /// the legacy couple-level summary on settings/main so RC1 clients (and
+  /// the server fallback) keep seeing a sensible value. The partner's raw
+  /// answers are never touched; the summary is derived from both.
+  static Future<void> saveUserPreferences(
+    String coupleId,
+    String uid,
+    UserPrefs mine, {
+    required List<String> members,
+  }) async {
+    await prefsRef(coupleId, uid).set({
+      ...mine.toMap(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'completedAt': FieldValue.serverTimestamp(),
+    });
+    final partnerIds = members.where((m) => m != uid);
+    final partnerPrefs = await Future.wait(partnerIds.map((m) async =>
+        UserPrefs.fromMap((await prefsRef(coupleId, m).get()).data())));
+    final mainSnap = await settingsRef(coupleId).get();
+    final profile = deriveCoupleProfile([mine, ...partnerPrefs]);
+    await settingsRef(coupleId).set(
+      legacySummaryFor(profile, existingMain: mainSnap.data()),
+      SetOptions(merge: true),
+    );
+  }
+
+  /// The derived couple profile: both prefs docs when present, legacy
+  /// settings/main as fallback, defaults otherwise. Read-only.
+  static Future<CoupleProfile> loadCoupleProfile(String coupleId, List<String> members) async {
+    final results = await Future.wait([
+      settingsRef(coupleId).get(),
+      ...members.map((m) => prefsRef(coupleId, m).get()),
+    ]);
+    final main = results.first.data();
+    final users = results.skip(1).map((d) => UserPrefs.fromMap(d.data())).toList();
+    return deriveCoupleProfile(users, legacy: UserPrefs.fromLegacyMain(main));
+  }
 
   static Stream<DocumentSnapshot<Map<String, dynamic>>> settingsStream(String coupleId) =>
       settingsRef(coupleId).snapshots();

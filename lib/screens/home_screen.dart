@@ -17,6 +17,7 @@ import '../models/memories_provider.dart';
 import '../models/memory_model.dart';
 import '../models/weekly_idea.dart';
 import '../models/weekly_ideas_provider.dart';
+import '../widgets/for_tonight_sheet.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
@@ -1304,6 +1305,28 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     super.dispose();
   }
 
+  /// "For tonight": one-off overrides for this regeneration only. Defaults
+  /// come from the derived couple profile; nothing is written to preferences.
+  Future<void> _openForTonight(BuildContext context) async {
+    final s = context.read<LanguageProvider>().s;
+    final appState = context.read<AppState>();
+    final provider = context.read<WeeklyIdeasProvider>();
+    final coupleId = appState.coupleId;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final members = [uid, appState.partnerId].where((m) => m.isNotEmpty).toList();
+    final profile = await FirestoreService.loadCoupleProfile(coupleId, members);
+    if (!context.mounted) return;
+    final choice = await showForTonightSheet(context, s: s, profile: profile);
+    if (choice == null || !context.mounted) return;
+    final ok = await provider.generateForTonight(
+      coupleId,
+      choice.toOverrides(isParent: profile.isParent),
+    );
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.forTonightFailed)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
@@ -1399,7 +1422,33 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                 letterSpacing: 0.3,
               ),
             ),
+            if (provider.doc?.forTonight == true) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentRose.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(s.forTonightBadge,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accentRose)),
+              ),
+            ],
             const Spacer(),
+            if (appState.coupleId.isNotEmpty && appState.partnerId.isNotEmpty)
+              TextButton.icon(
+                onPressed: provider.loading ? null : () => _openForTonight(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: AppTheme.accentRose,
+                ),
+                icon: const Icon(Icons.nightlight_round, size: 14),
+                label: Text(s.forTonightTitle,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            if (ideas.isNotEmpty && imagesReady) const SizedBox(width: 6),
             if (ideas.isNotEmpty && imagesReady)
               Row(
                 mainAxisSize: MainAxisSize.min,

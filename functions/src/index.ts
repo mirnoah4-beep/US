@@ -3,6 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { generateForCouple, getWeekNumber } from './generateWeeklyIdeas';
+import { parseOverrides } from './preferences';
 import OpenAI from 'openai';
 import {
   isPartnerTemplateId,
@@ -275,10 +276,30 @@ export const generateWeeklyIdeasNow = onCall(
     if (!members.includes(request.auth.uid)) {
       throw new HttpsError('permission-denied', 'Not a member of this couple');
     }
-    await generateForCouple(coupleId);
+    // "For tonight": bounded, server-validated per-request overrides. They
+    // steer THIS generation only and are never written to preferences.
+    let overrides = null;
+    try {
+      overrides = parseOverrides(request.data?.overrides);
+    } catch (e) {
+      throw new HttpsError('invalid-argument', (e as Error).message);
+    }
+    if (overrides) {
+      // Cooldown: one "For tonight" regeneration per couple per 10 minutes —
+      // premium runs cost an OpenAI call, and a double tap must not double it.
+      const current = await admin.firestore()
+        .collection('couples').doc(coupleId).collection('weeklyIdeas').doc('current').get();
+      const at = current.data()?.forTonight?.at as admin.firestore.Timestamp | undefined;
+      if (at && Date.now() - at.toMillis() < FOR_TONIGHT_COOLDOWN_MS) {
+        return { success: true, skipped: 'cooldown' };
+      }
+    }
+    await generateForCouple(coupleId, { overrides });
     return { success: true };
   }
 );
+
+const FOR_TONIGHT_COOLDOWN_MS = 10 * 60 * 1000;
 
 // Callable: fully delete the caller's account. Runs with the Admin SDK so it
 // can delete the Auth user WITHOUT a recent re-login. Ordering: Storage files

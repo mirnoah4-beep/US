@@ -1024,6 +1024,35 @@ class AppStrings {
       isNorwegian ? 'Logg ut' : 'Sign out';
 
   // ── Onboarding Preferences ───────────────────────────────────────────────
+  // ── Preferences: time / childcare (onboarding + For tonight) ────────────
+  String get timeFewHours => isNorwegian ? 'Et par timer' : 'A few hours';
+  String get timeEvening => isNorwegian ? 'Hele kvelden' : 'The whole evening';
+  String get timeFullDay => isNorwegian ? 'Hele dagen' : 'The whole day';
+  String get kidsHome => isNorwegian ? 'Barna er hjemme' : 'Kids are home';
+  String get kidFree => isNorwegian ? 'Vi har barnevakt / er barnefrie' : 'We have childcare / are kid-free';
+  String get onbWhereDoYouLikeSubtitle => isNorwegian ? 'Velg alt som passer' : 'Choose all that apply';
+  String get onbKidsTitle => isNorwegian ? 'Hva med barna?' : 'What about the kids?';
+  String get onbKidsSubtitle => isNorwegian ? 'Slik det vanligvis er – dere kan endre det for én kveld senere' : 'Your usual situation – you can change it for a single evening later';
+  String get onbKidsHomeSubtitle => isNorwegian ? 'Ideer som passer etter leggetid' : 'Ideas that fit after bedtime';
+  String get onbKidFreeSubtitle => isNorwegian ? 'Fri til å dra ut' : 'Free to head out';
+  String get onbPhotoTitle => isNorwegian ? 'Legg til et profilbilde' : 'Add a profile photo';
+  String get onbPhotoSubtitle => isNorwegian ? 'Valgfritt – partneren din ser det i appen' : 'Optional – your partner sees it in the app';
+  String get onbPhotoTake => isNorwegian ? 'Ta bilde' : 'Take photo';
+  String get onbPhotoGallery => isNorwegian ? 'Velg fra galleri' : 'Choose from gallery';
+  String get onbPhotoRetake => isNorwegian ? 'Ta nytt bilde' : 'Retake photo';
+  String get onbPhotoChange => isNorwegian ? 'Velg et annet bilde' : 'Choose another photo';
+  String get onbPhotoSkip => isNorwegian ? 'Hopp over nå' : 'Skip for now';
+  String get onbPhotoSkipHint => isNorwegian ? 'Du kan legge til bilde senere under Profil.' : 'You can add a photo later under Profile.';
+  String get onbPhotoFailed => isNorwegian ? 'Kunne ikke laste opp bildet. Du kan prøve igjen eller hoppe over.' : 'Could not upload the photo. You can try again or skip.';
+  String get forTonightTitle => isNorwegian ? 'For i kveld' : 'For tonight';
+  String get forTonightSubtitle => isNorwegian ? 'Gjelder bare denne anbefalingen – endrer ikke innstillingene deres.' : 'Applies to this recommendation only – your settings stay as they are.';
+  String get forTonightTime => isNorwegian ? 'Hvor mye tid har dere?' : 'How much time do you have?';
+  String get forTonightKids => isNorwegian ? 'Hva med barna?' : 'What about the kids?';
+  String get forTonightWhere => isNorwegian ? 'Hvor har dere lyst til å være?' : 'Where would you like to be?';
+  String get forTonightCta => isNorwegian ? 'Finn ideer for i kveld' : 'Find ideas for tonight';
+  String get forTonightNote => isNorwegian ? 'Ukens ideer byttes ut med forslag som passer i kveld.' : "This week's ideas are replaced with suggestions that fit tonight.";
+  String get forTonightBadge => isNorwegian ? 'I kveld' : 'Tonight';
+  String get forTonightFailed => isNorwegian ? 'Kunne ikke hente ideer for i kveld. Prøv igjen.' : 'Could not fetch ideas for tonight. Please try again.';
   String get onbAreYouParentsTitle => isNorwegian ? 'Er dere foreldre?' : 'Are you parents?';
   String get onbWhereDoYouLikeTitle => isNorwegian ? 'Hvor liker dere å være?' : 'Where do you like to be?';
   String get onbWhatPaceTitle => isNorwegian ? 'Hvilket tempo passer dere?' : 'What pace suits you?';
@@ -1034,8 +1063,8 @@ class AppStrings {
   String get onbNoParentsSubtitle => isNorwegian ? 'Fri og spontan hverdag' : 'Free and spontaneous everyday life';
   String get onbPlaceNatureTitle => isNorwegian ? 'Natur' : 'Nature';
   String get onbPlaceCafeTitle => isNorwegian ? 'By og kafé' : 'City & café';
-  String get onbPlaceHomeTitle => isNorwegian ? 'Hjemme' : 'Home';
-  String get onbPlaceOutTitle => isNorwegian ? 'Ute og om' : 'Out and about';
+  String get onbPlaceHomeTitle => isNorwegian ? 'Hjemme' : 'At home';
+  String get onbPlaceOutTitle => isNorwegian ? 'Aktiviteter og opplevelser' : 'Activities & experiences';
   String get onbPaceCalmTitle => isNorwegian ? 'Rolig' : 'Calm';
   String get onbPaceMixedTitle => isNorwegian ? 'Blandet' : 'Mixed';
   String get onbPaceActiveTitle => isNorwegian ? 'Aktiv' : 'Active';

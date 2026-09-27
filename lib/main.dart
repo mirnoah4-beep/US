@@ -189,17 +189,15 @@ class _CoupleGateState extends State<_CoupleGate> {
     _coupleStream = FirestoreService.watchCouple(widget.coupleId);
   }
 
+  /// Per-user completion: THIS uid's own settings/prefs_{uid} document.
+  /// The legacy couple-level `onboardingDone` is not consulted — it only
+  /// records that the first partner finished, which used to skip the second.
   Future<void> _checkOnboarding() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('couples')
-          .doc(widget.coupleId)
-          .collection('settings')
-          .doc('main')
-          .get();
+      final done = await FirestoreService.hasOwnPreferences(widget.coupleId, widget.uid);
       if (!mounted) return;
       setState(() {
-        _onboardingDone = snap.data()?['onboardingDone'] == true;
+        _onboardingDone = done;
       });
     } catch (e) {
       if (kDebugMode) debugPrint('[CoupleGate] onboarding check failed: $e');
@@ -208,21 +206,28 @@ class _CoupleGateState extends State<_CoupleGate> {
     }
   }
 
+  /// Members of the couple as last seen on the stream — needed to derive the
+  /// legacy summary from BOTH partners' answers.
+  List<String> _members = const [];
+
   Future<void> _finishOnboarding(OnboardingPreferences prefs) async {
-    await FirebaseFirestore.instance
-        .collection('couples')
-        .doc(widget.coupleId)
-        .collection('settings')
-        .doc('main')
-        .set({
-      'onboardingDone': true,
-      'isParent': prefs.isParent,
-      'place': prefs.place,
-      'pace': prefs.pace,
-      'availableTime': prefs.time,
-      'bedtimeHour': prefs.bedtime.hour,
-      'bedtimeMinute': prefs.bedtime.minute,
-    }, SetOptions(merge: true));
+    // Own raw answers → settings/prefs_{uid}; derived legacy summary →
+    // settings/main (RC1 compatibility). The partner's answers are untouched.
+    try {
+      await FirestoreService.saveUserPreferences(
+        widget.coupleId,
+        widget.uid,
+        prefs.toUserPrefs(),
+        members: _members.isEmpty ? [widget.uid] : _members,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[CoupleGate] saving preferences failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kunne ikke lagre. Prøv igjen.')),
+      );
+      return;
+    }
     if (!mounted) return;
     setState(() => _onboardingDone = true);
   }
@@ -251,6 +256,7 @@ class _CoupleGateState extends State<_CoupleGate> {
         }
 
         final couple = snap.data;
+        if (couple != null) _members = couple.members;
 
         if (kDebugMode) {
           debugPrint('[CoupleGate] stream emit → status=${couple?.status}, isActive=${couple?.isActive}, members=${couple?.members.length ?? 0}, _onboardingDone=$_onboardingDone');
@@ -284,7 +290,7 @@ class _CoupleGateState extends State<_CoupleGate> {
 
           if (_onboardingDone == null) return const SplashScreen();
           if (_onboardingDone == false) {
-            return OnboardingPreferencesScreen(onFinish: _finishOnboarding);
+            return OnboardingPreferencesScreen(uid: widget.uid, onFinish: _finishOnboarding);
           }
 
           context.read<WeeklyIdeasProvider>().init(widget.coupleId);

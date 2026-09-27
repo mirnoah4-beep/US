@@ -1,13 +1,11 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/avatar_service.dart';
 import '../services/firestore_service.dart';
-import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -31,19 +29,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickAndUpload(ImageSource source) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-
-    final xfile = await ImagePicker().pickImage(
-      source: source,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 85,
-    );
-    if (xfile == null) return;
-
     setState(() => _isUploading = true);
     try {
-      final url = await StorageService.uploadAvatar(uid, File(xfile.path));
-      await FirestoreService.updateUser(uid, {'avatarUrl': url});
+      await AvatarService.pickAndUpload(uid, source);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

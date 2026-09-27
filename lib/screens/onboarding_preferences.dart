@@ -1,8 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../l10n/strings.dart';
+import '../models/couple_preferences.dart';
 import '../models/language_provider.dart';
+import '../services/avatar_service.dart';
 
 const _kBg = Color(0xFFF2E7DA);
 const _kCard = Color(0xFFFBF5EC);
@@ -13,28 +17,52 @@ const _kTitle = Color(0xFF3A2A28);
 const _kSubtitle = Color(0xFF9A8A82);
 const _kBorder = Color(0xFFD8CABF);
 
+/// One user's onboarding answers. Written to settings/prefs_{uid} — never
+/// merged destructively with the partner's (see couple_preferences.dart).
 class OnboardingPreferences {
   final bool isParent;
-  final String place;
-  final String pace;
-  final String time;
+  final List<String> locations;   // subset of kLocationIds, at least one
+  final String pace;              // calm | mixed | active
+  final String time;              // fewHours | evening | fullDay
+  /// kidsHome | kidFree — only asked when [isParent].
+  final String? childcareState;
+  /// Only meaningful when kids are home.
   final TimeOfDay bedtime;
 
   const OnboardingPreferences({
     required this.isParent,
-    required this.place,
+    required this.locations,
     required this.pace,
     required this.time,
+    required this.childcareState,
     required this.bedtime,
   });
+
+  UserPrefs toUserPrefs() {
+    final kidsHome = isParent && childcareState == 'kidsHome';
+    final bt = hhmmFromParts(bedtime.hour, bedtime.minute);
+    return UserPrefs(
+      locationPreferences: locations,
+      pace: pace,
+      availableTime: time,
+      isParent: isParent,
+      childcareState: isParent ? childcareState : null,
+      bedtimeWeekday: kidsHome ? bt : null,
+      bedtimeWeekend: kidsHome ? bt : null,
+    );
+  }
 }
 
 class OnboardingPreferencesScreen extends StatefulWidget {
+  /// Needed for the optional profile-photo step (upload goes to
+  /// users/{uid}/avatar.jpg). The user is always authenticated here.
+  final String uid;
   final void Function(OnboardingPreferences prefs) onFinish;
   final VoidCallback? onCancel;
 
   const OnboardingPreferencesScreen({
     super.key,
+    required this.uid,
     required this.onFinish,
     this.onCancel,
   });
@@ -44,35 +72,56 @@ class OnboardingPreferencesScreen extends StatefulWidget {
       _OnboardingPreferencesScreenState();
 }
 
+enum _Step { parents, place, pace, time, kids, photo }
+
 class _OnboardingPreferencesScreenState
     extends State<OnboardingPreferencesScreen> {
   final _controller = PageController();
   int _page = 0;
 
   bool? _isParent;
-  String? _place;
+  Set<String> _locations = {};
   String? _pace;
   String? _time;
+  String? _childcare;
+  // Kept even when the user toggles to kid-free, so toggling back restores it.
   TimeOfDay _bedtime = const TimeOfDay(hour: 20, minute: 30);
+  String? _avatarUrl;
+  bool _uploadingPhoto = false;
+
+  /// The kids step exists only for parents; the photo step is always last.
+  List<_Step> get _steps => [
+        _Step.parents,
+        _Step.place,
+        _Step.pace,
+        _Step.time,
+        if (_isParent == true) _Step.kids,
+        _Step.photo,
+      ];
+
+  _Step get _current => _steps[_page.clamp(0, _steps.length - 1)];
+  bool get _isLast => _page == _steps.length - 1;
 
   bool get _canAdvance {
-    switch (_page) {
-      case 0:
+    switch (_current) {
+      case _Step.parents:
         return _isParent != null;
-      case 1:
-        return _place != null;
-      case 2:
+      case _Step.place:
+        return _locations.isNotEmpty;
+      case _Step.pace:
         return _pace != null;
-      case 3:
+      case _Step.time:
         return _time != null;
-      default:
-        return false;
+      case _Step.kids:
+        return _childcare != null;
+      case _Step.photo:
+        return !_uploadingPhoto;
     }
   }
 
   void _next(AppStrings s) {
     if (!_canAdvance) return;
-    if (_page < 3) {
+    if (!_isLast) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeInOut,
@@ -81,11 +130,36 @@ class _OnboardingPreferencesScreenState
     } else {
       widget.onFinish(OnboardingPreferences(
         isParent: _isParent!,
-        place: _place!,
+        locations: kLocationIds.where(_locations.contains).toList(),
         pace: _pace!,
         time: _time!,
+        childcareState: _isParent == true ? _childcare : null,
         bedtime: _bedtime,
       ));
+    }
+  }
+
+  void _toggleLocation(String id) => setState(() {
+        _locations = {..._locations};
+        if (!_locations.remove(id)) _locations.add(id);
+      });
+
+  /// Permission is requested by the OS only now — after the user tapped
+  /// "take photo" / "choose from gallery". A failure never traps the user:
+  /// they can retry, or finish without a photo.
+  Future<void> _pickPhoto(ImageSource source, AppStrings s) async {
+    setState(() => _uploadingPhoto = true);
+    try {
+      final url = await AvatarService.pickAndUpload(widget.uid, source);
+      if (!mounted) return;
+      if (url != null) setState(() => _avatarUrl = url);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.onbPhotoFailed), behavior: SnackBarBehavior.floating),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
     }
   }
 
@@ -174,6 +248,7 @@ class _OnboardingPreferencesScreenState
           children: [
             _TopBar(
               page: _page,
+              pageCount: _steps.length,
               isParent: _isParent,
               s: s,
               onCancel: widget.onCancel,
@@ -183,36 +258,52 @@ class _OnboardingPreferencesScreenState
                 controller: _controller,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  _StepParents(
-                    selected: _isParent,
-                    s: s,
-                    onChanged: (v) => setState(() => _isParent = v),
-                  ),
-                  _StepPlace(
-                    selected: _place,
-                    s: s,
-                    onChanged: (v) => setState(() => _place = v),
-                  ),
-                  _StepPace(
-                    selected: _pace,
-                    s: s,
-                    onChanged: (v) => setState(() => _pace = v),
-                  ),
-                  _StepTime(
-                    selected: _time,
-                    isParent: _isParent ?? false,
-                    bedtime: _bedtime,
-                    s: s,
-                    onChanged: (v) => setState(() => _time = v),
-                    onPickBedtime: () => _pickBedtime(s),
-                  ),
+                  for (final step in _steps)
+                    switch (step) {
+                      _Step.parents => _StepParents(
+                          selected: _isParent,
+                          s: s,
+                          onChanged: (v) => setState(() => _isParent = v),
+                        ),
+                      _Step.place => _StepPlace(
+                          selected: _locations,
+                          s: s,
+                          onToggle: _toggleLocation,
+                        ),
+                      _Step.pace => _StepPace(
+                          selected: _pace,
+                          s: s,
+                          onChanged: (v) => setState(() => _pace = v),
+                        ),
+                      _Step.time => _StepTime(
+                          selected: _time,
+                          isParent: _isParent ?? false,
+                          s: s,
+                          onChanged: (v) => setState(() => _time = v),
+                        ),
+                      _Step.kids => _StepKids(
+                          selected: _childcare,
+                          bedtime: _bedtime,
+                          s: s,
+                          onChanged: (v) => setState(() => _childcare = v),
+                          onPickBedtime: () => _pickBedtime(s),
+                        ),
+                      _Step.photo => _StepPhoto(
+                          avatarUrl: _avatarUrl,
+                          uploading: _uploadingPhoto,
+                          s: s,
+                          onTake: () => _pickPhoto(ImageSource.camera, s),
+                          onGallery: () => _pickPhoto(ImageSource.gallery, s),
+                        ),
+                    },
                 ],
               ),
             ),
             _BottomButton(
-              page: _page,
+              label: _isLast
+                  ? (_current == _Step.photo && _avatarUrl == null ? s.onbPhotoSkip : s.onbFinish)
+                  : s.onbNext,
               canAdvance: _canAdvance,
-              s: s,
               onTap: () => _next(s),
             ),
           ],
@@ -224,12 +315,14 @@ class _OnboardingPreferencesScreenState
 
 class _TopBar extends StatelessWidget {
   final int page;
+  final int pageCount;
   final bool? isParent;
   final AppStrings s;
   final VoidCallback? onCancel;
 
   const _TopBar({
     required this.page,
+    required this.pageCount,
     required this.isParent,
     required this.s,
     this.onCancel,
@@ -252,7 +345,7 @@ class _TopBar extends StatelessWidget {
                 )
               else
                 const SizedBox(width: 64),
-              _ProgressDots(page: page),
+              _ProgressDots(page: page, count: pageCount),
               if (isParent == true)
                 Container(
                   padding:
@@ -280,13 +373,14 @@ class _TopBar extends StatelessWidget {
 
 class _ProgressDots extends StatelessWidget {
   final int page;
-  const _ProgressDots({required this.page});
+  final int count;
+  const _ProgressDots({required this.page, required this.count});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(4, (i) {
+      children: List.generate(count, (i) {
         final active = i == page;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 250),
@@ -305,21 +399,18 @@ class _ProgressDots extends StatelessWidget {
 }
 
 class _BottomButton extends StatelessWidget {
-  final int page;
+  final String label;
   final bool canAdvance;
-  final AppStrings s;
   final VoidCallback onTap;
 
   const _BottomButton({
-    required this.page,
+    required this.label,
     required this.canAdvance,
-    required this.s,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final label = page == 3 ? s.onbFinish : s.onbNext;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       child: FilledButton(
@@ -340,9 +431,10 @@ class _BottomButton extends StatelessWidget {
 
 class _PageStep extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final List<Widget> children;
 
-  const _PageStep({required this.title, required this.children});
+  const _PageStep({required this.title, this.subtitle, required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +447,10 @@ class _PageStep extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: _kTitle,
                 height: 1.25)),
+        if (subtitle != null) ...[
+          const SizedBox(height: 6),
+          Text(subtitle!, style: const TextStyle(fontSize: 14, color: _kSubtitle)),
+        ],
         const SizedBox(height: 20),
         ...children,
       ],
@@ -474,44 +570,47 @@ class _StepParents extends StatelessWidget {
 }
 
 class _StepPlace extends StatelessWidget {
-  final String? selected;
+  final Set<String> selected;
   final AppStrings s;
-  final void Function(String) onChanged;
+  final void Function(String) onToggle;
 
   const _StepPlace({
     required this.selected,
     required this.s,
-    required this.onChanged,
+    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Multi-select: every card toggles independently; at least one required
+    // (enforced by _canAdvance). Same rose/check styling as single-select.
     return _PageStep(
       title: s.onbWhereDoYouLikeTitle,
+      subtitle: s.onbWhereDoYouLikeSubtitle,
       children: [
         _OptionCard(
           emoji: '🌲',
           title: s.onbPlaceNatureTitle,
-          selected: selected == 'nature',
-          onTap: () => onChanged('nature'),
+          selected: selected.contains('nature'),
+          onTap: () => onToggle('nature'),
         ),
         _OptionCard(
           emoji: '☕',
           title: s.onbPlaceCafeTitle,
-          selected: selected == 'cafe',
-          onTap: () => onChanged('cafe'),
+          selected: selected.contains('cafe'),
+          onTap: () => onToggle('cafe'),
         ),
         _OptionCard(
           emoji: '🏠',
           title: s.onbPlaceHomeTitle,
-          selected: selected == 'home',
-          onTap: () => onChanged('home'),
+          selected: selected.contains('home'),
+          onTap: () => onToggle('home'),
         ),
         _OptionCard(
-          emoji: '🗺️',
+          emoji: '🎟️',
           title: s.onbPlaceOutTitle,
-          selected: selected == 'out',
-          onTap: () => onChanged('out'),
+          selected: selected.contains('out'),
+          onTap: () => onToggle('out'),
         ),
       ],
     );
@@ -560,18 +659,14 @@ class _StepPace extends StatelessWidget {
 class _StepTime extends StatelessWidget {
   final String? selected;
   final bool isParent;
-  final TimeOfDay bedtime;
   final AppStrings s;
   final void Function(String) onChanged;
-  final VoidCallback onPickBedtime;
 
   const _StepTime({
     required this.selected,
     required this.isParent,
-    required this.bedtime,
     required this.s,
     required this.onChanged,
-    required this.onPickBedtime,
   });
 
   @override
@@ -585,33 +680,137 @@ class _StepTime extends StatelessWidget {
       children: [
         _OptionCard(
           emoji: '⏱️',
-          title: s.onbTimeShortTitle,
+          title: s.timeFewHours,
           subtitle: shortSub,
-          selected: selected == 'short',
-          onTap: () => onChanged('short'),
+          selected: selected == 'fewHours',
+          onTap: () => onChanged('fewHours'),
         ),
         _OptionCard(
           emoji: '🌙',
-          title: s.onbTimeEveningTitle,
+          title: s.timeEvening,
           subtitle: eveningSub,
           selected: selected == 'evening',
           onTap: () => onChanged('evening'),
         ),
         _OptionCard(
           emoji: '☀️',
-          title: s.onbTimeDayTitle,
+          title: s.timeFullDay,
           subtitle: daySub,
-          selected: selected == 'day',
-          onTap: () => onChanged('day'),
+          selected: selected == 'fullDay',
+          onTap: () => onChanged('fullDay'),
         ),
-        if (isParent) ...[
+      ],
+    );
+  }
+}
+
+/// Parents only: the USUAL childcare situation (a default, not truth — the
+/// "For tonight" sheet overrides it per request). Bedtime is shown only when
+/// kids are home; the value is kept while hidden so toggling back restores it.
+class _StepKids extends StatelessWidget {
+  final String? selected;
+  final TimeOfDay bedtime;
+  final AppStrings s;
+  final void Function(String) onChanged;
+  final VoidCallback onPickBedtime;
+
+  const _StepKids({
+    required this.selected,
+    required this.bedtime,
+    required this.s,
+    required this.onChanged,
+    required this.onPickBedtime,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PageStep(
+      title: s.onbKidsTitle,
+      subtitle: s.onbKidsSubtitle,
+      children: [
+        _OptionCard(
+          emoji: '🏡',
+          title: s.kidsHome,
+          subtitle: s.onbKidsHomeSubtitle,
+          selected: selected == 'kidsHome',
+          onTap: () => onChanged('kidsHome'),
+        ),
+        _OptionCard(
+          emoji: '🧸',
+          title: s.kidFree,
+          subtitle: s.onbKidFreeSubtitle,
+          selected: selected == 'kidFree',
+          onTap: () => onChanged('kidFree'),
+        ),
+        if (selected == 'kidsHome') ...[
           const SizedBox(height: 8),
-          _BedtimePicker(
-            bedtime: bedtime,
-            s: s,
-            onTap: onPickBedtime,
-          ),
+          _BedtimePicker(bedtime: bedtime, s: s, onTap: onPickBedtime),
         ],
+      ],
+    );
+  }
+}
+
+/// Optional profile photo — reuses the Settings avatar pipeline
+/// (AvatarService). Skippable; an upload failure never blocks finishing.
+class _StepPhoto extends StatelessWidget {
+  final String? avatarUrl;
+  final bool uploading;
+  final AppStrings s;
+  final VoidCallback onTake;
+  final VoidCallback onGallery;
+
+  const _StepPhoto({
+    required this.avatarUrl,
+    required this.uploading,
+    required this.s,
+    required this.onTake,
+    required this.onGallery,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PageStep(
+      title: s.onbPhotoTitle,
+      subtitle: s.onbPhotoSubtitle,
+      children: [
+        Center(
+          child: Container(
+            width: 132,
+            height: 132,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _kCard,
+              border: Border.all(color: avatarUrl != null ? _kSelBorder : _kBorder, width: 2),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: uploading
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent))
+                : avatarUrl != null
+                    ? CachedNetworkImage(imageUrl: avatarUrl!, fit: BoxFit.cover)
+                    : const Icon(Icons.person_outline, size: 56, color: _kSubtitle),
+          ),
+        ),
+        _OptionCard(
+          emoji: '📷',
+          title: avatarUrl == null ? s.onbPhotoTake : s.onbPhotoRetake,
+          selected: false,
+          onTap: uploading ? () {} : onTake,
+        ),
+        _OptionCard(
+          emoji: '🖼️',
+          title: avatarUrl == null ? s.onbPhotoGallery : s.onbPhotoChange,
+          selected: false,
+          onTap: uploading ? () {} : onGallery,
+        ),
+        if (avatarUrl == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(s.onbPhotoSkipHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: _kSubtitle)),
+          ),
       ],
     );
   }

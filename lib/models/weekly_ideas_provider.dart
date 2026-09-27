@@ -285,6 +285,30 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
   }
 
+  /// "For tonight": regenerates the set with per-request overrides. The
+  /// overrides steer this generation only — the server never writes them to
+  /// anyone's preferences. Returns false when the call failed.
+  Future<bool> generateForTonight(String coupleId, Map<String, dynamic> overrides) async {
+    if (_generationPending) return false;
+    _generationPending = true;
+    _loading = true;
+    notifyListeners();
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('generateWeeklyIdeasNow');
+      await callable.call({'coupleId': coupleId, 'overrides': overrides});
+      return true;
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('WeeklyIdeasProvider forTonight failed: $e');
+      FirebaseCrashlytics.instance.recordError(e, st, reason: 'generateForTonight');
+      _loading = false;
+      notifyListeners();
+      return false;
+    } finally {
+      _generationPending = false;
+    }
+  }
+
   Future<void> sendIdea(
     WeeklyIdea idea,
     String coupleId,
