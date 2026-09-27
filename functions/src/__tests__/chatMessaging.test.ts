@@ -12,7 +12,7 @@ import {
   chatPushData,
   PREVIEW_MAX_CHARS,
 } from '../chatMessaging';
-import { chatMessageTitle, chatIdeaBody } from '../notificationStrings';
+import { chatMessageTitle, chatIdeaBody, chatImageBody } from '../notificationStrings';
 
 const A = 'uidA';
 const B = 'uidB';
@@ -97,4 +97,26 @@ test('chat push copy uses the recipient language and a safe name fallback', () =
   assert.strictEqual(chatMessageTitle('', false), 'Your partner');
   assert.strictEqual(chatIdeaBody('Adel', 'Filmkveld', true), 'Adel delte en idé: Filmkveld');
   assert.strictEqual(chatIdeaBody('Adel', 'Movie night', false), 'Adel shared an idea: Movie night');
+});
+
+// ── Image messages ──────────────────────────────────────────────────────────
+
+test('image messages fan out only with a storage path', () => {
+  assert.ok(isFanoutableMessage({ type: 'image', storagePath: 'couples/c1/chatImages/m1.jpg' }));
+  assert.ok(!isFanoutableMessage({ type: 'image' }));
+  assert.ok(!isFanoutableMessage({ type: 'image', storagePath: '' }));
+  assert.ok(!isFanoutableMessage({ type: 'image', storagePath: 42 }));
+});
+
+test('image push body and meta preview never leak the path or a URL', () => {
+  const path = 'couples/c1/chatImages/m1.jpg';
+  const body = chatImageBody('Adel', true);
+  assert.strictEqual(body, 'Adel sendte et bilde 📷');
+  assert.strictEqual(chatImageBody('Adel', false), 'Adel sent a photo 📷');
+  assert.ok(!body.includes(path) && !body.includes('http'));
+  const preview = metaPreview({ type: 'image', storagePath: path });
+  assert.strictEqual(preview, '📷');
+  assert.ok(!preview.includes('chatImages'));
+  // And the push DATA payload carries only ids, as before.
+  assert.deepStrictEqual(chatPushData('c1', 'm1'), { type: 'chat_message', coupleId: 'c1', messageId: 'm1' });
 });

@@ -3,13 +3,14 @@
 // Kept free of firebase-admin so every rule below is unit-testable. The
 // trigger in index.ts owns the I/O; this file owns the decisions.
 
-export type ChatMessageType = 'text' | 'idea';
+export type ChatMessageType = 'text' | 'idea' | 'image';
 
 export interface ChatMessageData {
   senderId?: unknown;
   type?: unknown;
   text?: unknown;
   idea?: { titleNo?: unknown; titleEn?: unknown } | unknown;
+  storagePath?: unknown;
 }
 
 /// Maximum characters of message text carried into a push notification body.
@@ -41,6 +42,9 @@ export function isFanoutableMessage(data: ChatMessageData | undefined): boolean 
     const idea = data.idea as { titleNo?: unknown; titleEn?: unknown } | undefined;
     return !!idea && (typeof idea.titleNo === 'string' || typeof idea.titleEn === 'string');
   }
+  if (data.type === 'image') {
+    return typeof data.storagePath === 'string' && data.storagePath.length > 0;
+  }
   return false;
 }
 
@@ -63,6 +67,8 @@ export function metaPreview(data: ChatMessageData): string {
     const title = [idea?.titleNo, idea?.titleEn].find((t) => typeof t === 'string' && t.length > 0);
     return typeof title === 'string' ? title : '';
   }
+  // Never the path, never a URL — the preview is a neutral marker.
+  if (data.type === 'image') return '📷';
   return '';
 }
 

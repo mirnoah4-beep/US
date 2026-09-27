@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Message kinds the launch MVP supports. The server and the security rules
-/// reject anything else, so this enum is the whole vocabulary.
-enum ChatMessageType { text, idea }
+/// Message kinds the app supports. The server and the security rules reject
+/// anything else, so this enum is the whole vocabulary.
+///
+/// TODO(post-launch): a persisted `partner_message` type for FCM templates,
+/// if the notification backend ever writes them into history.
+enum ChatMessageType { text, idea, image }
 
 /// A weekly/library idea shared into the chat. Carries enough to render a
 /// compact card and a detail sheet without a second lookup.
@@ -76,6 +79,12 @@ class ChatMessage {
   final String text;
   final ChatIdea? idea;
 
+  /// `type == image`: couple-scoped Storage path (`couples/{c}/chatImages/…`).
+  /// A path, not a download URL, so reads stay governed by Storage rules.
+  final String? storagePath;
+  final int? width;
+  final int? height;
+
   /// Server timestamp. Null while the write is still pending locally
   /// (offline / not yet acknowledged) — use [sortTime] for ordering.
   final DateTime? createdAt;
@@ -92,7 +101,16 @@ class ChatMessage {
     required this.idea,
     required this.createdAt,
     required this.clientTs,
+    this.storagePath,
+    this.width,
+    this.height,
   });
+
+  /// Aspect ratio for layout before the image loads; 4:3 when unknown.
+  double get aspectRatio =>
+      (width != null && height != null && width! > 0 && height! > 0)
+          ? width! / height!
+          : 4 / 3;
 
   bool get isPending => createdAt == null;
   bool isMine(String uid) => senderId == uid;
@@ -108,12 +126,19 @@ class ChatMessage {
     if (senderId is! String || senderId.isEmpty) return null;
 
     final rawType = data['type'];
-    final type = rawType == 'idea'
-        ? ChatMessageType.idea
-        : rawType == 'text'
-            ? ChatMessageType.text
-            : null;
+    final type = switch (rawType) {
+      'text' => ChatMessageType.text,
+      'idea' => ChatMessageType.idea,
+      'image' => ChatMessageType.image,
+      _ => null,
+    };
     if (type == null) return null;
+    final storagePath = data['storagePath'];
+    if (type == ChatMessageType.image && (storagePath is! String || storagePath.isEmpty)) {
+      return null;
+    }
+    final w = data['width'];
+    final h = data['height'];
 
     final ts = data['createdAt'];
     final createdAt = ts is Timestamp ? ts.toDate() : null;
@@ -130,6 +155,9 @@ class ChatMessage {
       idea: type == ChatMessageType.idea ? ChatIdea.fromMap(data['idea']) : null,
       createdAt: createdAt,
       clientTs: clientTs,
+      storagePath: type == ChatMessageType.image ? storagePath as String : null,
+      width: w is num ? w.toInt() : null,
+      height: h is num ? h.toInt() : null,
     );
   }
 
@@ -165,3 +193,9 @@ List<ChatMessage> mergeMessages(
 /// decide where a date separator goes.
 bool isDifferentDay(DateTime a, DateTime b) =>
     a.year != b.year || a.month != b.month || a.day != b.day;
+
+/// True when [path] is exactly this couple's chat-image folder — mirrors the
+/// Firestore rule so a bad path fails locally before it fails remotely.
+bool isCoupleScopedImagePath(String path, String coupleId) =>
+    RegExp('^couples/${RegExp.escape(coupleId)}/chatImages/[A-Za-z0-9]+\\.jpg\$')
+        .hasMatch(path);

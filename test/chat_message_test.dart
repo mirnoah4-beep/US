@@ -132,8 +132,59 @@ void main() {
     });
   });
 
+  _imageTests();
+
   test('isDifferentDay compares local calendar days', () {
     expect(isDifferentDay(DateTime(2026, 9, 25, 23, 59), DateTime(2026, 9, 26, 0, 1)), isTrue);
     expect(isDifferentDay(DateTime(2026, 9, 25, 1), DateTime(2026, 9, 25, 23)), isFalse);
+  });
+}
+
+// ── Image messages ─────────────────────────────────────────────────────────
+
+void _imageTests() {
+  group('image messages', () {
+    const path = 'couples/c1/chatImages/abc123.jpg';
+
+    test('parses an image message with path and dimensions', () {
+      final m = ChatMessage.fromMap('m', {
+        'senderId': 'a', 'type': 'image', 'storagePath': path,
+        'width': 1024, 'height': 768,
+        'createdAt': Timestamp.now(), 'clientTs': 1,
+      })!;
+      expect(m.type, ChatMessageType.image);
+      expect(m.storagePath, path);
+      expect(m.aspectRatio, closeTo(1024 / 768, 0.001));
+    });
+
+    test('image without a storage path is rejected; missing dims fall back to 4:3', () {
+      expect(ChatMessage.fromMap('m', {'senderId': 'a', 'type': 'image', 'createdAt': null, 'clientTs': 1}), isNull);
+      final m = ChatMessage.fromMap('m', {
+        'senderId': 'a', 'type': 'image', 'storagePath': path, 'createdAt': null, 'clientTs': 1,
+      })!;
+      expect(m.aspectRatio, closeTo(4 / 3, 0.001));
+    });
+
+    test('couple-scoped path check mirrors the Firestore rule', () {
+      expect(isCoupleScopedImagePath(path, 'c1'), isTrue);
+      expect(isCoupleScopedImagePath(path, 'c2'), isFalse);
+      expect(isCoupleScopedImagePath('couples/c1/memories/abc.jpg', 'c1'), isFalse);
+      expect(isCoupleScopedImagePath('couples/c1/chatImages/../x.jpg', 'c1'), isFalse);
+      expect(isCoupleScopedImagePath('https://example.com/x.jpg', 'c1'), isFalse);
+      expect(isCoupleScopedImagePath('couples/c1/chatImages/abc.png', 'c1'), isFalse);
+    });
+
+    test('image messages merge and sort like any other message', () {
+      final t = DateTime(2026, 9, 27, 10);
+      final img = ChatMessage(
+        id: 'img', senderId: 'a', type: ChatMessageType.image, text: '', idea: null,
+        createdAt: t.add(const Duration(minutes: 1)), clientTs: 0, storagePath: path,
+      );
+      final txt = ChatMessage(
+        id: 'txt', senderId: 'a', type: ChatMessageType.text, text: 'hi', idea: null,
+        createdAt: t, clientTs: 0,
+      );
+      expect(mergeMessages([img], [txt]).map((m) => m.id).toList(), ['img', 'txt']);
+    });
   });
 }

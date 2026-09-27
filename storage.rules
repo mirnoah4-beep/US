@@ -3,6 +3,13 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // NOTE: isCoupleMember/isPartnerOf/isAdmin use firestore.get()/exists().
+    // Cross-service rules only work in production if the Firebase Storage
+    // service agent (service-<project-number>@gcp-sa-firebasestorage.iam.
+    // gserviceaccount.com) holds roles/firebaserules.firestoreServiceAgent.
+    // The CLI grants it on an interactive deploy of a NEW ruleset
+    // (`firebase deploy --only storage --interactive`); non-interactive and
+    // AI-agent-driven deploys skip that check silently.
     // ---------- Helpers ----------
     function isSignedIn() {
       return request.auth != null;
@@ -65,6 +72,25 @@ service firebase.storage {
 
       // Delete has no request.resource.
       allow delete: if isAdmin();
+    }
+
+    // ---------- Chat images ----------
+    // Images sent in the 1:1 partner chat. The path is couple-scoped and the
+    // file name is the Firestore message id, so a member of couple A can
+    // never write into couple B's folder, and a message can only reference a
+    // file in its own couple. Files are immutable once uploaded, like the
+    // messages that point at them.
+    match /couples/{coupleId}/chatImages/{fileName} {
+      allow read: if isCoupleMember(coupleId);
+
+      // One `write` rule gated on `resource == null` makes immutability
+      // explicit: a brand-new object passes, an overwrite (resource exists)
+      // and a delete (no request.resource, so isValidImageUpload fails) are
+      // denied — independent of how the runtime classifies the operation.
+      allow write: if resource == null
+        && isCoupleMember(coupleId)
+        && isValidImageUpload()
+        && fileName.matches('^[A-Za-z0-9]+\\.jpg$');
     }
 
     // ---------- Couple memories ----------

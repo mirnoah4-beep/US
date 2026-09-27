@@ -9,7 +9,7 @@
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "test": "tsc && node --test lib/__tests__/*.test.js",
-    "test:rules": "tsc && firebase emulators:exec --only firestore --project us-app-4bf30 \"node --test lib/__rules__/*.test.js\""
+    "test:rules": "tsc && firebase emulators:exec --only firestore,storage --project us-app-4bf30 \"node --test --test-concurrency=1 lib/__rules__/*.test.js\""
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",

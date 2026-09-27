@@ -1073,4 +1073,28 @@ class AppStrings {
   String get chatIdeaClose => isNorwegian ? 'Lukk' : 'Close';
   String get ideasShareToChat => isNorwegian ? 'Del i chat' : 'Share in chat';
   String get ideasSharedToChat => isNorwegian ? 'Delt i chatten ❤️' : 'Shared in chat ❤️';
+
+  // ── Chat polish: header, receipts, typing, quick replies, hearts ────────
+  String get chatReadJustNow => isNorwegian ? 'Leste chatten nettopp' : 'Read the chat just now';
+  String chatReadMinutesAgo(int n) => isNorwegian ? 'Leste chatten for $n min siden' : 'Read the chat $n min ago';
+  String chatReadHoursAgo(int n) => isNorwegian ? 'Leste chatten for $n t siden' : 'Read the chat ${n}h ago';
+  String chatSentAt(String time) => isNorwegian ? 'Sendt $time' : 'Sent $time';
+  String chatSeenAt(String time) => isNorwegian ? 'Sett $time' : 'Seen $time';
+  String chatTyping(String name) => isNorwegian ? '$name skriver…' : '$name is typing…';
+  String get chatQuickUsTime => isNorwegian ? 'Oss-tid i kveld?' : 'Us-time tonight?';
+  String get chatQuickDateSoon => isNorwegian ? 'Date snart?' : 'Date soon?';
+  String get chatQuickPlan => isNorwegian ? 'Planlegg noe' : 'Plan something';
+  String get chatMemoriesTooltip => isNorwegian ? 'Minner' : 'Memories';
+  String get chatHeartTooltip => isNorwegian ? 'Hjerte' : 'Heart';
+
+  // ── Chat images ─────────────────────────────────────────────────────────
+  String get chatAttachPhoto => isNorwegian ? 'Legg ved bilde' : 'Attach photo';
+  String get chatPickGallery => isNorwegian ? 'Velg fra galleri' : 'Choose from gallery';
+  String get chatPickCamera => isNorwegian ? 'Ta bilde' : 'Take a photo';
+  String get chatPhotoLabel => isNorwegian ? 'Bilde' : 'Photo';
+  String get chatImageUploading => isNorwegian ? 'Laster opp…' : 'Uploading…';
+  String get chatImageFailed => isNorwegian ? 'Kunne ikke sende bildet' : 'Could not send the photo';
+  String get chatImageRemove => isNorwegian ? 'Fjern' : 'Remove';
+  String get chatImageUnavailable => isNorwegian ? 'Bildet er ikke tilgjengelig' : 'Photo unavailable';
+  String get chatImageClose => isNorwegian ? 'Lukk' : 'Close';
 }

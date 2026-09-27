@@ -120,6 +120,18 @@ service cloud.firestore {
                ['senderId', 'type', 'idea', 'createdAt', 'clientTs']);
       }
 
+      function isValidImageMessage() {
+        let d = request.resource.data;
+        return d.type == 'image'
+          && d.storagePath is string
+          // Must point INSIDE this couple's chat folder — no cross-couple refs.
+          && d.storagePath.matches('^couples/' + coupleId + '/chatImages/[A-Za-z0-9]+\\.jpg$')
+          && (!('width' in d) || (d.width is int && d.width > 0 && d.width <= 10000))
+          && (!('height' in d) || (d.height is int && d.height > 0 && d.height <= 10000))
+          && d.keys().hasOnly(
+               ['senderId', 'type', 'storagePath', 'width', 'height', 'createdAt', 'clientTs']);
+      }
+
       // Messages are immutable: no editing or deleting in the launch MVP,
       // which also means nobody can tamper with the partner's messages.
       match /messages/{messageId} {
@@ -130,22 +142,54 @@ service cloud.firestore {
           // … nor backdate a message.
           && request.resource.data.createdAt == request.time
           && request.resource.data.clientTs is number
-          && (isValidTextMessage() || isValidIdeaMessage());
+          && (isValidTextMessage() || isValidIdeaMessage() || isValidImageMessage());
         allow update, delete: if false;
       }
 
-      // chat/meta is server-written (last message preview) — clients only read.
-      // chat/read_{uid} is each member's own read state. A user may write only
-      // their own doc, only these two keys, and may only ever RESET unread to
-      // 0 — the count itself is incremented server-side, so it cannot be
-      // fabricated from the client.
-      match /chat/{docId} {
-        allow read: if isCoupleMember();
-        allow create, update: if isCoupleMember()
-          && docId == 'read_' + request.auth.uid
-          && request.resource.data.keys().hasOnly(['lastReadAt', 'unread'])
+      // Per-user chat state documents. Each member may write ONLY their own
+      // doc of each kind — never the partner's — and each kind has a fixed
+      // shape:
+      //   read_{uid}    lastReadAt + unread (unread may only be RESET to 0;
+      //                 the count is incremented server-side)
+      //   typing_{uid}  isTyping + updatedAt (updatedAt must be the server
+      //                 time, so a stale doc cannot be made to look fresh)
+      //   hearts_{uid}  {messageId: true, …} — this user's heart reactions.
+      //                 Reactions live here, not on messages, so message
+      //                 documents stay immutable. One key changes per write,
+      //                 every value is `true`, and the doc is capped.
+      // chat/meta is server-written (last message preview): it matches none
+      // of these ids, so clients can only read it.
+      function isOwnDoc(prefix, docId) {
+        return docId == prefix + request.auth.uid;
+      }
+
+      function isValidReadState() {
+        return request.resource.data.keys().hasOnly(['lastReadAt', 'unread'])
           && request.resource.data.lastReadAt is timestamp
           && request.resource.data.unread == 0;
+      }
+
+      function isValidTypingState() {
+        return request.resource.data.keys().hasOnly(['isTyping', 'updatedAt'])
+          && request.resource.data.isTyping is bool
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      function isValidHeartsState() {
+        return request.resource.data.values().hasOnly([true])
+          && request.resource.data.keys().size() <= 2000
+          && (resource == null
+                ? request.resource.data.keys().size() == 1
+                : request.resource.data.diff(resource.data).affectedKeys().size() == 1);
+      }
+
+      match /chat/{docId} {
+        allow read: if isCoupleMember();
+        allow create, update: if isCoupleMember() && (
+             (isOwnDoc('read_', docId)   && isValidReadState())
+          || (isOwnDoc('typing_', docId) && isValidTypingState())
+          || (isOwnDoc('hearts_', docId) && isValidHeartsState())
+        );
         allow delete: if false;
       }
     }

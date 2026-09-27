@@ -555,6 +555,12 @@ class _MainShellState extends State<MainShell> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        // A visible keyboard is the first thing system back should close —
+        // never leave the tab (or the chat) while the user is mid-typing.
+        if (MediaQuery.of(context).viewInsets.bottom > 0) {
+          FocusManager.instance.primaryFocus?.unfocus();
+          return;
+        }
         final nav = _tabNavKeys[_currentIndex].currentState;
         if (nav != null && nav.canPop()) nav.pop();
       },

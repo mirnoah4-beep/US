@@ -13,6 +13,7 @@ import {
   reminderTitle,
   chatMessageTitle,
   chatIdeaBody,
+  chatImageBody,
 } from './notificationStrings';
 import {
   chooseReminderType,
@@ -842,6 +843,8 @@ export const onChatMessageCreated = onDocumentCreated(
     let body: string;
     if (data!.type === 'text') {
       body = messagePreview(data!.text as string);
+    } else if (data!.type === 'image') {
+      body = chatImageBody(senderName, isNorwegian);
     } else {
       const idea = data!.idea as { titleNo?: string; titleEn?: string };
       const title = (isNorwegian ? idea.titleNo : idea.titleEn) || idea.titleNo || idea.titleEn || '';

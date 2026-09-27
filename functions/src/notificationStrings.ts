@@ -105,3 +105,12 @@ export function chatIdeaBody(
     ? `${name} delte en idé: ${ideaTitle}`
     : `${name} shared an idea: ${ideaTitle}`;
 }
+
+/// Image message push body. Deliberately content-free: no path, no URL, no
+/// dimensions — the image is fetched through Storage rules by the app.
+export function chatImageBody(senderName: string, isNorwegian: boolean): string {
+  const name = senderName.trim().length > 0
+    ? senderName.trim()
+    : (isNorwegian ? 'Partneren din' : 'Your partner');
+  return isNorwegian ? `${name} sendte et bilde 📷` : `${name} sent a photo 📷`;
+}
