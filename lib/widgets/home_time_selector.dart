@@ -5,7 +5,7 @@ import '../models/home_time_filter.dart';
 import '../theme/app_theme.dart';
 
 /// One quiet segmented control — [ 10 min | 1 t | 2+ t ] — inside a single
-/// rounded rectangle (36 px tall, 16 px radius; not a pill, not chips). Three
+/// rounded rectangle (33 px tall, 16 px radius; not a pill, not chips). Three
 /// equal-width text-only segments; selected = burgundy with white text,
 /// unselected = light background with burgundy text. Tapping the selected
 /// segment clears the filter (the caller's toggle). Session-only state.
@@ -29,7 +29,7 @@ class HomeTimeSelector extends StatelessWidget {
       (HomeTimeBucket.long, s.homeTimeLong),
     ];
     return Container(
-      height: 36,
+      height: 33,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: AppTheme.accentRoseLight,
@@ -43,7 +43,7 @@ class HomeTimeSelector extends StatelessWidget {
               // Subtle divider, hidden next to the selected segment.
               Container(
                 width: 1,
-                height: 16,
+                height: 14,
                 color: (selected == segments[i].$1 || selected == segments[i - 1].$1)
                     ? Colors.transparent
                     : AppTheme.accentRose.withValues(alpha: 0.18),
