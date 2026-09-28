@@ -366,7 +366,10 @@ export const adminSyncIdeaLibrary = onDocumentCreated(
         await firestore.collection('ideas').doc(idea.id).set(libraryIdeaDoc(idea), { merge: true });
         out.docsWritten++;
       }
-      const source = { titleNo: idea.titleNo, titleEn: idea.titleEn, categoryNo: idea.categoryNo, categoryEn: idea.categoryEn, metaNo: idea.durationNo, metaEn: idea.durationEn, descriptionNo: idea.descNo, descriptionEn: idea.descEn, effort: idea.effort };
+      // imageHint replaces the literal activity text in the prompt (scene-based, safe).
+      const source = idea.imageHint
+        ? { titleEn: `${idea.categoryEn} scene`, descriptionEn: idea.imageHint, categoryEn: idea.categoryEn, metaEn: idea.durationEn, effort: idea.effort }
+        : { titleNo: idea.titleNo, titleEn: idea.titleEn, categoryNo: idea.categoryNo, categoryEn: idea.categoryEn, metaNo: idea.durationNo, metaEn: idea.durationEn, descriptionNo: idea.descNo, descriptionEn: idea.descEn, effort: idea.effort };
       if (dryRun) {
         const snap = await firestore.collection('ideas').doc(idea.id).get();
         const url = snap.data()?.coverImageUrl;

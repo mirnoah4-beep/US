@@ -19,6 +19,10 @@ export interface LibraryIdea {
   parentFriendly: boolean;
   requiresKidFree: boolean;
   effort: 'low' | 'medium' | 'high';
+  /// Optional scene description used INSTEAD of title/description for the
+  /// cover prompt (e.g. when the literal activity trips the image safety
+  /// filter). Never shown to users.
+  imageHint?: string;
 }
 
 export const IDEA_LIBRARY: readonly LibraryIdea[] = raw as LibraryIdea[];
