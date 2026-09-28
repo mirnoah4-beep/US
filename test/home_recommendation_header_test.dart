@@ -67,10 +67,19 @@ void main() {
   }
   }
 
-  testWidgets('EN @ 1.3x with the Tonight badge still fits', (t) async {
+  testWidgets('active For-tonight session: badge shown, action hidden (never both)', (t) async {
     await setPhone(t);
     await t.pumpWidget(host(no: false, scale: 1.3, withBadge: true));
     expect(t.takeException(), isNull);
-    expect(t.getRect(find.text('For tonight')).right <= 320, isTrue);
+    expect(find.text('I kveld ×'), findsOneWidget);
+    expect(find.text('For tonight'), findsNothing);
+    expect(t.getRect(find.text('I kveld ×')).right <= 320, isTrue);
+  });
+
+  testWidgets('no session: action shown, badge hidden', (t) async {
+    await setPhone(t);
+    await t.pumpWidget(host(no: true, scale: 1.0));
+    expect(find.text('For i kveld'), findsOneWidget);
+    expect(find.text('I kveld ×'), findsNothing);
   });
 }

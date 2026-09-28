@@ -15,6 +15,7 @@ class HomeRecommendationHeader extends StatelessWidget {
   final VoidCallback? onTonight;
   final bool tonightLoading;
   /// Optional badge shown right after the heading (the "Tonight ×" chip).
+  /// When present it replaces the action — never both at once.
   final Widget? badge;
 
   const HomeRecommendationHeader({
@@ -46,7 +47,11 @@ class HomeRecommendationHeader extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Text(heading, style: _headingStyle, maxLines: 1, softWrap: false),
     );
-    final action = onTonight == null ? null : _TonightAction(s: s, onTap: onTonight!, loading: tonightLoading);
+    // While a For-tonight session is active the badge ("I kveld ×") is the
+    // only For-tonight element; the "For i kveld →" action shows otherwise.
+    final action = (onTonight == null || badge != null)
+        ? null
+        : _TonightAction(s: s, onTap: onTonight!, loading: tonightLoading);
     final badgeRow = badge == null ? null : Padding(padding: const EdgeInsets.only(left: 8), child: badge);
 
     return LayoutBuilder(

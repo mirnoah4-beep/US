@@ -5,7 +5,7 @@ import '../models/home_time_filter.dart';
 import '../theme/app_theme.dart';
 
 /// One quiet segmented control — [ 10 min | 1 t | 2+ t ] — inside a single
-/// rounded rectangle (18 px radius, not a pill, not Material chips). Three
+/// rounded rectangle (36 px tall, 16 px radius; not a pill, not chips). Three
 /// equal-width text-only segments; selected = burgundy with white text,
 /// unselected = light background with burgundy text. Tapping the selected
 /// segment clears the filter (the caller's toggle). Session-only state.
@@ -29,11 +29,11 @@ class HomeTimeSelector extends StatelessWidget {
       (HomeTimeBucket.long, s.homeTimeLong),
     ];
     return Container(
-      height: 42,
+      height: 36,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: AppTheme.accentRoseLight,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.accentRose.withValues(alpha: 0.22)),
       ),
       child: Row(
@@ -43,7 +43,7 @@ class HomeTimeSelector extends StatelessWidget {
               // Subtle divider, hidden next to the selected segment.
               Container(
                 width: 1,
-                height: 18,
+                height: 16,
                 color: (selected == segments[i].$1 || selected == segments[i - 1].$1)
                     ? Colors.transparent
                     : AppTheme.accentRose.withValues(alpha: 0.18),
@@ -79,13 +79,13 @@ class _Segment extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(
               color: selected ? AppTheme.accentRose : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
             ),
             alignment: Alignment.center,
             child: Text(
