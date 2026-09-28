@@ -66,6 +66,7 @@ service cloud.firestore {
         allow read, write: if subcollection != 'messages'
           && subcollection != 'chat'
           && subcollection != 'settings'
+          && subcollection != 'mediations'
           && request.auth != null
           && request.auth.uid in get(
             /databases/$(database)/documents/couples/$(coupleId)
@@ -107,6 +108,44 @@ service cloud.firestore {
         allow write: if docId == 'main' && isSettingsMember();
         allow create, update: if docId.matches('^prefs_.*$') && isSettingsMember() && isOwnPrefs() && isValidPrefs();
         allow delete: if docId.matches('^prefs_.*$') && isSettingsMember() && isOwnPrefs();
+      }
+
+      // ── Mediation ("Oss mot problemet") ──────────────────────────────────
+      // mediations/{m}: server-written; members read (category, status,
+      // who has submitted, summary, agreement). Never the raw answers.
+      // mediations/{m}/private/{uid}: ONE user's private draft — owner only,
+      // while the talk is being answered, draft:true only; the server locks
+      // (draft:false, submittedAt) and later deletes it.
+      // mediations/{m}/safety/*: server-only, no rule.
+      match /mediations/{mediationId} {
+        function isMedMember() {
+          return request.auth != null
+            && request.auth.uid in get(
+              /databases/$(database)/documents/couples/$(coupleId)
+            ).data.members;
+        }
+        function mediationAnswering() {
+          return exists(/databases/$(database)/documents/couples/$(coupleId)/mediations/$(mediationId))
+            && get(/databases/$(database)/documents/couples/$(coupleId)/mediations/$(mediationId)).data.status in ['answering', 'waiting'];
+        }
+        function isValidDraft() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['whatHappened', 'whatINeed', 'whatICanDo', 'draft', 'updatedAt'])
+            && d.draft == true
+            && (!('whatHappened' in d) || (d.whatHappened is string && d.whatHappened.size() <= 2000))
+            && (!('whatINeed' in d) || (d.whatINeed is string && d.whatINeed.size() <= 2000))
+            && (!('whatICanDo' in d) || (d.whatICanDo is string && d.whatICanDo.size() <= 2000));
+        }
+        allow read: if isMedMember();
+        allow write: if false;
+
+        match /private/{uid} {
+          allow read: if isMedMember() && request.auth.uid == uid;
+          allow create: if isMedMember() && request.auth.uid == uid && mediationAnswering() && isValidDraft();
+          allow update: if isMedMember() && request.auth.uid == uid && mediationAnswering()
+            && resource.data.draft == true && isValidDraft();
+          allow delete: if false;
+        }
       }
 
       // ── Chat ────────────────────────────────────────────────────────────

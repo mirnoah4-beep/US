@@ -41,6 +41,11 @@ import {
 import { dissolveCouple, deleteUserData } from './coupleLifecycle';
 import { cleanupCoupleStorage } from './storageCleanup';
 import { createInviteTx, joinCoupleTx } from './pairing';
+import {
+  acceptAgreement, confirmOrCorrectNeed, createMediation, dueReminders, editAgreement, expireStale,
+  nudgePartner, respondToInvite, retrySummary, setNeutralState, submitAnswers, type MediationAi,
+} from './mediationOps';
+import { mediationBody, mediationTitle } from './notificationStrings';
 
 admin.initializeApp();
 
@@ -334,6 +339,120 @@ export const generateForTonight = onCall(
 );
 
 const FOR_TONIGHT_MAX_PER_HOUR = 8;
+
+// ── "Oss mot problemet" / "Us vs. the problem" (mediation) ──────────────────
+// All state transitions are server-authoritative (see mediationOps.ts).
+// The AI seam: safety screen + neutral facilitator, both strict JSON.
+function mediationAi(): MediationAi {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const json = async (system: string, user: string, maxTokens: number): Promise<unknown> => {
+    const r = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', temperature: 0.4, max_tokens: maxTokens,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    });
+    return JSON.parse(r.choices[0]?.message?.content ?? '{}');
+  };
+  return {
+    safety: (system, texts) => json(system, texts.map((t, i) => `Answer ${i + 1}: ${t}`).join('\n'), 120),
+    generate: (system, user) => json(system, user, 1200),
+  };
+}
+
+function mediationCtx() { return { db: admin.firestore(), ai: mediationAi() }; }
+
+async function pushMediation(uid: string, kind: 'invite' | 'reminder' | 'nudge' | 'summary', fromUid: string, coupleId: string, mediationId: string) {
+  try {
+    const [to, from] = await Promise.all([
+      admin.firestore().collection('users').doc(uid).get(),
+      admin.firestore().collection('users').doc(fromUid).get(),
+    ]);
+    const isNo = (to.data()?.language ?? 'no') !== 'en';
+    await sendToUser(uid, mediationTitle(kind, from.data()?.displayName ?? '', isNo), mediationBody(kind, isNo),
+      { type: 'mediation', coupleId, mediationId, kind });
+  } catch (e) {
+    console.error('[mediation] push failed', kind, (e as { code?: unknown })?.code ?? 'unknown');
+  }
+}
+
+const requireUid = (request: { auth?: { uid: string } | null }): string => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+  return request.auth.uid;
+};
+
+export const mediationCreate = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'] }, async (request) => {
+  const uid = requireUid(request);
+  const r = await createMediation(mediationCtx(), uid, request.data?.coupleId, request.data?.category);
+  await pushMediation(r.partnerUid, 'invite', uid, request.data.coupleId, r.mediationId);
+  return { mediationId: r.mediationId };
+});
+
+export const mediationRespond = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'] }, async (request) => {
+  const uid = requireUid(request);
+  const r = await respondToInvite(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId, request.data?.timing);
+  return { timing: r.timing, reminderAt: r.reminderAt?.toISOString() ?? null };
+});
+
+export const mediationSubmit = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'], timeoutSeconds: 120 }, async (request) => {
+  const uid = requireUid(request);
+  const r = await submitAnswers(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId);
+  if (!r.flagged && r.summaryReady) {
+    // Both partners: the summary exists now.
+    await Promise.all([uid, r.partnerUid].map((u) => pushMediation(u, 'summary', uid, request.data.coupleId, request.data.mediationId)));
+  }
+  // The safety result goes to THIS caller only (never to the partner, never
+  // into the shared document).
+  return r;
+});
+
+export const mediationRetrySummary = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'], timeoutSeconds: 120 }, async (request) => {
+  const uid = requireUid(request);
+  return retrySummary(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId);
+});
+
+export const mediationNudge = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'] }, async (request) => {
+  const uid = requireUid(request);
+  const r = await nudgePartner(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId);
+  await pushMediation(r.partnerUid, 'nudge', uid, request.data.coupleId, request.data.mediationId);
+  return { sent: true };
+});
+
+export const mediationCorrectNeed = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'] }, async (request) => {
+  const uid = requireUid(request);
+  return confirmOrCorrectNeed(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId, request.data?.correction);
+});
+
+export const mediationEditAgreement = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'] }, async (request) => {
+  const uid = requireUid(request);
+  return editAgreement(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId, request.data?.shared, request.data?.mine);
+});
+
+export const mediationAccept = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'] }, async (request) => {
+  const uid = requireUid(request);
+  return acceptAgreement(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId, request.data?.hash);
+});
+
+export const mediationSetState = onCall({ region: 'europe-west1', secrets: ['OPENAI_API_KEY'] }, async (request) => {
+  const uid = requireUid(request);
+  const state = request.data?.state;
+  if (state !== 'paused' && state !== 'closed') throw new HttpsError('invalid-argument', 'state');
+  return setNeutralState(mediationCtx(), uid, request.data?.coupleId, request.data?.mediationId, state);
+});
+
+// Every 15 minutes: due "tonight"/"tomorrow" reminders and 7-day expiry.
+export const mediationScheduler = onSchedule(
+  { schedule: 'every 15 minutes', region: 'europe-west1' },
+  async () => {
+    const now = new Date();
+    const due = await dueReminders(admin.firestore(), now);
+    for (const r of due) {
+      const m = (await admin.firestore().collection('couples').doc(r.coupleId).collection('mediations').doc(r.mediationId).get()).data();
+      await pushMediation(r.uid, 'reminder', m?.starterUid ?? r.uid, r.coupleId, r.mediationId);
+    }
+    const expired = await expireStale(admin.firestore(), now);
+    console.log(`[mediation] scheduler reminders=${due.length} expired=${expired}`);
+  },
+);
 
 
 

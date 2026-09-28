@@ -8,6 +8,7 @@ import '../models/app_state.dart';
 import '../models/language_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
+import 'mediation/mediation_hub_screen.dart';
 
 class OurRelationshipScreen extends StatefulWidget {
   const OurRelationshipScreen({super.key});
@@ -63,6 +64,8 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
             _buildAvatarSection(appState, s),
             const SizedBox(height: 32),
             _buildAnniversaryCard(context, appState, s),
+            const SizedBox(height: 12),
+            _buildMediationCard(context, s),
             const SizedBox(height: 12),
             _buildDisconnectCard(context, s, appState),
           ],
@@ -415,6 +418,44 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
   }
 
   // ── Disconnect card ────────────────────────────────────────────────────────
+
+  // ── "Oss mot problemet" entry (same card style as the row below) ──────────
+  Widget _buildMediationCard(BuildContext context, AppStrings s) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppTheme.accentRoseLight,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: const Icon(Icons.forum_outlined, color: AppTheme.accentRose, size: 20),
+        ),
+        title: Text(
+          s.medTitle,
+          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(s.medEntrySubtitle, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const MediationHubScreen()),
+        ),
+      ),
+    );
+  }
 
   Widget _buildDisconnectCard(
       BuildContext context, AppStrings s, AppState appState) {

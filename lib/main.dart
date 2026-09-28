@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'models/app_state.dart';
 import 'models/chat_provider.dart';
+import 'models/mediation_provider.dart';
 import 'models/couple_model.dart';
 import 'models/language_provider.dart';
 import 'models/memories_provider.dart';
@@ -22,6 +23,7 @@ import 'models/reminders_provider.dart';
 import 'models/user_model.dart';
 import 'models/weekly_ideas_provider.dart';
 import 'screens/chat_screen.dart';
+import 'screens/mediation/mediation_hub_screen.dart';
 import 'screens/couple_setup_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/home_screen.dart';
@@ -72,6 +74,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => MemoriesProvider()),
           ChangeNotifierProvider(create: (_) => RemindersProvider()),
           ChangeNotifierProvider(create: (_) => ChatProvider()),
+          ChangeNotifierProvider(create: (_) => MediationProvider()),
         ],
         child: const UsApp(),
       ),
@@ -540,6 +543,11 @@ class _MainShellState extends State<MainShell> {
       } else if (data['type'] == 'chat_message') {
         // Push carries only ids; the message itself streams from Firestore.
         appState.requestTabNavigation(_chatTabIndex);
+      } else if (data['type'] == 'mediation') {
+        // "Oss mot problemet": open the talk (ids only on the push).
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => MediationHubScreen(openMediationId: data['mediationId'] as String?),
+        ));
       }
     });
   }

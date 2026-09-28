@@ -114,3 +114,24 @@ export function chatImageBody(senderName: string, isNorwegian: boolean): string 
     : (isNorwegian ? 'Partneren din' : 'Your partner');
   return isNorwegian ? `${name} sendte et bilde 📷` : `${name} sent a photo 📷`;
 }
+
+/// "Oss mot problemet" pushes, in the recipient's language. Never any
+/// content from the talk — only who and what stage.
+export type MediationPush = 'invite' | 'reminder' | 'nudge' | 'summary';
+export function mediationTitle(kind: MediationPush, senderName: string, isNorwegian: boolean): string {
+  const name = senderName.trim().length > 0 ? senderName.trim() : (isNorwegian ? 'Partneren din' : 'Your partner');
+  switch (kind) {
+    case 'invite': return isNorwegian ? `${name} vil gjerne snakke om noe` : `${name} would like to talk about something`;
+    case 'reminder': return isNorwegian ? 'Klar for en liten prat?' : 'Ready for a little talk?';
+    case 'nudge': return isNorwegian ? `${name} venter på deg` : `${name} is waiting for you`;
+    case 'summary': return isNorwegian ? 'Oppsummeringen er klar' : 'Your summary is ready';
+  }
+}
+export function mediationBody(kind: MediationPush, isNorwegian: boolean): string {
+  switch (kind) {
+    case 'invite': return isNorwegian ? 'Oss mot problemet – 5 minutter, hver for dere først.' : 'Us vs. the problem – 5 minutes, privately first.';
+    case 'reminder': return isNorwegian ? 'Dere avtalte å ta praten nå. Svar når det passer.' : 'You planned to have the talk now. Answer when it suits you.';
+    case 'nudge': return isNorwegian ? 'Svarene dine er det eneste som mangler.' : 'Your answers are the only thing missing.';
+    case 'summary': return isNorwegian ? 'Se hva dere har felles, og prøv en liten avtale.' : 'See what you have in common and try a small agreement.';
+  }
+}
