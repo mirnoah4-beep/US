@@ -709,6 +709,8 @@ class AppStrings {
   String get medSafetyWeb => isNorwegian ? 'dinutvei.no – råd og hjelp' : 'dinutvei.no – advice and help (Norway)';
   String get medSafetyPrivate => isNorwegian ? 'Partneren din får ikke vite om dette. Svarene dine er ikke delt.' : 'Your partner will not know about this. Your answers were not shared.';
   String get medSafetyOk => isNorwegian ? 'Jeg forstår' : 'I understand';
+  String get medSafetyCloseTalk => isNorwegian ? 'Avslutt samtalen' : 'Close the talk';
+  String get medPlanEntryLine => isNorwegian ? '5 minutter, hver for dere først' : '5 minutes, privately first';
   String get pairInvalidCode => isNorwegian ? 'Ugyldig kode.' : 'Invalid code.';
   String get pairOwnInvite => isNorwegian ? 'Du kan ikke bruke din egen kode.' : 'You can\'t use your own code.';
   String get pairSelfAlreadyPartnered =>

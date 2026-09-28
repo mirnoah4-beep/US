@@ -9,6 +9,7 @@ import {
   acceptAgreement, setNeutralState, retrySummary, dueReminders, expireStale, type MediationAi, type Ctx,
 } from '../mediationOps';
 import { agreementHash } from '../mediation';
+import { purgePrivateData } from '../mediationOps';
 import { dissolveCouple } from '../coupleLifecycle';
 import type { CleanupBucket } from '../storageCleanup';
 
@@ -260,4 +261,51 @@ test('lifecycle: dissolveCouple removes mediations, private answers and safety m
   assert.strictEqual((await mref(id).collection('private').doc(B).get()).exists, false);
   assert.strictEqual((await mref(id).collection('safety').doc(B).get()).exists, false);
   assert.strictEqual((await db.collection(`couples/${C}/mediations`).get()).size, 0);
+});
+
+test('close deletes every private draft and safety marker of the talk', async () => {
+  const ai = fakeAi({ flag: (t) => t.some((x) => x.includes('redd')) });
+  const { mediationId: id } = await createMediation(ctx(ai), A, C, 'trust');
+  await respondToInvite(ctx(ai), B, C, id, 'now');
+  await mref(id).collection('private').doc(A).set(answers('a'));
+  await mref(id).collection('private').doc(B).set({ ...answers('b'), whatINeed: 'redd' });
+  await submitAnswers(ctx(ai), B, C, id);                        // flagged → safety marker
+  await submitAnswers(ctx(ai), A, C, id);                        // locked private doc
+  await setNeutralState(ctx(ai), A, C, id, 'closed');
+  assert.strictEqual((await mref(id).get()).data()!.status, 'closed');
+  assert.strictEqual((await mref(id).collection('private').get()).size, 0);
+  assert.strictEqual((await mref(id).collection('safety').get()).size, 0);
+  assert.strictEqual(await purgePrivateData(mref(id)), 0, 'idempotent');
+});
+
+test('expiry deletes private drafts and safety markers too', async () => {
+  const ai = fakeAi({ flag: () => true });
+  const { mediationId: id } = await createMediation(ctx(ai, () => new Date('2026-09-01T10:00:00Z')), A, C, 'money');
+  await respondToInvite(ctx(ai), B, C, id, 'now');
+  await mref(id).collection('private').doc(B).set(answers('b'));
+  await submitAnswers(ctx(ai), B, C, id);                        // flagged
+  await mref(id).collection('private').doc(A).set(answers('a')); // untouched draft
+  assert.strictEqual(await expireStale(db, new Date('2026-09-09T10:00:00Z')), 1);
+  assert.strictEqual((await mref(id).get()).data()!.status, 'expired');
+  assert.strictEqual((await mref(id).collection('private').get()).size, 0);
+  assert.strictEqual((await mref(id).collection('safety').get()).size, 0);
+});
+
+test('a flagged user resubmitting still-flagged text is flagged again and can never proceed', async () => {
+  const ai = fakeAi({ flag: (t) => t.some((x) => x.includes('redd')) });
+  const { mediationId: id } = await createMediation(ctx(ai), A, C, 'trust');
+  await respondToInvite(ctx(ai), B, C, id, 'now');
+  await mref(id).collection('private').doc(B).set({ ...answers('b'), whatINeed: 'redd' });
+  const first = await submitAnswers(ctx(ai), B, C, id);
+  const second = await submitAnswers(ctx(ai), B, C, id);
+  assert.ok(first.flagged && second.flagged);
+  const m = (await mref(id).get()).data()!;
+  assert.deepStrictEqual(m.submitted, {});
+  assert.strictEqual(m.status, 'answering');
+  assert.strictEqual((await mref(id).collection('private').doc(B).get()).data()!.draft, true);
+  // The safety screen offers "Avslutt samtalen" → neutral close, private data gone.
+  await setNeutralState(ctx(ai), B, C, id, 'closed');
+  assert.strictEqual((await mref(id).get()).data()!.status, 'closed');
+  assert.strictEqual((await mref(id).collection('safety').get()).size, 0);
+  assert.strictEqual(ai.calls.safety, 2, 'screened on each submission');
 });

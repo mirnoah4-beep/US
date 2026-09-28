@@ -299,12 +299,27 @@ export async function acceptAgreement(c: Ctx, uid: string, coupleId: unknown, me
   });
 }
 
+// ── Private-data purge ──────────────────────────────────────────────────────
+
+/// Deletes every private/{uid} draft and safety/{uid} marker of a talk.
+/// Run when a talk ends without a summary (close, expiry) — the summary
+/// path deletes the private docs itself. Idempotent.
+export async function purgePrivateData(ref: firestore.DocumentReference): Promise<number> {
+  const [priv, safety] = await Promise.all([ref.collection('private').get(), ref.collection('safety').get()]);
+  const docs = [...priv.docs, ...safety.docs];
+  if (docs.length === 0) return 0;
+  const batch = ref.firestore.batch();
+  docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  return docs.length;
+}
+
 // ── Pause / close (neutral) ─────────────────────────────────────────────────
 
 export async function setNeutralState(c: Ctx, uid: string, coupleId: unknown, mediationId: unknown, state: 'paused' | 'closed') {
   const { coupleId: cid } = await requireMember(c.db, uid, coupleId);
   const ref = mediationRef(c.db, cid, mediationId);
-  return c.db.runTransaction(async (tx) => {
+  const result = await c.db.runTransaction(async (tx) => {
     const d = (await tx.get(ref)).data();
     if (!d) throw err('not-found', 'not-found');
     if (!OPEN_STATUSES.includes(d.status) && !(state === 'closed' && d.status === 'paused')) throw err('wrong-status');
@@ -312,6 +327,9 @@ export async function setNeutralState(c: Ctx, uid: string, coupleId: unknown, me
     tx.update(ref, { status: state as Status, updatedAt: FieldValue.serverTimestamp(), reminderAt: null, reminderSent: true });
     return { status: state };
   });
+  // Closing ends the talk for good: nothing private stays behind.
+  if (state === 'closed') await purgePrivateData(ref);
+  return result;
 }
 
 // ── Scheduler work ──────────────────────────────────────────────────────────
@@ -342,6 +360,7 @@ export async function expireStale(db: Db, now: Date): Promise<number> {
     const m = d.data();
     if (EXPIRABLE_STATUSES.includes(m.status)) {
       await d.ref.update({ status: 'expired' as Status, expiresAt: null, reminderAt: null, reminderSent: true, updatedAt: FieldValue.serverTimestamp() });
+      await purgePrivateData(d.ref);
       n++;
     } else {
       await d.ref.update({ expiresAt: null });

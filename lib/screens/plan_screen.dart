@@ -11,6 +11,7 @@ import '../models/language_provider.dart';
 import '../models/weekly_ideas_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
+import 'mediation/mediation_hub_screen.dart';
 import 'couple_game_screen.dart';
 import 'ideas_screen.dart';
 
@@ -257,6 +258,10 @@ class _PlanScreenState extends State<PlanScreen> {
               onConfirm: _confirmDate,
               onDelete: _deletePlan,
             ),
+            const SizedBox(height: 24),
+            _SectionLabel(s.medTitle),
+            const SizedBox(height: 10),
+            _MediationEntryCard(s: s),
             const SizedBox(height: 24),
             _SectionLabel(s.planCoupleGameSection),
             const SizedBox(height: 10),
@@ -855,6 +860,54 @@ class _CalNavButton extends StatelessWidget {
 }
 
 // ─── Couple game card ─────────────────────────────────────────────────────────
+
+// ── "Oss mot problemet" entry (same card pattern as the couple game) ─────────
+class _MediationEntryCard extends StatelessWidget {
+  final AppStrings s;
+  const _MediationEntryCard({required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBF1EE),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDFAFA2), width: 1),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF8B2E42).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.forum_outlined, color: Color(0xFF8B2E42), size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.medTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2C1A1A), height: 1.3)),
+                const SizedBox(height: 2),
+                Text(s.medPlanEntryLine, style: const TextStyle(fontSize: 12, color: Color(0xFF9A7E78))),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right, color: Color(0xFF8B2E42)),
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(builder: (_) => const MediationHubScreen()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _CoupleGameCard extends StatelessWidget {
   final AppStrings s;

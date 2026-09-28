@@ -279,7 +279,7 @@ class _AnswersState extends State<_Answers> {
       if (!ok || !mounted) return;
       if (flagged) {
         // Only THIS user ever sees this; the talk itself does not change.
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MediationSafetyScreen()));
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => MediationSafetyScreen(mediationId: widget.m.id)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

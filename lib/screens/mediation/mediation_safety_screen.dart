@@ -1,13 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/app_state.dart';
 import '../../models/language_provider.dart';
+import '../../services/mediation_service.dart';
 import '../../theme/app_theme.dart';
 
 /// The only serious screen. Shown ONLY to the person whose own answers were
 /// flagged, right after they submitted. Nothing about it reaches the partner.
-class MediationSafetyScreen extends StatelessWidget {
-  const MediationSafetyScreen({super.key});
+class MediationSafetyScreen extends StatefulWidget {
+  /// The talk the flagged submission belongs to — lets the user close it.
+  final String mediationId;
+  const MediationSafetyScreen({super.key, required this.mediationId});
+
+  @override
+  State<MediationSafetyScreen> createState() => _MediationSafetyScreenState();
+}
+
+class _MediationSafetyScreenState extends State<MediationSafetyScreen> {
+  bool _closing = false;
+
+  Future<void> _closeTalk() async {
+    final coupleId = context.read<AppState>().coupleId;
+    final nav = Navigator.of(context);
+    setState(() => _closing = true);
+    try {
+      await MediationService.setState(coupleId, widget.mediationId, 'closed');
+    } catch (_) {
+      // Closing is a courtesy here; the screen still exits.
+    }
+    if (mounted) nav.popUntil((r) => r.isFirst);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +55,17 @@ class MediationSafetyScreen extends StatelessWidget {
               const Spacer(),
               Text(s.medSafetyPrivate, style: const TextStyle(fontSize: 13, color: AppTheme.textMuted, height: 1.4)),
               const SizedBox(height: 14),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.accentRose,
+                  side: const BorderSide(color: AppTheme.accentRose, width: 1.5),
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: _closing ? null : _closeTalk,
+                child: Text(s.medSafetyCloseTalk, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 10),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: AppTheme.accentRose, minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                 onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
