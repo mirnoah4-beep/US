@@ -1323,7 +1323,8 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
       choice.toOverrides(isParent: profile.isParent),
     );
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.forTonightFailed)));
+      final msg = provider.lastTonightError == 'rate-limited' ? s.forTonightRateLimited : s.forTonightFailed;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 

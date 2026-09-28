@@ -294,6 +294,10 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   List<WeeklyIdea>? get tonightIdeas => _tonight;
   bool get tonightLoading => _tonightLoading;
 
+  /// Why the last For tonight attempt failed: 'rate-limited' (the per-couple
+  /// hourly cap), 'network', or null after a success.
+  String? lastTonightError;
+
   /// What the carousel renders: tonight's temporary set when present, else
   /// the untouched weekly set.
   List<WeeklyIdea> get displayIdeas => _tonight ?? ideas;
@@ -314,11 +318,23 @@ class WeeklyIdeasProvider extends ChangeNotifier {
           .map((e) => WeeklyIdea.fromJson(Map<String, dynamic>.from(e as Map)))
           .where((i) => i.titleNo.isNotEmpty || i.titleEn.isNotEmpty)
           .toList();
-      if (parsed.isEmpty) return false;
+      if (parsed.isEmpty) {
+        lastTonightError = 'network';
+        return false;
+      }
       await _prefetchImageUrls(parsed.take(4).toList());
       _tonight = parsed;
+      lastTonightError = null;
       return true;
+    } on FirebaseFunctionsException catch (e, st) {
+      // The hourly cap is an expected outcome, not a crash.
+      lastTonightError = e.code == 'resource-exhausted' ? 'rate-limited' : 'network';
+      if (lastTonightError == 'network') {
+        FirebaseCrashlytics.instance.recordError(e, st, reason: 'generateForTonight');
+      }
+      return false;
     } catch (e, st) {
+      lastTonightError = 'network';
       if (kDebugMode) debugPrint('WeeklyIdeasProvider forTonight failed: $e');
       FirebaseCrashlytics.instance.recordError(e, st, reason: 'generateForTonight');
       return false;

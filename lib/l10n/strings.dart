@@ -1052,6 +1052,7 @@ class AppStrings {
   String get forTonightCta => isNorwegian ? 'Finn ideer for i kveld' : 'Find ideas for tonight';
   String get forTonightNote => isNorwegian ? 'Ukens ideer beholdes – dette er bare et midlertidig forslag.' : "This week's ideas are kept – this is just a temporary suggestion.";
   String get forTonightBadge => isNorwegian ? 'I kveld' : 'Tonight';
+  String get forTonightRateLimited => isNorwegian ? 'Dere har hentet mange forslag den siste timen. Prøv igjen litt senere.' : 'You have fetched a lot of suggestions this hour. Please try again a little later.';
   String get forTonightFailed => isNorwegian ? 'Kunne ikke hente ideer for i kveld. Prøv igjen.' : 'Could not fetch ideas for tonight. Please try again.';
   String get onbAreYouParentsTitle => isNorwegian ? 'Er dere foreldre?' : 'Are you parents?';
   String get onbWhereDoYouLikeTitle => isNorwegian ? 'Hvor liker dere å være?' : 'Where do you like to be?';
