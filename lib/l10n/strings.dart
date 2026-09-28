@@ -531,6 +531,7 @@ class AppStrings {
   String get planNoUpcomingSub => isNorwegian ? 'Trykk på en dato og planlegg noe' : 'Tap a date and plan something';
   String get planCustomHint => isNorwegian ? 'Beskriv hva dere vil gjøre...' : 'Describe what you want to do...';
   String get planCoupleGameSection => isNorwegian ? 'Par-spill' : 'Couple game';
+  String get planMediationSection => isNorwegian ? 'Sammen om det' : 'Together through it';
   String get planCoupleGameSub => isNorwegian ? '10 spørsmål · 5 min' : '10 questions · 5 min';
   List<String> get planMonthNames => isNorwegian
       ? ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember']
