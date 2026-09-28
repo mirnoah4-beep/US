@@ -1,4 +1,4 @@
-// Widget: NO/EN labels, one row without overflow at 320 dp × 1.3 text scale, semantics, toggle.
+// Widget: segmented control — NO/EN labels, one row without overflow at 320 dp × 1.3 text scale, semantics, toggle.
 import 'package:flutter/material.dart';
 import 'dart:ui' show Tristate;
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +23,7 @@ void main() {
   testWidgets('Norwegian labels, one row, no heading', (t) async {
     await t.pumpWidget(host(no: true));
     expect(find.text('Hvor mye tid har dere?'), findsNothing);
-    expect(find.byType(Row), findsWidgets);
+    expect(find.byIcon(Icons.bolt_rounded), findsNothing, reason: 'text-only segments');
     expect(find.text('10 min'), findsOneWidget);
     expect(find.text('1 t'), findsOneWidget);
     expect(find.text('2+ t'), findsOneWidget);

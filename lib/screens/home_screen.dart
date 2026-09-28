@@ -1454,11 +1454,10 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Flexible(
+            Expanded(
               child: Text(
                 heading,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: false,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 18,
@@ -1491,44 +1490,31 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                 ),
               ),
             ],
-            const Spacer(),
+            // Secondary action — visually lighter than the heading.
             if (appState.coupleId.isNotEmpty && appState.partnerId.isNotEmpty)
-              TextButton.icon(
+              TextButton(
                 onPressed: provider.tonightLoading ? null : () => _openForTonight(context),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   minimumSize: const Size(0, 28),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: AppTheme.accentRose,
                 ),
-                icon: provider.tonightLoading
-                    ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.nightlight_round, size: 14),
-                label: Text(s.forTonightTitle,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              ),
-            if (ideas.isNotEmpty && imagesReady) const SizedBox(width: 6),
-            if (ideas.isNotEmpty && imagesReady)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(ideas.length, (i) {
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(left: 5),
-                    decoration: BoxDecoration(
-                      color: i == _page
-                          ? AppTheme.accentRose
-                          : const Color(0xFFDDDDDD),
-                      shape: BoxShape.circle,
-                    ),
-                  );
-                }),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(s.forTonightTitle,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 3),
+                    provider.tonightLoading
+                        ? const SizedBox(width: 11, height: 11, child: CircularProgressIndicator(strokeWidth: 1.5))
+                        : const Icon(Icons.arrow_forward_rounded, size: 13),
+                  ],
+                ),
               ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         // Session-only time shortcut (in memory; never persisted) — part of
         // the recommendation section, directly under its header (den.png).
         HomeTimeSelector(
@@ -1536,7 +1522,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           selected: timeBucket,
           onToggle: HomeTimeSelection.instance.toggle,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         if (!imagesReady)
           const SizedBox(height: 185)
         else if (ideas.isEmpty)
@@ -1568,6 +1554,30 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                   partnerName: appState.partnerName,
                   hasPartner: appState.partnerId.isNotEmpty,
                 ),
+              ),
+            ),
+          ),
+        // Pagination dots live with the carousel, under the card.
+        if (imagesReady && ideas.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(ideas.length, (i) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: i == _page ? 14 : 6,
+                    height: 6,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: i == _page
+                          ? AppTheme.accentRose
+                          : const Color(0xFFDDDDDD),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  );
+                }),
               ),
             ),
           ),
