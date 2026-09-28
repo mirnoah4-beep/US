@@ -337,22 +337,26 @@ export const generateForTonight = onCall(
 
 const FOR_TONIGHT_MAX_PER_HOUR = 8;
 
-// ── TEMPORARY (pre-launch, admin only): sync the idea library into Firestore
-// and ensure every library idea has a cover, reusing existing ones first.
-// Delete after the library backfill has run. Guarded by admin uid + token.
-const ADMIN_UID = '1RTxZHUV1NbvNlFsXhwl5LeEgFw1';
+// ── TEMPORARY (pre-launch): sync the idea library into Firestore and ensure
+// every library idea has a cover, reusing existing ones first. Triggered by
+// creating adminJobs/{jobId} = { token, dryRun, maxNewImages } (a server-only
+// collection — no client rule exists for it), result written back to the
+// document. Delete after the library backfill has run.
 const LIBRARY_SYNC_TOKEN = 'us-library-sync-2026-09-28';
-export const adminSyncIdeaLibrary = onCall(
-  { region: 'europe-west1', secrets: ['OPENAI_API_KEY'], timeoutSeconds: 540, memory: '512MiB' },
-  async (request) => {
-    if (!request.auth || request.auth.uid !== ADMIN_UID) {
-      throw new HttpsError('permission-denied', 'admin only');
+export const adminSyncIdeaLibrary = onDocumentCreated(
+  { document: 'adminJobs/{jobId}', region: 'europe-west1', secrets: ['OPENAI_API_KEY'], timeoutSeconds: 540, memory: '512MiB' },
+  async (event) => {
+    const job = event.data?.data();
+    const ref = event.data?.ref;
+    if (!job || !ref) return;
+    if (job.token !== LIBRARY_SYNC_TOKEN || job.type !== 'syncIdeaLibrary') {
+      await ref.set({ status: 'rejected' }, { merge: true });
+      return;
     }
-    if (request.data?.token !== LIBRARY_SYNC_TOKEN) {
-      throw new HttpsError('permission-denied', 'bad token');
-    }
-    const dryRun = request.data?.dryRun !== false;
-    const maxNewImages = Math.min(Number(request.data?.maxNewImages ?? 0) || 0, 80);
+    if (job.status) return; // one-shot guard
+    await ref.set({ status: 'running', startedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    const dryRun = job.dryRun !== false;
+    const maxNewImages = Math.min(Number(job.maxNewImages ?? 0) || 0, 80);
     const firestore = admin.firestore();
     const deps = { firestore, bucket: admin.storage().bucket(), openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) };
     const out = { dryRun, docsWritten: 0, alreadyOk: 0, repaired: 0, generated: 0, failed: 0, wouldGenerate: [] as string[], errors: [] as string[] };
@@ -367,6 +371,7 @@ export const adminSyncIdeaLibrary = onCall(
         const snap = await firestore.collection('ideas').doc(idea.id).get();
         const url = snap.data()?.coverImageUrl;
         if (typeof url === 'string' && url.startsWith('http')) { out.alreadyOk++; continue; }
+        if (url !== undefined && url !== null) out.errors.push(`${idea.id}: broken coverImageUrl`);
         const [exists] = await deps.bucket.file(`ideas/${idea.id}/cover.jpg`).exists();
         if (exists) { out.repaired++; continue; }
         out.wouldGenerate.push(idea.id);
@@ -379,7 +384,7 @@ export const adminSyncIdeaLibrary = onCall(
       else { out.failed++; out.errors.push(`${idea.id}: ${res.error}`); }
     }
     console.log(`[librarySync] ${JSON.stringify({ ...out, wouldGenerate: out.wouldGenerate.length })}`);
-    return out;
+    await ref.set({ status: 'done', finishedAt: admin.firestore.FieldValue.serverTimestamp(), result: out }, { merge: true });
   }
 );
 
