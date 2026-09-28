@@ -23,7 +23,10 @@ class MediationHubScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
     final provider = context.watch<MediationProvider>();
     provider.init(appState.coupleId);
-    final current = provider.current;
+    // A talk the partner is still drafting privately is not shown to the
+    // other side — nothing exists for them until the invitation is sent.
+    final open = provider.current;
+    final current = open != null && (open.status == 'drafting' || open.status == 'invitationDraft') && !open.isInitiator(appState.userId) ? null : open;
     final hasPartner = appState.partnerId.isNotEmpty;
 
     if (openMediationId != null && provider.initialized) {
@@ -50,6 +53,8 @@ class MediationHubScreen extends StatelessWidget {
           const SizedBox(height: 18),
           if (!hasPartner)
             _Card(child: Text(s.medNoPartner, style: const TextStyle(color: AppTheme.textSecondary)))
+          else if (current == null && open != null)
+            _Card(child: Text(s.medAlreadyOpen, style: const TextStyle(color: AppTheme.textSecondary)))
           else if (current == null)
             FilledButton(
               style: FilledButton.styleFrom(

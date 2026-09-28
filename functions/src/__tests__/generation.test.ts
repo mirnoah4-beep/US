@@ -34,8 +34,9 @@ const OPENAI_DEPENDENT = [
   'generateWeeklyIdeasNow',       // calls generateForCouple
   'generateForTonight',           // calls generateTemporaryIdeas → callOpenAI
   // mediation: mediationCtx() → mediationAi() reads the key
-  'mediationCreate', 'mediationRespond', 'mediationSubmit', 'mediationRetrySummary', 'mediationNudge',
-  'mediationCorrectNeed', 'mediationEditAgreement', 'mediationAccept', 'mediationSetState',
+  'mediationCreate', 'mediationSubmitTopic', 'mediationRephraseInvitation', 'mediationApproveInvitation', 'mediationRespond',
+  'mediationSubmitAnswer', 'mediationSubmitFeedback', 'mediationRetryGeneration', 'mediationNudge',
+  'mediationEditAgreement', 'mediationAccept', 'mediationSetState',
 ];
 
 for (const fn of OPENAI_DEPENDENT) {

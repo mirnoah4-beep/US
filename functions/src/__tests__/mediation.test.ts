@@ -2,19 +2,26 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
 import {
-  validateAnswers, reminderInstant, localToUtc, expiryInstant, agreementHash, phraseSafetyScan,
-  parseSafetyOutput, combineSafety, buildGenerationPrompt, parseGenerationOutput, outputIsNeutral,
-  applyAgreementEdit, bothAccepted, canNudge, isCategory, isTiming, EXPIRY_DAYS,
+  validateTopic, validateAnswer, validateFeedback, reminderInstant, localToUtc, expiryInstant, agreementHash, phraseSafetyScan,
+  parseSafetyOutput, combineSafety, repeatsVerbatim, textIsNeutral, buildInvitationPrompt, parseInvitationOutput,
+  buildRound1Prompt, parseRoundOutput, buildRevisionPrompt, parseRevisionOutput, agreementFromProposal,
+  applyAgreementEdit, bothAccepted, canNudge, isCategory, isTiming, EXPIRY_DAYS, UNRESOLVED_NOTE,
 } from '../mediation';
 
 const OSLO = 'Europe/Oslo';
 
-test('answers: all three required, trimmed, bounded', () => {
-  const ok = validateAnswers({ whatHappened: ' a ', whatINeed: 'b', whatICanDo: 'c' });
-  assert.ok(ok.ok && ok.answers.whatHappened === 'a');
-  assert.deepStrictEqual(validateAnswers({ whatHappened: 'a', whatINeed: '  ', whatICanDo: 'c' }), { ok: false, field: 'whatINeed' });
-  assert.deepStrictEqual(validateAnswers({ whatHappened: 'x'.repeat(2001), whatINeed: 'b', whatICanDo: 'c' }), { ok: false, field: 'whatHappened' });
-  assert.deepStrictEqual(validateAnswers(null), { ok: false, field: 'missing' });
+test('private inputs: kind-tagged, trimmed, bounded; feedback choice restricted', () => {
+  assert.deepStrictEqual(validateTopic({ kind: 'topic', topic: ' telefonen  ved bordet ', wish: 'mer ro' }), { topic: 'telefonen ved bordet', wish: 'mer ro' });
+  assert.strictEqual(validateTopic({ topic: 'a', wish: 'b' }), null, 'kind required');
+  assert.strictEqual(validateTopic({ kind: 'topic', topic: 'a', wish: '   ' }), null);
+  assert.strictEqual(validateTopic({ kind: 'topic', topic: 'x'.repeat(1001), wish: 'b' }), null);
+  assert.strictEqual(validateTopic(null), null);
+  assert.deepStrictEqual(validateAnswer({ kind: 'answer', view: 'v', need: 'n' }), { view: 'v', need: 'n' });
+  assert.strictEqual(validateAnswer({ kind: 'topic', view: 'v', need: 'n' }), null, 'wrong kind');
+  assert.deepStrictEqual(validateFeedback({ kind: 'feedback', feedback: 'happy' }), { feedback: 'happy', addition: '' }, 'addition optional');
+  assert.deepStrictEqual(validateFeedback({ kind: 'feedback', feedback: 'almost', addition: ' litt tidligere ' }), { feedback: 'almost', addition: 'litt tidligere' });
+  assert.strictEqual(validateFeedback({ kind: 'feedback', feedback: 'no' }), null);
+  assert.strictEqual(validateFeedback({ kind: 'feedback', feedback: 'almost', addition: 'x'.repeat(301) }), null);
   assert.ok(isCategory('kids') && !isCategory('politics') && isTiming('tonight') && !isTiming('never'));
 });
 
@@ -70,52 +77,79 @@ test('safety: explicit phrases flag; ordinary conflict does not; model verdict c
   assert.strictEqual(combineSafety([], { flagged: false, categories: [] }).flagged, false);
 });
 
-const input = {
-  category: 'chores' as const,
-  starter: { uid: 'uidA', name: 'Adel', lang: 'no' as const },
-  partner: { uid: 'uidB', name: 'Liv', lang: 'en' as const },
-  answers: {
-    uidA: { whatHappened: 'Jeg tar all oppvasken', whatINeed: 'Litt hjelp', whatICanDo: 'Si ifra tidligere' },
-    uidB: { whatHappened: 'I cook every day', whatINeed: 'Appreciation', whatICanDo: 'Do the dishes twice a week' },
-  },
-  langs: ['no', 'en'] as ('no' | 'en')[],
-};
+const adel = { uid: 'uidA', name: 'Adel', lang: 'no' as const };
+const liv = { uid: 'uidB', name: 'Liv', lang: 'en' as const };
+const RAW_TOPIC = 'Jeg blir sliten av at telefonen alltid er framme når vi spiser middag sammen på kveldene.';
+const RAW_WISH = 'At vi legger bort telefonen under middagen og faktisk snakker sammen.';
 
-test('prompt names the non-starter first and asks for both languages', () => {
-  const p = buildGenerationPrompt(input);
-  assert.ok(p.indexOf('Liv') < p.indexOf('Adel'));
+test('verbatim guard: 5+ consecutive words from the raw input is a copy; topic words alone are fine', () => {
+  const raws = [RAW_TOPIC, RAW_WISH];
+  // Realistic neutral rewrites that reuse the topic words MUST pass.
+  assert.ok(!repeatsVerbatim('Adel vil gjerne snakke om telefonen ved middagsbordet.', raws));
+  assert.ok(!repeatsVerbatim('Dere ønsker begge mer ro rundt husarbeid og telefonen.', raws));
+  assert.ok(!repeatsVerbatim('Liv og Adel vil ha roligere kvelder – kveldene er viktige for dere begge.', raws));
+  assert.ok(!repeatsVerbatim('Dere vil legge bort telefonen når dere spiser.', raws), 'four shared words in a row is still allowed');
+  // A copied sentence fragment (5+ words, punctuation/case ignored) is rejected.
+  assert.ok(repeatsVerbatim('Det er slitsomt at TELEFONEN alltid er framme når vi spiser.', raws));
+  assert.ok(repeatsVerbatim('Ønsket er: "at vi legger bort telefonen under middagen".', raws));
+  assert.ok(!repeatsVerbatim('kort', raws));
+});
+
+test('invitation prompt: second person to the partner, both languages, rephrase hint; output guarded', () => {
+  const p = buildInvitationPrompt({ category: 'communication', initiator: adel, partner: liv, topic: RAW_TOPIC, wish: RAW_WISH, langs: ['no', 'en'], rephrase: 0 });
+  assert.match(p, /addressed to Liv/); assert.match(p, /Norwegian \(bokmål\) AND English/); assert.doesNotMatch(p, /rephrase #/);
+  assert.match(buildInvitationPrompt({ category: 'communication', initiator: adel, partner: liv, topic: 't', wish: 'w', langs: ['no'], rephrase: 2 }), /rephrase #2/);
+  const ok = parseInvitationOutput({ no: 'Hei Liv – jeg vil gjerne snakke om telefonen ved middagen. Håper vi kan finne mer ro sammen.', en: 'Hi Liv – I would like to talk about phones at dinner. Hoping for calmer evenings together.' }, ['no', 'en'], [RAW_TOPIC, RAW_WISH]);
+  assert.ok(ok && ok.no && ok.en);
+  assert.strictEqual(parseInvitationOutput({ no: 'bare norsk' }, ['no', 'en'], []), null, 'missing language');
+  assert.strictEqual(parseInvitationOutput({ no: 'Du har alltid telefonen framme.' }, ['no'], []), null, 'absolutes rejected');
+  assert.strictEqual(parseInvitationOutput({ no: `Adel sa: ${RAW_TOPIC}` }, ['no'], [RAW_TOPIC, RAW_WISH]), null, 'verbatim copy rejected');
+  assert.ok(parseInvitationOutput({ no: 'x'.repeat(500) }, ['no'], [])!.no!.length <= 280, 'long line trimmed');
+});
+
+test('round-1 prompt carries BOTH perspectives (initiator topic+wish, partner view+need), partner named first', () => {
+  const p = buildRound1Prompt({ category: 'chores', initiator: adel, partner: liv, invitation: 'inv', topic: RAW_TOPIC, wish: RAW_WISH, view: 'Jeg trenger pausen', need: 'litt tid alene', langs: ['no', 'en'] });
+  const partnersLine = p.split('\n').find((l) => l.startsWith('Two partners:'))!;
+  assert.ok(partnersLine.indexOf('Liv') < partnersLine.indexOf('Adel'));
   assert.match(p, /Always mention Liv before Adel/);
-  assert.match(p, /Norwegian \(bokmål\) AND English/);
-  assert.match(p, /"no": \{/); assert.match(p, /"en": \{/);
-  assert.match(p, /uidA/); assert.match(p, /uidB/);
+  assert.match(p, /Liv — how they see it: Jeg trenger pausen \| what they need: litt tid alene/);
+  assert.match(p, new RegExp(`Adel — what they wanted to bring up: ${RAW_TOPIC.slice(0, 20)}`));
+  assert.match(p, /"no": \{/); assert.match(p, /"en": \{/); assert.match(p, /uidA/); assert.match(p, /uidB/);
 });
 
-const good = (lang: string) => ({
-  sameTeam: 'Dere vil begge ha et hjem som fungerer.', different: 'Dere ser ulikt på hvem som gjør mest.',
-  needs: { uidB: 'Liv trenger å bli sett.', uidA: 'Adel trenger litt hjelp.' }, idea: 'Prøv en fast oppvaskdag.',
-  agreement: { shared: `Vi deler oppvasken (${lang}).`, perPartner: { uidA: 'Adel sier ifra tidligere.', uidB: 'Liv tar oppvasken to dager.' } },
+const round = () => ({
+  sameTeam: 'Dere vil begge ha rolige middager.', different: 'Dere ser ulikt på hvor ofte telefonen er framme.',
+  needs: { uidB: 'Liv trenger en pause etter jobb.', uidA: 'Adel trenger oppmerksomhet ved bordet.' }, proposal: 'Prøv telefonfri middag tre kvelder denne uka.',
 });
 
-test('generation output: validated per language and uid; missing pieces → null; long lines trimmed', () => {
-  const out = parseGenerationOutput({ no: good('no'), en: good('en') }, ['no', 'en'], ['uidA', 'uidB']);
+test('round output: validated per language and uid; neutrality; long lines trimmed', () => {
+  const out = parseRoundOutput({ no: round(), en: round() }, ['no', 'en'], ['uidB', 'uidA']);
   assert.ok(out);
-  assert.strictEqual(out!.summary.no!.needs.uidA, 'Adel trenger litt hjelp.');
-  assert.strictEqual(out!.agreement.en!.shared, 'Vi deler oppvasken (en).');
-  assert.strictEqual(parseGenerationOutput({ no: good('no') }, ['no', 'en'], ['uidA', 'uidB']), null, 'missing language');
-  const missingUid = { no: { ...good('no'), needs: { uidA: 'x' } } };
-  assert.strictEqual(parseGenerationOutput(missingUid, ['no'], ['uidA', 'uidB']), null);
-  assert.strictEqual(parseGenerationOutput('nope', ['no'], ['uidA']), null);
-  const long = { no: { ...good('no'), idea: 'x'.repeat(500) } };
-  assert.ok(parseGenerationOutput(long, ['no'], ['uidA', 'uidB'])!.summary.no!.idea.length <= 280);
+  assert.strictEqual(out!.no!.needs.uidA, 'Adel trenger oppmerksomhet ved bordet.');
+  assert.strictEqual(parseRoundOutput({ no: round() }, ['no', 'en'], ['uidB', 'uidA']), null, 'missing language');
+  assert.strictEqual(parseRoundOutput({ no: { ...round(), needs: { uidA: 'x' } } }, ['no'], ['uidB', 'uidA']), null, 'missing uid');
+  assert.strictEqual(parseRoundOutput({ no: { ...round(), different: 'Adel har rett og Liv tar feil.' } }, ['no'], ['uidB', 'uidA']), null);
+  assert.strictEqual(parseRoundOutput({ no: { ...round(), proposal: 'Liv is being toxic here.' } }, ['no'], ['uidB', 'uidA']), null);
+  assert.strictEqual(parseRoundOutput('nope', ['no'], ['uidA']), null);
+  assert.ok(parseRoundOutput({ no: { ...round(), proposal: 'x'.repeat(500) } }, ['no'], ['uidB', 'uidA'])!.no!.proposal.length <= 280);
+  assert.ok(textIsNeutral('Dere vil begge ha ro.') && !textIsNeutral('Du gjør aldri noe.'));
 });
 
-test('output neutrality guard rejects winner/label language', () => {
-  const ok = parseGenerationOutput({ no: good('no') }, ['no'], ['uidA', 'uidB'])!;
-  assert.ok(outputIsNeutral(ok));
-  const bad = parseGenerationOutput({ no: { ...good('no'), different: 'Adel har rett og Liv tar feil.' } }, ['no'], ['uidA', 'uidB'])!;
-  assert.ok(!outputIsNeutral(bad));
-  const bad2 = parseGenerationOutput({ no: { ...good('no'), idea: 'Liv is being toxic here.' } }, ['no'], ['uidA', 'uidB'])!;
-  assert.ok(!outputIsNeutral(bad2));
+test('revision prompt: private feedback without names as authors of the change; output guarded against copying additions', () => {
+  const p = buildRevisionPrompt({ round: 2, langs: ['no'], partnerFirst: liv, initiator: adel, previous: { no: round() }, feedback: { uidB: { feedback: 'happy', addition: '' }, uidA: { feedback: 'almost', addition: 'heller to kvelder enn tre' } } });
+  assert.match(p, /Round 2 of at most 3/); assert.match(p, /Liv: happy/); assert.match(p, /Adel: almost — wants a tweak: heller to kvelder enn tre/);
+  assert.match(p, /without attributing it to a person/);
+  const ok = parseRevisionOutput({ no: { proposal: 'Prøv telefonfri middag to kvelder denne uka.', whatChanged: 'Antall kvelder ble justert ned.' } }, ['no'], ['heller to kvelder enn tre']);
+  assert.ok(ok && ok.no);
+  assert.strictEqual(parseRevisionOutput({ no: { proposal: 'ok', whatChanged: 'Adel ville heller ha to kvelder enn tre kvelder.' } }, ['no'], ['jeg vil heller ha to kvelder enn tre kvelder']), null, 'copied addition rejected');
+  assert.strictEqual(parseRevisionOutput({ no: { proposal: 'ok' } }, ['no'], []), null, 'whatChanged required');
+});
+
+test('agreement from an accepted proposal: shared = proposal, neutral per-partner lines, per language; unresolved note in both languages', () => {
+  const a = agreementFromProposal({ no: 'Telefonfri middag.', en: 'Phone-free dinner.' }, ['uidB', 'uidA']);
+  assert.strictEqual(a.no!.shared, 'Telefonfri middag.');
+  assert.deepStrictEqual(a.en!.perPartner, { uidB: 'Tries the suggestion this week.', uidA: 'Tries the suggestion this week.' });
+  assert.ok(UNRESOLVED_NOTE.no.length > 0 && UNRESOLVED_NOTE.en.length > 0 && textIsNeutral(UNRESOLVED_NOTE.no) && textIsNeutral(UNRESOLVED_NOTE.en));
 });
 
 test('edit: shared + own line only, mirrored to the other language; cannot touch the partner line', () => {

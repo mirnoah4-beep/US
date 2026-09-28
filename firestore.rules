@@ -116,7 +116,7 @@ service cloud.firestore {
       // mediations/{m}/private/{uid}: ONE user's private draft — owner only,
       // while the talk is being answered, draft:true only; the server locks
       // (draft:false, submittedAt) and later deletes it.
-      // mediations/{m}/safety/*: server-only, no rule.
+      // mediations/{m}/server/* and safety/*: server-only, no rule.
       match /mediations/{mediationId} {
         function isMedMember() {
           return request.auth != null
@@ -124,25 +124,43 @@ service cloud.firestore {
               /databases/$(database)/documents/couples/$(coupleId)
             ).data.members;
         }
-        function mediationAnswering() {
+        function medStatus() {
           return exists(/databases/$(database)/documents/couples/$(coupleId)/mediations/$(mediationId))
-            && get(/databases/$(database)/documents/couples/$(coupleId)/mediations/$(mediationId)).data.status in ['answering', 'waiting'];
+            ? get(/databases/$(database)/documents/couples/$(coupleId)/mediations/$(mediationId)).data.status
+            : '';
+        }
+        // One private draft per user, whose kind must match the stage:
+        //   topic    (initiator, while drafting)     — topic + wish
+        //   answer   (partner, while answering)      — view + need
+        //   feedback (either, while a round is open) — happy|almost + addition
+        function boundedStr(d, k, max) {
+          return !(k in d) || (d[k] is string && d[k].size() <= max);
         }
         function isValidDraft() {
           let d = request.resource.data;
-          return d.keys().hasOnly(['whatHappened', 'whatINeed', 'whatICanDo', 'draft', 'updatedAt'])
-            && d.draft == true
-            && (!('whatHappened' in d) || (d.whatHappened is string && d.whatHappened.size() <= 2000))
-            && (!('whatINeed' in d) || (d.whatINeed is string && d.whatINeed.size() <= 2000))
-            && (!('whatICanDo' in d) || (d.whatICanDo is string && d.whatICanDo.size() <= 2000));
+          return d.draft == true
+            && d.keys().hasOnly(['kind', 'round', 'topic', 'wish', 'view', 'need', 'feedback', 'addition', 'draft', 'updatedAt'])
+            && (
+              (d.kind == 'topic' && medStatus() == 'drafting'
+                && d.keys().hasOnly(['kind', 'topic', 'wish', 'draft', 'updatedAt'])
+                && boundedStr(d, 'topic', 1000) && boundedStr(d, 'wish', 1000))
+              || (d.kind == 'answer' && medStatus() == 'answering'
+                && d.keys().hasOnly(['kind', 'view', 'need', 'draft', 'updatedAt'])
+                && boundedStr(d, 'view', 1000) && boundedStr(d, 'need', 1000))
+              || (d.kind == 'feedback' && medStatus() == 'round'
+                && d.keys().hasOnly(['kind', 'round', 'feedback', 'addition', 'draft', 'updatedAt'])
+                && (!('feedback' in d) || d.feedback in ['happy', 'almost'])
+                && (!('round' in d) || d.round is int)
+                && boundedStr(d, 'addition', 300))
+            );
         }
         allow read: if isMedMember();
         allow write: if false;
 
         match /private/{uid} {
           allow read: if isMedMember() && request.auth.uid == uid;
-          allow create: if isMedMember() && request.auth.uid == uid && mediationAnswering() && isValidDraft();
-          allow update: if isMedMember() && request.auth.uid == uid && mediationAnswering()
+          allow create: if isMedMember() && request.auth.uid == uid && isValidDraft();
+          allow update: if isMedMember() && request.auth.uid == uid
             && resource.data.draft == true && isValidDraft();
           allow delete: if false;
         }

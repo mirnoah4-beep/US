@@ -18,21 +18,29 @@ export const TIMINGS = ['now', 'tonight', 'tomorrow'] as const;
 export type Timing = typeof TIMINGS[number];
 export const isTiming = (v: unknown): v is Timing => typeof v === 'string' && (TIMINGS as readonly string[]).includes(v);
 
-/// invited     — partner has not answered the invitation
-/// answering   — both may write/submit private answers
-/// waiting     — one partner has submitted
-/// summary     — summary + draft agreement exist; needs may be corrected,
-///               agreement may be edited/accepted
-/// active      — both accepted the same revision; content frozen
-/// paused / closed — neutral end states (no reason is ever stored here)
-/// expired     — no two submissions within EXPIRY_DAYS
-/// summaryFailed — AI produced no valid output twice; retry allowed
-export const STATUSES = ['invited', 'answering', 'waiting', 'summary', 'active', 'paused', 'closed', 'expired', 'summaryFailed'] as const;
+/// drafting        — initiator writes topic + wish (private)
+/// invitationDraft — neutral invitation generated; initiator approves/rephrases
+/// invited         — partner has not answered the invitation
+/// answering       — partner writes view + need (private)
+/// round           — round N summary + proposal exist; both give feedback
+/// generationFailed— AI produced no valid output twice; retry allowed
+/// agreement       — both were happy; draft agreement may be edited/accepted
+/// active          — both accepted the same revision; content frozen
+/// paused / closed / unresolved — neutral end states (no reason stored)
+/// expired         — no progress within EXPIRY_DAYS
+export const STATUSES = ['drafting', 'invitationDraft', 'invited', 'answering', 'round', 'generationFailed', 'agreement', 'active', 'paused', 'closed', 'unresolved', 'expired'] as const;
 export type Status = typeof STATUSES[number];
 
-export const OPEN_STATUSES: readonly Status[] = ['invited', 'answering', 'waiting', 'summary', 'summaryFailed'];
-export const ANSWERING_STATUSES: readonly Status[] = ['answering', 'waiting'];
-export const EXPIRABLE_STATUSES: readonly Status[] = ['invited', 'answering', 'waiting'];
+export const OPEN_STATUSES: readonly Status[] = ['drafting', 'invitationDraft', 'invited', 'answering', 'round', 'generationFailed', 'agreement'];
+/// States that wait on a person and therefore expire after EXPIRY_DAYS of no progress.
+export const EXPIRABLE_STATUSES: readonly Status[] = ['drafting', 'invitationDraft', 'invited', 'answering', 'round', 'generationFailed', 'agreement'];
+/// States in which the partner may still be reminded to answer.
+export const ANSWERING_STATUSES: readonly Status[] = ['answering'];
+
+export const MAX_REPHRASES = 3;
+export const MAX_ROUNDS = 3;
+export const MAX_TOPIC_CHARS = 1000;
+export const MAX_ADDITION_CHARS = 300;
 
 export const EXPIRY_DAYS = 7;
 export const NUDGE_MIN_GAP_MS = 60 * 60 * 1000;
@@ -46,22 +54,39 @@ export const LATE_TONIGHT_DELAY_MS = 15 * 60 * 1000;
 export type Lang = 'no' | 'en';
 export const langOf = (raw: unknown): Lang => (raw === 'en' ? 'en' : 'no');
 
-// ── Answers ─────────────────────────────────────────────────────────────────
+// ── Private inputs (three kinds, one private doc per user at a time) ────────
 
-export interface Answers { whatHappened: string; whatINeed: string; whatICanDo: string }
+export type PrivateKind = 'topic' | 'answer' | 'feedback';
+export type Feedback = 'happy' | 'almost';
 
-/// Validates a private answers document for submission. Returns the trimmed
-/// answers or the field that is missing/too long.
-export function validateAnswers(raw: Record<string, unknown> | undefined | null):
-  { ok: true; answers: Answers } | { ok: false; field: keyof Answers | 'missing' } {
-  if (!raw) return { ok: false, field: 'missing' };
-  const out: Partial<Answers> = {};
-  for (const k of ['whatHappened', 'whatINeed', 'whatICanDo'] as const) {
-    const v = raw[k];
-    if (typeof v !== 'string' || v.trim().length === 0 || v.length > MAX_ANSWER_CHARS) return { ok: false, field: k };
-    out[k] = v.trim();
-  }
-  return { ok: true, answers: out as Answers };
+export interface TopicInput { topic: string; wish: string }
+export interface AnswerInput { view: string; need: string }
+export interface FeedbackInput { feedback: Feedback; addition: string }
+
+function str(raw: Record<string, unknown>, k: string, max: number, required = true): string | null {
+  const v = raw[k];
+  if (v === undefined || v === null) return required ? null : '';
+  if (typeof v !== 'string' || v.length > max) return null;
+  const t = v.replace(/\s+/g, ' ').trim();
+  return required && t.length === 0 ? null : t;
+}
+
+export function validateTopic(raw: Record<string, unknown> | undefined | null): TopicInput | null {
+  if (!raw || raw.kind !== 'topic') return null;
+  const topic = str(raw, 'topic', MAX_TOPIC_CHARS); const wish = str(raw, 'wish', MAX_TOPIC_CHARS);
+  return topic && wish ? { topic, wish } : null;
+}
+export function validateAnswer(raw: Record<string, unknown> | undefined | null): AnswerInput | null {
+  if (!raw || raw.kind !== 'answer') return null;
+  const view = str(raw, 'view', MAX_TOPIC_CHARS); const need = str(raw, 'need', MAX_TOPIC_CHARS);
+  return view && need ? { view, need } : null;
+}
+export function validateFeedback(raw: Record<string, unknown> | undefined | null): FeedbackInput | null {
+  if (!raw || raw.kind !== 'feedback') return null;
+  if (raw.feedback !== 'happy' && raw.feedback !== 'almost') return null;
+  const addition = str(raw, 'addition', MAX_ADDITION_CHARS, false);
+  if (addition === null) return null;
+  return { feedback: raw.feedback, addition };
 }
 
 // ── Timing / reminders ──────────────────────────────────────────────────────
@@ -192,25 +217,9 @@ export const SAFETY_SYSTEM_PROMPT =
   'money or chores disagreements are NOT flags. When unsure, flagged=false. Categories from: ' +
   'violence, threats, coercive_control, sexual_coercion, fear, danger.';
 
-// ── Summary + agreement generation (prompt + schema) ────────────────────────
+// ── Generation: invitation, round 1, revision ───────────────────────────────
 
 export interface Partner { uid: string; name: string; lang: Lang }
-
-export interface SummaryTexts {
-  sameTeam: string;
-  different: string;
-  needs: Record<string, string>;     // uid → line
-  idea: string;
-}
-export type SummaryByLang = Partial<Record<Lang, SummaryTexts>>;
-
-export interface GenerationInput {
-  category: Category;
-  starter: Partner;      // named SECOND in the output (alternation rule)
-  partner: Partner;      // named first
-  answers: Record<string, Answers>;
-  langs: Lang[];
-}
 
 const CATEGORY_LABEL: Record<Lang, Record<Category, string>> = {
   no: { communication: 'kommunikasjon', time: 'tid sammen', money: 'økonomi', kids: 'barn og familie', chores: 'husarbeid', trust: 'tillit', intimacy: 'nærhet', other: 'noe annet' },
@@ -222,84 +231,172 @@ export const FACILITATOR_SYSTEM_PROMPT =
   'You are a warm, neutral facilitator for a couple using a small everyday app. ' +
   'You NEVER pick a winner, never say who is right or wrong, never diagnose, never use labels ' +
   '(toxic, narcissistic, manipulative, etc.), never invent motives, never shame, and never push reconciliation. ' +
-  'You describe what both said in plain, kind, short everyday language (no therapy or legal tone), ' +
-  'name what each person needs in their own words, and suggest ONE small, concrete thing to try. ' +
+  'You write in plain, kind, short everyday language (no therapy or legal tone). ' +
   'Return ONLY strict JSON matching the requested schema, nothing else.';
 
-/// Builds the user prompt. The partner who did NOT start is named first.
-export function buildGenerationPrompt(input: GenerationInput): string {
-  const first = input.partner;
-  const second = input.starter;
-  const a = (p: Partner) => input.answers[p.uid];
-  const langNames = input.langs.map((l) => (l === 'no' ? 'Norwegian (bokmål)' : 'English')).join(' AND ');
-  const perLang = input.langs.map((l) => `"${l}": {"sameTeam": string, "different": string, "needs": {"${first.uid}": string, "${second.uid}": string}, "idea": string, "agreement": {"shared": string, "perPartner": {"${first.uid}": string, "${second.uid}": string}}}`).join(', ');
+const langNames = (langs: Lang[]) => langs.map((l) => (l === 'no' ? 'Norwegian (bokmål)' : 'English')).join(' AND ');
+
+// ── Verbatim guard (word level) ─────────────────────────────────────────────
+
+const normWords = (t: string): string[] =>
+  t.toLowerCase().normalize('NFC').replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+
+/// True when [output] repeats 5+ consecutive words of any [raw] text
+/// (case-insensitive, punctuation stripped). Single topic words like
+/// "telefonen" or "husarbeid" are fine; copied sentences are not.
+export function repeatsVerbatim(output: string, raws: string[], run = 5): boolean {
+  const out = normWords(output);
+  if (out.length < run) return false;
+  const grams = new Set<string>();
+  for (let i = 0; i + run <= out.length; i++) grams.add(out.slice(i, i + run).join(' '));
+  for (const r of raws) {
+    const w = normWords(r);
+    for (let i = 0; i + run <= w.length; i++) if (grams.has(w.slice(i, i + run).join(' '))) return true;
+  }
+  return false;
+}
+
+/// Words that judge, absolutise or label — not allowed in any generated text.
+const FORBIDDEN_OUTPUT = /\b(narsissist|narcissist|toxic|toksisk|manipulat\w*|gaslight\w*|has? the right|har rett|tar feil|is wrong|skyld(en|ig)?|to blame|blame|alltid|aldri|always|never)\b/i;
+export const textIsNeutral = (t: string): boolean => !FORBIDDEN_OUTPUT.test(t);
+
+// ── Invitation ──────────────────────────────────────────────────────────────
+
+export interface InvitationInput { category: Category; initiator: Partner; partner: Partner; topic: string; wish: string; langs: Lang[]; rephrase: number }
+export type ByLang = Partial<Record<Lang, string>>;
+
+export function buildInvitationPrompt(i: InvitationInput): string {
   return [
-    `Topic: ${categoryLabel(input.category, 'en')}.`,
+    `Topic: ${categoryLabel(i.category, 'en')}.`,
+    `${i.initiator.name} wants to bring something up with their partner ${i.partner.name}.`,
+    `What ${i.initiator.name} wrote privately (NEVER quote it): "${i.topic}" — and what they hope gets better: "${i.wish}".`,
+    `Write a short, warm invitation addressed to ${i.partner.name} (second person), in ${langNames(i.langs)}, max 280 characters per language:`,
+    'name the topic gently, express the hope as a shared wish, no blame, no quotes of harsh wording, no absolutes, no evaluation of the partner.',
+    i.rephrase > 0 ? `This is rephrase #${i.rephrase}: use clearly different wording and structure than a typical first attempt.` : '',
+    `Return JSON: {${i.langs.map((l) => `"${l}": string`).join(', ')}}`,
+  ].filter(Boolean).join('\n');
+}
+
+export function parseInvitationOutput(raw: unknown, langs: Lang[], rawInputs: string[]): ByLang | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const out: ByLang = {};
+  for (const lang of langs) {
+    const t = cleanLine((raw as Record<string, unknown>)[lang], MAX_AGREEMENT_CHARS);
+    if (!t || !textIsNeutral(t) || repeatsVerbatim(t, rawInputs)) return null;
+    out[lang] = t;
+  }
+  return out;
+}
+
+// ── Round 1: summary + proposal ─────────────────────────────────────────────
+
+export interface RoundTexts { sameTeam: string; different: string; needs: Record<string, string>; proposal: string }
+export type RoundByLang = Partial<Record<Lang, RoundTexts>>;
+
+export interface Round1Input {
+  category: Category; initiator: Partner; partner: Partner; invitation: string;
+  topic: string; wish: string; view: string; need: string; langs: Lang[];
+}
+
+/// The partner (non-initiator) is named first.
+export function buildRound1Prompt(i: Round1Input): string {
+  const first = i.partner; const second = i.initiator;
+  const per = i.langs.map((l) => `"${l}": {"sameTeam": string, "different": string, "needs": {"${first.uid}": string, "${second.uid}": string}, "proposal": string}`).join(', ');
+  return [
+    `Topic: ${categoryLabel(i.category, 'en')}. The invitation ${second.name} sent: "${i.invitation}"`,
     `Two partners: ${first.name} (id ${first.uid}) and ${second.name} (id ${second.uid}). Always mention ${first.name} before ${second.name}.`,
-    '',
-    `${first.name} wrote — What happened: ${a(first).whatHappened} | What I need: ${a(first).whatINeed} | What I could do myself: ${a(first).whatICanDo}`,
-    `${second.name} wrote — What happened: ${a(second).whatHappened} | What I need: ${a(second).whatINeed} | What I could do myself: ${a(second).whatICanDo}`,
-    '',
-    `Write everything in ${langNames}. Each text max ${MAX_AGREEMENT_CHARS} characters, warm and everyday, second person plural ("dere"/"you two") for shared lines.`,
-    '"sameTeam": where they agree or want the same thing. "different": where they see it differently, without judging. ',
-    '"needs": one line per person starting with their name, in their own words. "idea": one small concrete thing to try this week (this is a suggestion).',
-    '"agreement": "shared" = one short sentence both could say ("Vi prøver…"/"We\'ll try…"); "perPartner" = one short "<name> gjør…"/"<name> will…" line each, based on what they said they could do themselves.',
-    `Return JSON: {${perLang}}`,
+    `${first.name} — how they see it: ${i.view} | what they need: ${i.need}`,
+    `${second.name} — what they wanted to bring up: ${i.topic} | what they hope gets better: ${i.wish}`,
+    `Write in ${langNames(i.langs)}, each text max ${MAX_AGREEMENT_CHARS} characters, warm, everyday, second person plural for shared lines.`,
+    '"sameTeam": where they want the same thing. "different": where they see it differently, without judging.',
+    '"needs": one line per person starting with their name, in their own words. "proposal": ONE small concrete thing to try this week, phrased as a suggestion.',
+    `Return JSON: {${per}}`,
   ].join('\n');
 }
 
-export interface GenerationOutput { summary: SummaryByLang; agreement: AgreementByLang }
+export function parseRoundOutput(raw: unknown, langs: Lang[], uids: string[]): RoundByLang | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const out: RoundByLang = {};
+  for (const lang of langs) {
+    const b = (raw as Record<string, unknown>)[lang] as Record<string, unknown> | undefined;
+    if (!b || typeof b !== 'object') return null;
+    const sameTeam = cleanLine(b.sameTeam, MAX_AGREEMENT_CHARS); const different = cleanLine(b.different, MAX_AGREEMENT_CHARS);
+    const proposal = cleanLine(b.proposal, MAX_AGREEMENT_CHARS); const needsRaw = b.needs as Record<string, unknown> | undefined;
+    if (!sameTeam || !different || !proposal || !needsRaw) return null;
+    const needs: Record<string, string> = {};
+    for (const uid of uids) { const n = cleanLine(needsRaw[uid], MAX_NEED_CHARS); if (!n) return null; needs[uid] = n; }
+    const all = [sameTeam, different, proposal, ...Object.values(needs)];
+    if (!all.every(textIsNeutral)) return null;
+    out[lang] = { sameTeam, different, needs, proposal };
+  }
+  return out;
+}
+
+// ── Rounds 2–3: revision from feedback ──────────────────────────────────────
+
+export interface RevisionInput {
+  round: number; langs: Lang[]; partnerFirst: Partner; initiator: Partner;
+  previous: RoundByLang;
+  feedback: Record<string, { feedback: Feedback; addition: string }>;   // uid → private feedback
+}
+export interface RevisionTexts { proposal: string; whatChanged: string }
+export type RevisionByLang = Partial<Record<Lang, RevisionTexts>>;
+
+export function buildRevisionPrompt(i: RevisionInput): string {
+  const prevLang = (i.previous[i.langs[0]] ?? Object.values(i.previous)[0])!;
+  const fb = [i.partnerFirst, i.initiator].map((p) => {
+    const f = i.feedback[p.uid];
+    if (!f) return `${p.name}: (no feedback)`;
+    return f.feedback === 'happy' ? `${p.name}: happy with the proposal${f.addition ? ` — adds: ${f.addition}` : ''}` : `${p.name}: almost — wants a tweak${f.addition ? `: ${f.addition}` : ''}`;
+  }).join('\n');
+  const per = i.langs.map((l) => `"${l}": {"proposal": string, "whatChanged": string}`).join(', ');
+  return [
+    `Round ${i.round} of at most ${MAX_ROUNDS}. Previous proposal: "${prevLang.proposal}"`,
+    `Where they agree: ${prevLang.sameTeam} | Where they differ: ${prevLang.different}`,
+    'Feedback (private, do not quote harsh wording):', fb,
+    `Revise the proposal in ${langNames(i.langs)} (max ${MAX_AGREEMENT_CHARS} characters each): keep what both were happy with, change only what the tweak asks for, still ONE small step, still a suggestion.`,
+    '"whatChanged": one short sentence saying what was adjusted, without attributing it to a person.',
+    `Return JSON: {${per}}`,
+  ].join('\n');
+}
+
+export function parseRevisionOutput(raw: unknown, langs: Lang[], rawAdditions: string[]): RevisionByLang | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const out: RevisionByLang = {};
+  for (const lang of langs) {
+    const b = (raw as Record<string, unknown>)[lang] as Record<string, unknown> | undefined;
+    if (!b) return null;
+    const proposal = cleanLine(b.proposal, MAX_AGREEMENT_CHARS); const whatChanged = cleanLine(b.whatChanged, MAX_AGREEMENT_CHARS);
+    if (!proposal || !whatChanged || !textIsNeutral(proposal) || !textIsNeutral(whatChanged)) return null;
+    if (repeatsVerbatim(proposal, rawAdditions) || repeatsVerbatim(whatChanged, rawAdditions)) return null;
+    out[lang] = { proposal, whatChanged };
+  }
+  return out;
+}
+
+/// The draft agreement built from the accepted proposal — no AI call.
+/// shared = the proposal; each partner starts with a neutral "tries it"
+/// line they can refine with the existing edit sheet.
+export function agreementFromProposal(proposal: ByLang, uids: string[]): AgreementByLang {
+  const line: Record<Lang, string> = { no: 'Prøver forslaget denne uka.', en: 'Tries the suggestion this week.' };
+  const out: AgreementByLang = {};
+  for (const lang of Object.keys(proposal) as Lang[]) {
+    out[lang] = { shared: proposal[lang]!, perPartner: Object.fromEntries(uids.map((u) => [u, line[lang]])) };
+  }
+  return out;
+}
+
+/// Neutral closing note after three rounds without agreement.
+export const UNRESOLVED_NOTE: Record<Lang, string> = {
+  no: 'Det er helt greit å ikke bli enige i dag. Kanskje det er lettere å ta praten videre ansikt til ansikt – uten skjerm.',
+  en: "It's completely fine not to agree today. It may be easier to continue the conversation face to face – without a screen.",
+};
 
 function cleanLine(v: unknown, max: number): string | null {
   if (typeof v !== 'string') return null;
   const s = v.replace(/\s+/g, ' ').trim();
   if (s.length === 0) return null;
   return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
-}
-
-/// Validates the model's JSON against the schema for the requested languages
-/// and uids. Returns null when anything required is missing or malformed —
-/// the caller retries once, then marks summaryFailed.
-export function parseGenerationOutput(raw: unknown, langs: Lang[], uids: string[]): GenerationOutput | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const root = raw as Record<string, unknown>;
-  const summary: SummaryByLang = {};
-  const agreement: AgreementByLang = {};
-  for (const lang of langs) {
-    const block = root[lang];
-    if (!block || typeof block !== 'object') return null;
-    const b = block as Record<string, unknown>;
-    const sameTeam = cleanLine(b.sameTeam, MAX_AGREEMENT_CHARS);
-    const different = cleanLine(b.different, MAX_AGREEMENT_CHARS);
-    const idea = cleanLine(b.idea, MAX_AGREEMENT_CHARS);
-    const needsRaw = b.needs as Record<string, unknown> | undefined;
-    const agr = b.agreement as Record<string, unknown> | undefined;
-    if (!sameTeam || !different || !idea || !needsRaw || !agr) return null;
-    const needs: Record<string, string> = {};
-    const perPartner: Record<string, string> = {};
-    const ppRaw = agr.perPartner as Record<string, unknown> | undefined;
-    for (const uid of uids) {
-      const n = cleanLine(needsRaw[uid], MAX_NEED_CHARS);
-      const p = cleanLine(ppRaw?.[uid], MAX_AGREEMENT_CHARS);
-      if (!n || !p) return null;
-      needs[uid] = n; perPartner[uid] = p;
-    }
-    const shared = cleanLine(agr.shared, MAX_AGREEMENT_CHARS);
-    if (!shared) return null;
-    summary[lang] = { sameTeam, different, needs, idea };
-    agreement[lang] = { shared, perPartner };
-  }
-  return { summary, agreement };
-}
-
-/// Output must not contain judging/labelling language. Cheap guard on top
-/// of the prompt; a hit counts as invalid output (→ retry).
-const FORBIDDEN_OUTPUT = /\b(narsissist|narcissist|toxic|toksisk|manipulat|gaslight|has? the right|har rett|tar feil|is wrong|skyld(en|ig)|to blame|blame)\b/i;
-export function outputIsNeutral(out: GenerationOutput): boolean {
-  const all: string[] = [];
-  for (const s of Object.values(out.summary)) if (s) all.push(s.sameTeam, s.different, s.idea, ...Object.values(s.needs));
-  for (const a of Object.values(out.agreement)) if (a) all.push(a.shared, ...Object.values(a.perPartner));
-  return !all.some((t) => FORBIDDEN_OUTPUT.test(t));
 }
 
 // ── Edits / accepts ─────────────────────────────────────────────────────────

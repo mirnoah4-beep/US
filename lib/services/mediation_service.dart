@@ -5,7 +5,7 @@ import '../models/mediation.dart';
 
 /// Client side of "Oss mot problemet". Every state change goes through a
 /// server callable; the only client write is the caller's own private
-/// draft (rules: owner-only, draft:true, while answering).
+/// draft (rules: owner-only, draft:true, kind gated by the talk's stage).
 class MediationService {
   static final _db = FirebaseFirestore.instance;
   static HttpsCallable _fn(String name) =>
@@ -26,13 +26,11 @@ class MediationService {
   static Stream<MediationDraft> draftStream(String coupleId, String mediationId, String uid) =>
       draftRef(coupleId, mediationId, uid).snapshots().map((d) => MediationDraft.fromMap(d.data()));
 
-  /// Saves the caller's own draft. Only the three answers + draft:true are
-  /// ever written — the rules reject anything else.
+  /// Saves the caller's own draft — only the keys of its kind + draft:true;
+  /// the rules reject anything else and any kind that does not match the stage.
   static Future<void> saveDraft(String coupleId, String mediationId, String uid, MediationDraft d) =>
       draftRef(coupleId, mediationId, uid).set({
-        'whatHappened': d.whatHappened,
-        'whatINeed': d.whatINeed,
-        'whatICanDo': d.whatICanDo,
+        ...d.toMap(),
         'draft': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -42,24 +40,34 @@ class MediationService {
     return r.data['mediationId'] as String;
   }
 
+  /// Initiator: topic + wish → invitation. Returns true when flagged (safety).
+  static Future<bool> submitTopic(String coupleId, String mediationId) => _flagged('mediationSubmitTopic', coupleId, mediationId);
+
+  static Future<void> rephraseInvitation(String coupleId, String mediationId) =>
+      _fn('mediationRephraseInvitation').call({'coupleId': coupleId, 'mediationId': mediationId});
+
+  static Future<void> approveInvitation(String coupleId, String mediationId) =>
+      _fn('mediationApproveInvitation').call({'coupleId': coupleId, 'mediationId': mediationId});
+
   static Future<void> respond(String coupleId, String mediationId, String timing) =>
       _fn('mediationRespond').call({'coupleId': coupleId, 'mediationId': mediationId, 'timing': timing});
 
-  /// Returns true when the server flagged the caller's answers (safety).
-  static Future<bool> submit(String coupleId, String mediationId) async {
-    final r = await _fn('mediationSubmit').call<Map<String, dynamic>>({'coupleId': coupleId, 'mediationId': mediationId});
+  /// Partner: view + need → round 1. Returns true when flagged (safety).
+  static Future<bool> submitAnswer(String coupleId, String mediationId) => _flagged('mediationSubmitAnswer', coupleId, mediationId);
+
+  /// Either partner, once per round. Returns true when flagged (safety).
+  static Future<bool> submitFeedback(String coupleId, String mediationId) => _flagged('mediationSubmitFeedback', coupleId, mediationId);
+
+  static Future<bool> _flagged(String fn, String coupleId, String mediationId) async {
+    final r = await _fn(fn).call<Map<String, dynamic>>({'coupleId': coupleId, 'mediationId': mediationId});
     return r.data['flagged'] == true;
   }
 
-  static Future<void> retrySummary(String coupleId, String mediationId) =>
-      _fn('mediationRetrySummary').call({'coupleId': coupleId, 'mediationId': mediationId});
+  static Future<void> retryGeneration(String coupleId, String mediationId) =>
+      _fn('mediationRetryGeneration').call({'coupleId': coupleId, 'mediationId': mediationId});
 
   static Future<void> nudge(String coupleId, String mediationId) =>
       _fn('mediationNudge').call({'coupleId': coupleId, 'mediationId': mediationId});
-
-  /// [correction] null → confirm own line; text → replace own line.
-  static Future<void> confirmOrCorrectNeed(String coupleId, String mediationId, String? correction) =>
-      _fn('mediationCorrectNeed').call({'coupleId': coupleId, 'mediationId': mediationId, 'correction': correction});
 
   static Future<void> editAgreement(String coupleId, String mediationId, String shared, String mine) =>
       _fn('mediationEditAgreement').call({'coupleId': coupleId, 'mediationId': mediationId, 'shared': shared, 'mine': mine});

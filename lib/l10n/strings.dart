@@ -610,11 +610,11 @@ class AppStrings {
   // ── Pairing (couple setup) ──────────────────────────────────────────────
   // ── Oss mot problemet / Us vs. the problem (mediation) ──────────────────
   String get medTitle => isNorwegian ? 'Oss mot problemet' : 'Us vs. the problem';
-  String get medEntrySubtitle => isNorwegian ? 'En liten prat på fem minutter – hver for dere først.' : 'A five-minute talk – privately first.';
+  String get medEntrySubtitle => isNorwegian ? 'Ta opp noe – uten at det blir en krangel.' : 'Bring something up – without it turning into a fight.';
   String get medIntro => isNorwegian
-      ? 'Velg et tema. Dere svarer hver for dere, får en nøytral oppsummering og blir enige om én liten ting.'
-      : 'Pick a topic. You each answer privately, get a neutral summary and agree on one small thing.';
-  String get medPickCategory => isNorwegian ? 'Hva vil du snakke om?' : 'What would you like to talk about?';
+      ? 'Du skriver privat hva du vil ta opp. Partneren din får en varm, nøytral invitasjon – aldri ordene dine. Så finner dere én liten ting å prøve.'
+      : 'You write privately what you want to bring up. Your partner gets a warm, neutral invitation – never your words. Then you find one small thing to try.';
+  String get medPickCategory => isNorwegian ? 'Hva vil du ta opp?' : 'What would you like to bring up?';
   String medCategory(String id) => switch (id) {
         'communication' => isNorwegian ? 'Kommunikasjon' : 'Communication',
         'time' => isNorwegian ? 'Tid sammen' : 'Time together',
@@ -625,54 +625,84 @@ class AppStrings {
         'intimacy' => isNorwegian ? 'Nærhet' : 'Intimacy',
         _ => isNorwegian ? 'Annet' : 'Other',
       };
-  String medInvite(String partner) => isNorwegian ? 'Inviter $partner' : 'Invite $partner';
+  // Initiator: topic + wish (private).
+  String get medTopicTitle => isNorwegian ? 'Med dine egne ord' : 'In your own words';
+  String get medTopicPrivate => isNorwegian
+      ? 'Bare du ser dette. Partneren din får en nøytral invitasjon – ikke det du skriver her. Teksten slettes etterpå.'
+      : 'Only you see this. Your partner gets a neutral invitation – not what you write here. The text is deleted afterwards.';
+  String get medTopicQ => isNorwegian ? 'Hva vil du ta opp?' : 'What do you want to bring up?';
+  String get medWishQ => isNorwegian ? 'Hva håper du blir bedre?' : 'What do you hope gets better?';
+  String get medMakeInvitation => isNorwegian ? 'Lag invitasjon' : 'Create invitation';
+  String get medPreparing => isNorwegian ? 'Skriver invitasjonen …' : 'Writing the invitation …';
+  // Initiator: invitation preview.
+  String medInvitationPreviewTitle(String name) => isNorwegian ? 'Slik ser $name invitasjonen' : 'This is what $name will see';
+  String medInvitationOnlyThis(String name) => isNorwegian ? '$name ser bare denne teksten – ikke det du skrev.' : '$name only sees this text – not what you wrote.';
+  String medSendTo(String name) => isNorwegian ? 'Send til $name' : 'Send to $name';
+  String medRephrase(int used, int max) => isNorwegian ? 'Formuler på nytt ($used/$max)' : 'Rephrase ($used/$max)';
+  String get medRephraseLimit => isNorwegian ? 'Ingen flere omformuleringer.' : 'No more rephrases.';
+  String get medRephrasing => isNorwegian ? 'Formulerer på nytt …' : 'Rephrasing …';
+  // Partner: invitation + timing.
   String medInvitedTitle(String name, String category) => isNorwegian ? '$name vil gjerne snakke om $category' : '$name would like to talk about $category';
   String get medInvitedBody => isNorwegian ? 'Når passer det for deg?' : 'When would suit you?';
   String get medTimingNow => isNorwegian ? 'Nå' : 'Now';
   String get medTimingTonight => isNorwegian ? 'I kveld' : 'Tonight';
   String get medTimingTomorrow => isNorwegian ? 'I morgen' : 'Tomorrow';
-  String medWaitingForResponse(String name) => isNorwegian ? 'Venter på at $name velger et tidspunkt' : 'Waiting for $name to pick a time';
+  String medWaitingForResponse(String name) => isNorwegian ? 'Invitasjonen er sendt · Venter på $name' : 'Invitation sent · Waiting for $name';
   String medTimingChosen(String name, String timing) => isNorwegian ? '$name valgte: $timing' : '$name chose: $timing';
-  String get medAnswersTitle => isNorwegian ? 'Dine svar' : 'Your answers';
-  String get medAnswersPrivate => isNorwegian ? 'Bare du ser dette før oppsummeringen. Svarene slettes etterpå.' : 'Only you see this before the summary. Your answers are deleted afterwards.';
-  String get medQ1 => isNorwegian ? 'Hva skjedde?' : 'What happened?';
-  String get medQ2 => isNorwegian ? 'Hva trenger du?' : 'What do you need?';
-  String get medQ3 => isNorwegian ? 'Hva kan du selv gjøre?' : 'What could you do yourself?';
+  // Partner: answer (private).
+  String get medAnswerTitle => isNorwegian ? 'Ditt syn' : 'Your view';
+  String get medAnswerPrivate => isNorwegian
+      ? 'Bare du ser dette. Det blir til en nøytral oppsummering for dere begge, og slettes etterpå.'
+      : 'Only you see this. It becomes a neutral summary for you both, and is deleted afterwards.';
+  String get medViewQ => isNorwegian ? 'Hvordan ser du det?' : 'How do you see it?';
+  String get medNeedQ => isNorwegian ? 'Hva trenger du?' : 'What do you need?';
   String get medSaveDraft => isNorwegian ? 'Lagre utkast' : 'Save draft';
   String get medSubmit => isNorwegian ? 'Send inn' : 'Submit';
   String get medDraftSaved => isNorwegian ? 'Utkast lagret' : 'Draft saved';
-  String get medSubmittedLocked => isNorwegian ? 'Sendt inn – låst' : 'Submitted – locked';
+  String medWaitingForAnswer(String name) => isNorwegian ? 'Venter på at $name svarer' : 'Waiting for $name to answer';
   String medWaitingForPartner(String name) => isNorwegian ? 'Ferdig fra din side · Venter på $name' : 'Done from your side · Waiting for $name';
   String get medNudge => isNorwegian ? 'Gi et lite hint' : 'Send a gentle nudge';
   String get medNudgeSent => isNorwegian ? 'Hint sendt' : 'Nudge sent';
   String get medNudgeTooSoon => isNorwegian ? 'Du kan sende et nytt hint om en time.' : 'You can send another nudge in an hour.';
-  String get medSummarizing => isNorwegian ? 'Lager oppsummering …' : 'Preparing your summary …';
-  String get medSummaryFailed => isNorwegian ? 'Vi fikk ikke laget oppsummeringen. Prøv igjen.' : 'We could not prepare the summary. Please try again.';
+  String get medGenerating => isNorwegian ? 'Lager oppsummering og forslag …' : 'Preparing the summary and a suggestion …';
+  String get medRevising => isNorwegian ? 'Justerer forslaget …' : 'Adjusting the suggestion …';
+  String get medGenerationFailed => isNorwegian ? 'Vi fikk ikke laget teksten. Prøv igjen.' : 'We could not prepare the text. Please try again.';
   String get medRetry => isNorwegian ? 'Prøv igjen' : 'Try again';
+  // Rounds.
+  String medRoundOf(int n, int max) => isNorwegian ? 'Runde $n av $max' : 'Round $n of $max';
   String get medSummaryTitle => isNorwegian ? 'Oppsummering' : 'Summary';
   String get medSameTeam => isNorwegian ? 'Her er dere på samme lag' : "You're on the same team here";
   String get medDifferent => isNorwegian ? 'Her ser dere det litt ulikt' : 'You see this a bit differently';
   String medNeeds(String name) => isNorwegian ? 'Dette trenger $name' : 'What $name needs';
-  String get medIdea => isNorwegian ? 'En idé dere kan teste' : 'An idea to try';
-  String get medSuggestionLabel => isNorwegian ? 'Forslag' : 'Suggestion';
-  String get medIsThisRight => isNorwegian ? 'Stemmer dette?' : 'Is this right?';
-  String get medYes => isNorwegian ? 'Ja' : 'Yes';
-  String get medCorrect => isNorwegian ? 'Rett' : 'Correct it';
-  String get medCorrectHint => isNorwegian ? 'Skriv med dine egne ord' : 'Write it in your own words';
-  String get medSave => isNorwegian ? 'Lagre' : 'Save';
+  String get medProposal => isNorwegian ? 'Forslag – én liten ting å prøve' : 'Suggestion – one small thing to try';
+  String get medWhatChanged => isNorwegian ? 'Dette ble justert' : 'What was adjusted';
+  String get medHowIsThis => isNorwegian ? 'Hva synes du om forslaget?' : 'What do you think of the suggestion?';
+  String get medHappy => isNorwegian ? 'Fornøyd' : 'Happy with it';
+  String get medAlmost => isNorwegian ? 'Nesten' : 'Almost';
+  String get medAdditionQ => isNorwegian ? 'Vil du legge til noe? (valgfritt)' : 'Anything to add? (optional)';
+  String get medAdditionHint => isNorwegian ? 'Kort – f.eks. «heller i helgen»' : 'Short – e.g. "rather at the weekend"';
+  String get medAdditionPrivate => isNorwegian ? 'Valget ditt vises først når begge har svart. Tillegget ditt deles aldri ordrett.' : 'Your choice is shown only once you have both answered. Your addition is never shared word for word.';
+  String get medSendFeedback => isNorwegian ? 'Send svar' : 'Send answer';
+  String get medYouAnswered => isNorwegian ? 'Du har svart' : 'You have answered';
+  String medPartnerAnswered(String name) => isNorwegian ? '$name har svart' : '$name has answered';
+  String get medLastRoundHint => isNorwegian ? 'Siste runde. Blir dere ikke enige nå, avslutter vi praten for denne gang.' : 'Last round. If you do not agree now, we close the talk for this time.';
+  String get medUnresolvedTitle => isNorwegian ? 'Ikke enige denne gangen' : 'Not agreed this time';
+  // Agreement.
   String get medAgreementTitle => isNorwegian ? 'Avtalen deres' : 'Your agreement';
-  String get medAgreementIntro => isNorwegian ? 'Én liten ting dere prøver denne uka.' : 'One small thing to try this week.';
+  String get medAgreementIntro => isNorwegian ? 'Dere var begge fornøyde med forslaget. Juster gjerne, og godta.' : 'You were both happy with the suggestion. Tweak it if you like, then accept.';
   String medDoes(String name) => isNorwegian ? '$name gjør' : '$name will';
   String get medEditAgreement => isNorwegian ? 'Endre litt' : 'Tweak it';
   String get medEditShared => isNorwegian ? 'Felles setning' : 'Shared sentence';
   String get medEditMine => isNorwegian ? 'Det jeg gjør' : 'What I will do';
   String get medEditNote => isNorwegian ? 'En endring nullstiller begge godkjenningene.' : 'Any change clears both acceptances.';
+  String get medSave => isNorwegian ? 'Lagre' : 'Save';
   String get medHoldToAccept => isNorwegian ? 'Hold inne for å godta' : 'Hold to accept';
   String get medAccepted => isNorwegian ? 'Du har godtatt' : 'You have accepted';
   String medPartnerAccepted(String name) => isNorwegian ? '$name har godtatt' : '$name has accepted';
   String get medHandshakeHint => isNorwegian ? 'Når begge har godtatt samme versjon, er avtalen deres.' : 'When you both accept the same version, the agreement is yours.';
   String get medDealDone => isNorwegian ? 'Dere har en avtale!' : 'You have an agreement!';
   String get medRevisionChanged => isNorwegian ? 'Avtalen ble endret – godta på nytt.' : 'The agreement changed – please accept again.';
+  // Neutral states + hub.
   String get medPause => isNorwegian ? 'Sett på pause' : 'Pause';
   String get medClose => isNorwegian ? 'Avslutt' : 'Close';
   String get medPaused => isNorwegian ? 'Satt på pause' : 'Paused';
@@ -680,7 +710,7 @@ class AppStrings {
   String get medExpired => isNorwegian ? 'Utløpt' : 'Expired';
   String get medPausedBody => isNorwegian ? 'Praten er satt på pause. Dere kan starte en ny når det passer.' : 'The talk is paused. You can start a new one whenever it suits you.';
   String get medExpiredBody => isNorwegian ? 'Praten ble ikke fullført innen en uke. Start gjerne en ny.' : 'The talk was not completed within a week. Feel free to start a new one.';
-  String get medStartNew => isNorwegian ? 'Start en prat' : 'Start a talk';
+  String get medStartNew => isNorwegian ? 'Ta opp noe' : 'Bring something up';
   String get medOngoing => isNorwegian ? 'Pågående' : 'Ongoing';
   String get medAgreements => isNorwegian ? 'Avtaler' : 'Agreements';
   String get medEmpty => isNorwegian ? 'Ingen prater ennå.' : 'No talks yet.';
@@ -688,12 +718,14 @@ class AppStrings {
   String get medAlreadyOpen => isNorwegian ? 'Dere har allerede en pågående prat.' : 'You already have an ongoing talk.';
   String get medGenericError => isNorwegian ? 'Noe gikk galt. Prøv igjen.' : 'Something went wrong. Please try again.';
   String medStatusLabel(String status) => switch (status) {
+        'drafting' || 'invitationDraft' => isNorwegian ? 'Utkast' : 'Draft',
         'invited' => isNorwegian ? 'Invitert' : 'Invited',
         'answering' => isNorwegian ? 'Svarer' : 'Answering',
-        'waiting' => isNorwegian ? 'Venter' : 'Waiting',
-        'summary' => isNorwegian ? 'Oppsummert' : 'Summarised',
-        'summaryFailed' => isNorwegian ? 'Prøv igjen' : 'Try again',
+        'round' => isNorwegian ? 'Forslag' : 'Suggestion',
+        'generationFailed' => isNorwegian ? 'Prøv igjen' : 'Try again',
+        'agreement' => isNorwegian ? 'Avtale klar' : 'Agreement ready',
         'active' => isNorwegian ? 'Avtale' : 'Agreement',
+        'unresolved' => isNorwegian ? 'Ikke enige' : 'Not agreed',
         'paused' => isNorwegian ? 'Pause' : 'Paused',
         'closed' => isNorwegian ? 'Avsluttet' : 'Closed',
         'expired' => isNorwegian ? 'Utløpt' : 'Expired',
@@ -707,10 +739,10 @@ class AppStrings {
   String get medSafetyEmergency => isNorwegian ? 'Nødsituasjon: ring 112' : 'Emergency: call your local emergency number (112 in Norway/EU)';
   String get medSafetyHelpline => isNorwegian ? 'Vold- og overgrepslinjen: 116 006 (døgnåpen, gratis)' : 'Norway: Vold- og overgrepslinjen 116 006 (24/7, free)';
   String get medSafetyWeb => isNorwegian ? 'dinutvei.no – råd og hjelp' : 'dinutvei.no – advice and help (Norway)';
-  String get medSafetyPrivate => isNorwegian ? 'Partneren din får ikke vite om dette. Svarene dine er ikke delt.' : 'Your partner will not know about this. Your answers were not shared.';
+  String get medSafetyPrivate => isNorwegian ? 'Partneren din får ikke vite om dette. Det du skrev er ikke delt.' : 'Your partner will not know about this. What you wrote was not shared.';
   String get medSafetyOk => isNorwegian ? 'Jeg forstår' : 'I understand';
   String get medSafetyCloseTalk => isNorwegian ? 'Avslutt samtalen' : 'Close the talk';
-  String get medPlanEntryLine => isNorwegian ? '5 minutter, hver for dere først' : '5 minutes, privately first';
+  String get medPlanEntryLine => isNorwegian ? 'Ta opp noe – privat først' : 'Bring something up – privately first';
   String get pairInvalidCode => isNorwegian ? 'Ugyldig kode.' : 'Invalid code.';
   String get pairOwnInvite => isNorwegian ? 'Du kan ikke bruke din egen kode.' : 'You can\'t use your own code.';
   String get pairSelfAlreadyPartnered =>

@@ -1,21 +1,29 @@
-// Client model of "Oss mot problemet": tolerant parsing, own-language pick,
-// current-hash acceptance, status helpers, and NO/EN strings.
+// Client model of "Oss mot problemet" (asymmetric flow): tolerant parsing,
+// own-language pick, rounds + hidden feedback, current-hash acceptance,
+// draft kinds, status helpers, and NO/EN strings.
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:us_app/l10n/strings.dart';
 import 'package:us_app/models/mediation.dart';
 
-Map<String, dynamic> doc({String status = 'summary', String hash = 'h2', Map<String, dynamic>? accepts}) => {
-      'category': 'chores', 'starterUid': 'A', 'partnerUid': 'B', 'status': status, 'timing': 'tonight',
+Map<String, dynamic> doc({String status = 'round', int round = 1, String hash = 'h2', Map<String, dynamic>? accepts, Map<String, dynamic>? answered, Map<String, dynamic>? feedback}) => {
+      'category': 'chores', 'initiatorUid': 'A', 'partnerUid': 'B', 'status': status, 'timing': 'tonight', 'round': round,
       'createdAt': Timestamp.fromDate(DateTime(2026, 9, 28)),
-      'submitted': {'A': true, 'B': true},
-      'summary': {
-        'langs': ['no', 'en'],
-        'texts': {
-          'no': {'sameTeam': 'Samme lag', 'different': 'Ulikt', 'needs': {'A': 'A trenger', 'B': 'B trenger'}, 'idea': 'Prøv'},
-          'en': {'sameTeam': 'Same team', 'different': 'Different', 'needs': {'A': 'A needs', 'B': 'B needs'}, 'idea': 'Try'},
+      'invitation': {'texts': {'no': 'Hei Liv', 'en': 'Hi Liv'}, 'rephrases': 2, 'langs': ['no', 'en']},
+      'rounds': {
+        '1': {
+          'texts': {
+            'no': {'sameTeam': 'Samme lag', 'different': 'Ulikt', 'needs': {'A': 'A trenger', 'B': 'B trenger'}, 'proposal': 'Prøv'},
+            'en': {'sameTeam': 'Same team', 'different': 'Different', 'needs': {'A': 'A needs', 'B': 'B needs'}, 'proposal': 'Try'},
+          },
+          'answered': answered ?? {'A': true},
+          'feedback': feedback ?? {},
         },
-        'needsConfirmed': {'A': 'confirmed'},
+        '2': {
+          'texts': {'no': {'sameTeam': 'Samme lag', 'different': 'Ulikt', 'needs': {'A': 'a', 'B': 'b'}, 'proposal': 'Prøv v2'}},
+          'whatChanged': {'no': 'Justert'},
+          'answered': {}, 'feedback': {},
+        },
       },
       'agreement': {
         'revision': 2, 'hash': hash,
@@ -25,60 +33,100 @@ Map<String, dynamic> doc({String status = 'summary', String hash = 'h2', Map<Str
     };
 
 void main() {
-  test('parses a summary doc; each partner reads their own language; falls back when missing', () {
+  test('parses a round doc; each partner reads their own language; falls back when missing', () {
     final m = Mediation.fromMap('m1', doc())!;
-    expect(m.status, 'summary');
+    expect(m.status, 'round');
     expect(m.isOpen, isTrue);
-    expect(m.hasSubmitted('A') && m.hasSubmitted('B'), isTrue);
-    expect(m.summaryFor('en')!.needs['B'], 'B needs');
-    expect(m.summaryFor('no')!.sameTeam, 'Samme lag');
+    expect(m.round, 1);
+    expect(m.invitationFor('en'), 'Hi Liv');
+    expect(m.rephrases, 2);
+    expect(m.canRephrase, isTrue);
+    expect(m.currentRound!.textsFor('en')!.needs['B'], 'B needs');
+    expect(m.currentRound!.textsFor('no')!.sameTeam, 'Samme lag');
+    expect(m.rounds[2]!.textsFor('en')!.proposal, 'Prøv v2', reason: 'only NO exists → fallback');
+    expect(m.rounds[2]!.whatChangedFor('en'), 'Justert');
     expect(m.agreementFor('en')!.shared, 'Vi prøver', reason: 'only NO exists → fallback');
-    expect(m.needsConfirmed, {'A': 'confirmed'});
     expect(m.otherUid('A'), 'B');
-    expect(m.isStarter('A'), isTrue);
+    expect(m.isInitiator('A'), isTrue);
+    expect(m.isInitiator('B'), isFalse);
+  });
+
+  test('feedback visibility: answered flags are visible, choices only once both answered', () {
+    final one = Mediation.fromMap('m', doc())!.currentRound!;
+    expect(one.hasAnswered('A'), isTrue);
+    expect(one.hasAnswered('B'), isFalse);
+    expect(one.feedback, isEmpty, reason: 'nothing to show before both answered');
+    final both = Mediation.fromMap('m', doc(answered: {'A': true, 'B': true}, feedback: {'A': 'almost', 'B': 'happy'}))!.currentRound!;
+    expect(both.feedback, {'A': 'almost', 'B': 'happy'});
   });
 
   test('acceptance counts only for the CURRENT hash', () {
-    final m = Mediation.fromMap('m1', doc())!;
+    final m = Mediation.fromMap('m1', doc(status: 'agreement'))!;
     expect(m.hasAccepted('A'), isTrue);
     expect(m.hasAccepted('B'), isFalse, reason: 'B accepted an older revision');
     expect(m.agreementRevision, 2);
     expect(m.agreementHash, 'h2');
+    expect(m.hasAgreement, isTrue);
   });
 
   test('status helpers and tolerant parsing', () {
     expect(Mediation.fromMap('x', doc(status: 'active'))!.isActive, isTrue);
+    expect(Mediation.fromMap('x', doc(status: 'agreement'))!.isOpen, isTrue);
+    expect(Mediation.fromMap('x', doc(status: 'unresolved'))!.isUnresolved, isTrue);
+    expect(Mediation.fromMap('x', doc(status: 'unresolved'))!.isOpen, isFalse);
     expect(Mediation.fromMap('x', doc(status: 'paused'))!.isOpen, isFalse);
     expect(Mediation.fromMap('x', doc(status: 'expired'))!.isOpen, isFalse);
+    expect(Mediation.fromMap('x', doc(round: 3))!.isLastRound, isTrue);
     expect(Mediation.fromMap('x', null), isNull);
     expect(Mediation.fromMap('x', {'status': 'invited'}), isNull, reason: 'members required');
-    final minimal = Mediation.fromMap('x', {'starterUid': 'A', 'partnerUid': 'B'})!;
-    expect(minimal.status, 'invited');
-    expect(minimal.summaryByLang, isEmpty);
-    expect(minimal.submittedBy, isEmpty);
-    expect(minimal.hasSummary, isFalse);
+    final minimal = Mediation.fromMap('x', {'initiatorUid': 'A', 'partnerUid': 'B'})!;
+    expect(minimal.status, 'drafting');
+    expect(minimal.rounds, isEmpty);
+    expect(minimal.currentRound, isNull);
+    expect(minimal.invitationFor('no'), isNull);
+    expect(minimal.closingNoteFor('no'), isNull);
+    expect(minimal.hasAgreement, isFalse);
+    final closed = Mediation.fromMap('x', {'initiatorUid': 'A', 'partnerUid': 'B', 'status': 'unresolved', 'closingNote': {'no': 'Greit', 'en': 'Fine'}})!;
+    expect(closed.closingNoteFor('en'), 'Fine');
   });
 
-  test('draft parsing and completeness', () {
-    expect(MediationDraft.fromMap(null).isComplete, isFalse);
-    final d = MediationDraft.fromMap({'whatHappened': 'a', 'whatINeed': 'b', 'whatICanDo': 'c', 'draft': false});
-    expect(d.isComplete, isTrue);
-    expect(d.locked, isTrue);
-    expect(MediationDraft.fromMap({'whatHappened': 'a', 'draft': true}).locked, isFalse);
+  test('draft kinds: parsing, completeness and the exact keys written per kind', () {
+    expect(MediationDraft.fromMap(null).kind, '');
+    final t = MediationDraft.fromMap({'kind': 'topic', 'topic': 'a', 'wish': 'b', 'draft': true});
+    expect(t.topicComplete, isTrue);
+    expect(t.locked, isFalse);
+    expect(t.toMap(), {'kind': 'topic', 'topic': 'a', 'wish': 'b'});
+    final a = MediationDraft.fromMap({'kind': 'answer', 'view': 'v', 'need': '', 'draft': false});
+    expect(a.answerComplete, isFalse);
+    expect(a.locked, isTrue);
+    expect(a.toMap().keys, ['kind', 'view', 'need']);
+    const f = MediationDraft(kind: 'feedback', round: 2, feedback: 'almost', addition: 'x');
+    expect(f.feedbackComplete, isTrue);
+    expect(f.toMap(), {'kind': 'feedback', 'round': 2, 'feedback': 'almost', 'addition': 'x'});
+    expect(const MediationDraft(kind: 'feedback', feedback: 'no').feedbackComplete, isFalse);
+    expect(const MediationDraft().toMap(), isEmpty);
   });
 
   test('every mediation string exists in NO and EN and differs (except shared labels)', () {
     const no = AppStrings(isNorwegian: true);
     const en = AppStrings(isNorwegian: false);
     final pairs = <String, (String, String)>{
-      'title': (no.medTitle, en.medTitle), 'intro': (no.medIntro, en.medIntro), 'q1': (no.medQ1, en.medQ1),
-      'q2': (no.medQ2, en.medQ2), 'q3': (no.medQ3, en.medQ3), 'submit': (no.medSubmit, en.medSubmit),
+      'title': (no.medTitle, en.medTitle), 'intro': (no.medIntro, en.medIntro),
+      'topicQ': (no.medTopicQ, en.medTopicQ), 'wishQ': (no.medWishQ, en.medWishQ), 'topicPrivate': (no.medTopicPrivate, en.medTopicPrivate),
+      'makeInvitation': (no.medMakeInvitation, en.medMakeInvitation), 'onlyThis': (no.medInvitationOnlyThis('Liv'), en.medInvitationOnlyThis('Liv')),
+      'sendTo': (no.medSendTo('Liv'), en.medSendTo('Liv')), 'rephrase': (no.medRephrase(1, 3), en.medRephrase(1, 3)),
+      'viewQ': (no.medViewQ, en.medViewQ), 'needQ': (no.medNeedQ, en.medNeedQ), 'submit': (no.medSubmit, en.medSubmit),
       'sameTeam': (no.medSameTeam, en.medSameTeam), 'different': (no.medDifferent, en.medDifferent),
-      'idea': (no.medIdea, en.medIdea), 'hold': (no.medHoldToAccept, en.medHoldToAccept), 'deal': (no.medDealDone, en.medDealDone),
+      'proposal': (no.medProposal, en.medProposal), 'whatChanged': (no.medWhatChanged, en.medWhatChanged),
+      'happy': (no.medHappy, en.medHappy), 'almost': (no.medAlmost, en.medAlmost), 'additionQ': (no.medAdditionQ, en.medAdditionQ),
+      'additionPrivate': (no.medAdditionPrivate, en.medAdditionPrivate), 'roundOf': (no.medRoundOf(2, 3), en.medRoundOf(2, 3)),
+      'lastRound': (no.medLastRoundHint, en.medLastRoundHint), 'unresolved': (no.medUnresolvedTitle, en.medUnresolvedTitle),
+      'hold': (no.medHoldToAccept, en.medHoldToAccept), 'deal': (no.medDealDone, en.medDealDone),
       'paused': (no.medPaused, en.medPaused), 'safetyTitle': (no.medSafetyTitle, en.medSafetyTitle),
       'safetyBody': (no.medSafetyBody, en.medSafetyBody), 'helpline': (no.medSafetyHelpline, en.medSafetyHelpline),
-      'needs': (no.medNeeds('Liv'), en.medNeeds('Liv')), 'invite': (no.medInvite('Liv'), en.medInvite('Liv')),
-      'waiting': (no.medWaitingForPartner('Liv'), en.medWaitingForPartner('Liv')),
+      'needs': (no.medNeeds('Liv'), en.medNeeds('Liv')), 'waiting': (no.medWaitingForPartner('Liv'), en.medWaitingForPartner('Liv')),
+      'waitingAnswer': (no.medWaitingForAnswer('Liv'), en.medWaitingForAnswer('Liv')), 'startNew': (no.medStartNew, en.medStartNew),
+      'planEntry': (no.medPlanEntryLine, en.medPlanEntryLine),
     };
     pairs.forEach((k, v) {
       expect(v.$1.trim(), isNotEmpty, reason: '$k NO');
@@ -87,6 +135,10 @@ void main() {
     });
     for (final c in kMediationCategories) {
       expect(no.medCategory(c), isNotEmpty); expect(en.medCategory(c), isNotEmpty);
+    }
+    for (final st in ['drafting', 'invitationDraft', 'invited', 'answering', 'round', 'generationFailed', 'agreement', 'active', 'unresolved', 'paused', 'closed', 'expired']) {
+      expect(no.medStatusLabel(st), isNot(equals(st)), reason: 'NO label for $st');
+      expect(en.medStatusLabel(st), isNot(equals(st)), reason: 'EN label for $st');
     }
     expect(no.medSafetyHelpline, contains('116 006'));
     expect(no.medSafetyEmergency, contains('112'));
