@@ -47,7 +47,7 @@ const IMAGE_SIZE = '1024x1024';
 
 /// Bumped when the style below changes, so we can tell which covers came from
 /// which visual identity. Does NOT trigger regeneration on its own.
-export const IMAGE_PROMPT_VERSION = 2;
+export const IMAGE_PROMPT_VERSION = 3;
 
 /// Exact port of IdeaImageService.toId() in lib/services/idea_image_service.dart:
 ///   title.toLowerCase().trim().replaceAll(RegExp(r'[^a-z0-9æøå]+'), '_')
@@ -113,15 +113,16 @@ export function buildCoverPrompt(idea: CoverPromptSource): string {
     'Style: premium, warm, cinematic relationship photography — an intimate but',
     'natural couple activity, cozy, modern, soft natural lighting, realistic,',
     'tasteful, shallow depth of field, muted warm colour palette.',
-    'Composition: the lower third of the frame must be calm, uncluttered and',
-    'slightly darker (vignette or shadow) so white text can be overlaid there;',
-    'keep the main subject in the upper two thirds.',
+    'Composition: keep the main subject in the upper two thirds. The lower third',
+    'should be visually calm, dark and empty enough for the app to overlay its own',
+    'white UI text later — do not render any overlay text into the image.',
     'Make the scene specific to this activity — its setting, objects, time of day',
     'and season should be recognisable at a glance; avoid a generic couple on a sofa',
     'unless the activity is literally on a sofa.',
     'People must look natural and believable: correct anatomy, natural hands,',
     'relaxed body language, no exaggerated expressions.',
     'Absolutely no text, no lettering, no logos, no watermark, no user interface elements.',
+    'No captions, no letters, no signs, no words, no writing anywhere in the image.',
     'No close-up identifiable faces and no recognisable celebrities —',
     'prefer wider framing, from behind, or partially out of frame.',
   ].filter((s) => s.length > 0).join(' ');
