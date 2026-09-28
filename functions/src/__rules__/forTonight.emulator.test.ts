@@ -50,8 +50,10 @@ beforeEach(async () => {
   b.set(db.doc(`couples/${C}/weeklyIdeas/current`), { generatedAt: admin.firestore.Timestamp.fromMillis(1_700_000_000_000), weekNumber: 39, generatedBy: 'curated', ideas: [{ title: 'Ukens idé' }] });
   b.set(db.doc(`couples/${C}/weeklyIdeasHistory/week_38_1`), { generatedAt: admin.firestore.Timestamp.fromMillis(1_699_000_000_000), weekNumber: 38, generatedBy: 'curated', ideas: [] });
   // Curated pool with effort tags so the time override changes the ranking.
-  for (let i = 0; i < 5; i++) b.set(db.doc(`ideas/low${i}`), { title: `Lav ${i}`, category: 'c', meta: 'm', cardColor: '#fff', tagColor: '#fff', tagTextColor: '#000', iconName: 'x', description: 'd', effort: 'low' });
-  for (let i = 0; i < 5; i++) b.set(db.doc(`ideas/high${i}`), { title: `Høy ${i}`, category: 'c', meta: 'm', cardColor: '#fff', tagColor: '#fff', tagTextColor: '#000', iconName: 'x', description: 'd', effort: 'high' });
+  for (let i = 0; i < 5; i++) b.set(db.doc(`ideas/low${i}`), { title: `Lav ${i}`, category: 'c', meta: 'm', cardColor: '#fff', tagColor: '#fff', tagTextColor: '#000', iconName: 'x', description: 'd', effort: 'low', parentFriendly: true });
+  for (let i = 0; i < 5; i++) b.set(db.doc(`ideas/high${i}`), { title: `Høy ${i}`, category: 'c', meta: 'm', cardColor: '#fff', tagColor: '#fff', tagTextColor: '#000', iconName: 'x', description: 'd', effort: 'high', parentFriendly: true });
+  // Untagged legacy docs: never offered to a parent couple (conservative rule).
+  for (let i = 0; i < 3; i++) b.set(db.doc(`ideas/untagged${i}`), { title: `Utagget ${i}`, category: 'c', meta: 'm', cardColor: '#fff', tagColor: '#fff', tagTextColor: '#000', iconName: 'x', description: 'd', effort: 'low' });
   await b.commit();
 });
 
@@ -79,6 +81,7 @@ test('4. temporary overrides change the profile and the result', async () => {
   assert.strictEqual(day.profile.childcareState, 'kidsHome', 'unspecified override keeps the derived default');
   // Curated ranking follows the time override: few hours → low effort first.
   assert.ok(few.ideas.every((i) => (i as { effort?: string }).effort === 'low'), JSON.stringify(few.ideas.map((i) => i.title)));
+  assert.ok(few.ideas.every((i) => (i as { parentFriendly?: boolean }).parentFriendly === true), 'parent couple only gets parent-friendly ideas');
   assert.ok(day.ideas.every((i) => (i as { effort?: string }).effort === 'high'), JSON.stringify(day.ideas.map((i) => i.title)));
   // Without overrides the derived profile (fewHours = more constrained) applies.
   const none = await generateTemporaryIdeas(C, null);

@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../models/chat_message.dart';
 import '../models/chat_provider.dart';
+import '../models/idea_library.dart';
 import '../models/language_provider.dart';
 import '../models/weekly_idea.dart';
 import '../models/weekly_ideas_provider.dart';
@@ -53,168 +54,9 @@ const List<List<Color>> _kGradients = [
 
 // ─── Idea model ───────────────────────────────────────────────────────────────
 
-class _IdeaItem {
-  final String id;
-  final String titleEn, titleNo;
-  final String subtitleEn, subtitleNo;
-  final String durationEn, durationNo;
-  final String categoryEn, categoryNo;
-  final String descEn, descNo;
-  final IconData icon;
-  final String filter; // 'all' | '10min' | 'home' | 'out' | 'talk' | 'food'
-  final int colorIndex;
-
-  const _IdeaItem({
-    required this.id,
-    required this.titleEn, required this.titleNo,
-    this.subtitleEn = '', this.subtitleNo = '',
-    required this.durationEn, required this.durationNo,
-    required this.categoryEn, required this.categoryNo,
-    required this.descEn, required this.descNo,
-    required this.icon,
-    required this.filter,
-    required this.colorIndex,
-  });
-
-  String title(bool no) => no ? titleNo : titleEn;
-  String subtitle(bool no) => no ? subtitleNo : subtitleEn;
-  String duration(bool no) => no ? durationNo : durationEn;
-  String category(bool no) => no ? categoryNo : categoryEn;
-  String desc(bool no) => no ? descNo : descEn;
-}
-
-const List<_IdeaItem> _kIdeas = [
-  _IdeaItem(
-    id: 'question_cards',
-    titleEn: 'Question cards on the couch',
-    titleNo: 'Spørsmålskort i sofaen',
-    subtitleEn: 'Ask one question each. No phones.',
-    subtitleNo: 'Still ett spørsmål hver. Ingen telefoner.',
-    durationEn: '10 min', durationNo: '10 min',
-    categoryEn: 'Talk', categoryNo: 'Samtale',
-    descEn: 'Pick a deck of questions and take turns asking each other. No phones, no distractions.',
-    descNo: 'Velg et kortstokk med spørsmål og still hverandre på omgang. Ingen telefoner, ingen avbrytelser.',
-    icon: Icons.quiz_outlined,
-    filter: 'talk', colorIndex: 0,
-  ),
-  _IdeaItem(
-    id: 'evening_walk',
-    titleEn: 'Evening walk without phones',
-    titleNo: 'Kveldstur uten telefoner',
-    subtitleEn: 'Walk, reset, and talk slowly.',
-    subtitleNo: 'Gå, pust ut, og snakk sakte.',
-    durationEn: '30 min', durationNo: '30 min',
-    categoryEn: 'Outside', categoryNo: 'Ute',
-    descEn: 'Leave the phones at home. Walk your neighbourhood and just talk.',
-    descNo: 'La telefonene hjemme. Gå i nabolaget og bare prat.',
-    icon: Icons.directions_walk_outlined,
-    filter: 'out', colorIndex: 1,
-  ),
-  _IdeaItem(
-    id: 'cook_together',
-    titleEn: 'Cook something new together',
-    titleNo: 'Lag noe nytt sammen',
-    subtitleEn: 'Make it messy. Make it yours.',
-    subtitleNo: 'La det bli rotete. Gjør det til deres.',
-    durationEn: '45 min', durationNo: '45 min',
-    categoryEn: 'Food', categoryNo: 'Mat',
-    descEn: 'Choose a recipe neither of you has tried. Divide the prep and enjoy it together.',
-    descNo: 'Velg en oppskrift ingen av dere har prøvd. Del forberedelsene og nyt det sammen.',
-    icon: Icons.restaurant_outlined,
-    filter: 'food', colorIndex: 2,
-  ),
-  _IdeaItem(
-    id: 'tea_night',
-    titleEn: 'Tea and honesty',
-    titleNo: 'Te og ærlighet',
-    subtitleEn: 'One warm drink. One honest conversation.',
-    subtitleNo: 'En varm drikke. En ærlig samtale.',
-    durationEn: '20 min', durationNo: '20 min',
-    categoryEn: 'Home', categoryNo: 'Hjemme',
-    descEn: 'Brew your favourite tea, grab something sweet and just be together on the couch.',
-    descNo: 'Trekk favorittteen, ta noe søtt og bare vær sammen i sofaen.',
-    icon: Icons.local_cafe_outlined,
-    filter: 'home', colorIndex: 3,
-  ),
-  _IdeaItem(
-    id: 'mini_trip',
-    titleEn: 'Plan a mini trip together',
-    titleNo: 'Planlegg en minitur sammen',
-    subtitleEn: 'Dream together. No commitment needed.',
-    subtitleNo: 'Drøm sammen. Ingen forpliktelse.',
-    durationEn: '10 min', durationNo: '10 min',
-    categoryEn: '10 min', categoryNo: '10 min',
-    descEn: 'Spend 10 minutes browsing ideas for a weekend away — even if you do not book yet.',
-    descNo: 'Bruk 10 minutter på å bla gjennom idéer for en helgetur — selv om dere ikke bestiller ennå.',
-    icon: Icons.map_outlined,
-    filter: '10min', colorIndex: 4,
-  ),
-  _IdeaItem(
-    id: 'bowling',
-    titleEn: 'Bowling or mini-golf',
-    titleNo: 'Bowling eller minigolf',
-    subtitleEn: 'Low stakes. High laughs.',
-    subtitleNo: 'Lavt press. Mye latter.',
-    durationEn: '1 hour+', durationNo: '1 time+',
-    categoryEn: 'Outside', categoryNo: 'Ute',
-    descEn: 'Pick something a little silly and competitive. Low pressure, high fun.',
-    descNo: 'Velg noe litt tåpelig og konkurransepreget. Lavt press, høy moro.',
-    icon: Icons.sports_outlined,
-    filter: 'out', colorIndex: 5,
-  ),
-  _IdeaItem(
-    id: 'coffee_walk',
-    titleEn: 'Morning coffee walk',
-    titleNo: 'Morgentur med kaffe',
-    subtitleEn: 'Fresh air, warm drinks, just you two.',
-    subtitleNo: 'Frisk luft, varm kaffe, bare dere to.',
-    durationEn: '30 min', durationNo: '30 min',
-    categoryEn: 'Outside', categoryNo: 'Ute',
-    descEn: 'Start the day together with a walk and a takeaway coffee. Just the two of you.',
-    descNo: 'Start dagen sammen med en tur og en takeaway-kaffe. Bare dere to.',
-    icon: Icons.coffee_outlined,
-    filter: 'out', colorIndex: 0,
-  ),
-  _IdeaItem(
-    id: 'write_letters',
-    titleEn: 'Write each other a letter',
-    titleNo: 'Skriv hverandre et brev',
-    subtitleEn: 'Pen and paper. No edits.',
-    subtitleNo: 'Penn og papir. Ingen redigering.',
-    durationEn: '10 min', durationNo: '10 min',
-    categoryEn: 'Talk', categoryNo: 'Samtale',
-    descEn: 'Pen and paper. Write one thing you love about them right now and swap.',
-    descNo: 'Penn og papir. Skriv én ting du elsker ved dem akkurat nå og bytt.',
-    icon: Icons.edit_outlined,
-    filter: 'talk', colorIndex: 1,
-  ),
-  _IdeaItem(
-    id: 'local_market',
-    titleEn: 'Visit a local market',
-    titleNo: 'Besøk et lokalt marked',
-    subtitleEn: 'Wander, taste, and discover together.',
-    subtitleNo: 'Vandre, smak, og oppdag sammen.',
-    durationEn: '1 hour+', durationNo: '1 time+',
-    categoryEn: 'Outside', categoryNo: 'Ute',
-    descEn: 'Wander through a market together. Grab a snack and people-watch.',
-    descNo: 'Vandre gjennom et marked sammen. Ta en snack og se på folk.',
-    icon: Icons.store_outlined,
-    filter: 'out', colorIndex: 2,
-  ),
-  _IdeaItem(
-    id: 'dance_kitchen',
-    titleEn: 'Dance in the kitchen',
-    titleNo: 'Dans på kjøkkenet',
-    subtitleEn: 'No playlist required. No rhythm needed.',
-    subtitleNo: 'Ingen spilleliste. Ingen rytme nødvendig.',
-    durationEn: '10 min', durationNo: '10 min',
-    categoryEn: 'Home', categoryNo: 'Hjemme',
-    descEn: 'Put on a favourite song and just dance. It does not have to be good.',
-    descNo: 'Sett på en favorittlåt og dans. Det trenger ikke å være bra.',
-    icon: Icons.music_note_outlined,
-    filter: 'home', colorIndex: 3,
-  ),
-];
+/// The visible library now comes from the bundled JSON (see
+/// lib/models/idea_library.dart) — the same file Cloud Functions read.
+typedef _IdeaItem = LibraryIdea;
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -228,11 +70,16 @@ class IdeasScreen extends StatefulWidget {
 class _IdeasScreenState extends State<IdeasScreen> {
   String _activeFilter = 'all';
   Set<String> _savedIds = {};
+  List<LibraryIdea> _library = const [];
+  bool _libraryLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _loadSaved();
+    IdeaLibrary.load().then((ideas) {
+      if (mounted) setState(() { _library = ideas; _libraryLoaded = true; });
+    });
   }
 
   Future<void> _loadSaved() async {
@@ -260,16 +107,23 @@ class _IdeasScreenState extends State<IdeasScreen> {
     }).catchError((_) {});
   }
 
-  List<_IdeaItem> get _filtered {
-    if (_activeFilter == 'all') return _kIdeas;
-    return _kIdeas.where((i) => i.filter == _activeFilter).toList();
+  /// Parent mode (settings/main.parentMode) narrows the library to
+  /// parent-friendly ideas; a kid-free "For tonight" session re-admits the
+  /// couple-only ones for as long as that temporary set is showing.
+  List<_IdeaItem> _filteredFor(BuildContext context) {
+    final parentMode = context.watch<AppState>().hasChildren;
+    final ideasProvider = context.watch<WeeklyIdeasProvider>();
+    final kidFreeSession = ideasProvider.tonightIdeas != null &&
+        ideasProvider.tonightChildcare == 'kidFree';
+    return filterLibrary(_library, _activeFilter,
+        parentMode: parentMode, kidFreeSession: kidFreeSession);
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
     final isNo = s.isNorwegian;
-    final filtered = _filtered;
+    final filtered = _filteredFor(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F4),
@@ -347,7 +201,11 @@ class _IdeasScreenState extends State<IdeasScreen> {
                 ),
               ),
             ),
-            if (filtered.isEmpty)
+            if (!_libraryLoaded)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentRose)),
+              )
+            else if (filtered.isEmpty)
               SliverFillRemaining(
                 child: Center(
                   child: Text(

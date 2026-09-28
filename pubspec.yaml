@@ -84,6 +84,8 @@ flutter:
 
   assets:
     - assets/logo/us_wordmark.png
+    # Date-idea library — single source of truth shared with Cloud Functions.
+    - functions/src/ideasLibrary.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

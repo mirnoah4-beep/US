@@ -289,6 +289,12 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   // ── "For tonight" (temporary, never persisted) ─────────────────────────
   List<WeeklyIdea>? _tonight;
   bool _tonightLoading = false;
+  String? _tonightChildcare;
+
+  /// 'kidsHome' | 'kidFree' | null — the childcare override of the temporary
+  /// set currently showing. The Ideas library uses it to re-admit couple-only
+  /// ideas during a kid-free session.
+  String? get tonightChildcare => _tonight == null ? null : _tonightChildcare;
 
   /// The temporary set shown instead of the weekly one until discarded.
   List<WeeklyIdea>? get tonightIdeas => _tonight;
@@ -324,6 +330,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
       }
       await _prefetchImageUrls(parsed.take(4).toList());
       _tonight = parsed;
+      _tonightChildcare = overrides['childcareState'] as String?;
       lastTonightError = null;
       return true;
     } on FirebaseFunctionsException catch (e, st) {
@@ -348,6 +355,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
   void clearForTonight() {
     if (_tonight == null) return;
     _tonight = null;
+    _tonightChildcare = null;
     notifyListeners();
   }
 

@@ -4,6 +4,8 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { generateForCouple, generateTemporaryIdeas, getWeekNumber } from './generateWeeklyIdeas';
 import { parseOverrides } from './preferences';
+import { IDEA_LIBRARY, libraryIdeaDoc } from './ideasLibrary';
+import { resolveCoverForIdea } from './ideaImages';
 import OpenAI from 'openai';
 import {
   isPartnerTemplateId,
@@ -334,6 +336,52 @@ export const generateForTonight = onCall(
 );
 
 const FOR_TONIGHT_MAX_PER_HOUR = 8;
+
+// ── TEMPORARY (pre-launch, admin only): sync the idea library into Firestore
+// and ensure every library idea has a cover, reusing existing ones first.
+// Delete after the library backfill has run. Guarded by admin uid + token.
+const ADMIN_UID = '1RTxZHUV1NbvNlFsXhwl5LeEgFw1';
+const LIBRARY_SYNC_TOKEN = 'us-library-sync-2026-09-28';
+export const adminSyncIdeaLibrary = onCall(
+  { region: 'europe-west1', secrets: ['OPENAI_API_KEY'], timeoutSeconds: 540, memory: '512MiB' },
+  async (request) => {
+    if (!request.auth || request.auth.uid !== ADMIN_UID) {
+      throw new HttpsError('permission-denied', 'admin only');
+    }
+    if (request.data?.token !== LIBRARY_SYNC_TOKEN) {
+      throw new HttpsError('permission-denied', 'bad token');
+    }
+    const dryRun = request.data?.dryRun !== false;
+    const maxNewImages = Math.min(Number(request.data?.maxNewImages ?? 0) || 0, 80);
+    const firestore = admin.firestore();
+    const deps = { firestore, bucket: admin.storage().bucket(), openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) };
+    const out = { dryRun, docsWritten: 0, alreadyOk: 0, repaired: 0, generated: 0, failed: 0, wouldGenerate: [] as string[], errors: [] as string[] };
+    let budget = maxNewImages;
+    for (const idea of IDEA_LIBRARY) {
+      if (!dryRun) {
+        await firestore.collection('ideas').doc(idea.id).set(libraryIdeaDoc(idea), { merge: true });
+        out.docsWritten++;
+      }
+      const source = { titleNo: idea.titleNo, titleEn: idea.titleEn, categoryNo: idea.categoryNo, categoryEn: idea.categoryEn, metaNo: idea.durationNo, metaEn: idea.durationEn, descriptionNo: idea.descNo, descriptionEn: idea.descEn, effort: idea.effort };
+      if (dryRun) {
+        const snap = await firestore.collection('ideas').doc(idea.id).get();
+        const url = snap.data()?.coverImageUrl;
+        if (typeof url === 'string' && url.startsWith('http')) { out.alreadyOk++; continue; }
+        const [exists] = await deps.bucket.file(`ideas/${idea.id}/cover.jpg`).exists();
+        if (exists) { out.repaired++; continue; }
+        out.wouldGenerate.push(idea.id);
+        continue;
+      }
+      const res = await resolveCoverForIdea(deps, source, idea.id, { allowGenerate: budget > 0 });
+      if (res.outcome === 'generated') { budget--; out.generated++; }
+      else if (res.outcome === 'already-ok') out.alreadyOk++;
+      else if (res.outcome === 'repaired') out.repaired++;
+      else { out.failed++; out.errors.push(`${idea.id}: ${res.error}`); }
+    }
+    console.log(`[librarySync] ${JSON.stringify({ ...out, wouldGenerate: out.wouldGenerate.length })}`);
+    return out;
+  }
+);
 
 // Callable: fully delete the caller's account. Runs with the Admin SDK so it
 // can delete the Auth user WITHOUT a recent re-login. Ordering: Storage files

@@ -11,6 +11,7 @@ import {
   type CoupleProfile,
   type SessionOverrides,
 } from './preferences';
+import { ideaAllowedForProfile, parentModeRuleLines } from './ideasLibrary';
 
 // Set key via: firebase functions:secrets:set OPENAI_API_KEY
 // Instantiated lazily inside callOpenAI so module load never crashes without the key.
@@ -165,7 +166,7 @@ export async function generateForCouple(coupleId: string): Promise<GenerationSum
     }
   } else {
     // Free: score /ideas collection by season, battery, and recency
-    ideas = await getCuratedIdeas(firestore, coupleId, ctx.batteryLevel, ctx.season, preferredEffort(ctx.profile));
+    ideas = await getCuratedIdeas(firestore, coupleId, ctx.batteryLevel, ctx.season, preferredEffort(ctx.profile), ctx.profile);
     generatedBy = 'curated';
   }
 
@@ -239,7 +240,7 @@ export async function generateTemporaryIdeas(
     const ai = await callOpenAI(buildPrompt(ctx));
     return { ideas: ai.ideas, generatedBy: ai.usedFallback ? 'fallback' : 'ai', profile: ctx.profile };
   }
-  const ideas = await getCuratedIdeas(firestore, coupleId, ctx.batteryLevel, ctx.season, preferredEffort(ctx.profile));
+  const ideas = await getCuratedIdeas(firestore, coupleId, ctx.batteryLevel, ctx.season, preferredEffort(ctx.profile), ctx.profile);
   return { ideas, generatedBy: 'curated', profile: ctx.profile };
 }
 
@@ -346,7 +347,7 @@ async function buildContext(
 // ─── OpenAI ──────────────────────────────────────────────────────────────────
 
 function buildLifestyleContext(profile: CoupleProfile): string {
-  return '\n' + lifestyleContextLines(profile).join('\n');
+  return '\n' + [...lifestyleContextLines(profile), ...parentModeRuleLines(profile)].join('\n');
 }
 
 function buildPrompt(ctx: CoupleContext): string {
@@ -446,6 +447,7 @@ async function getCuratedIdeas(
   batteryLevel: number,
   season: string,
   effortNudge: 'low' | 'high' | null = null,
+  profile: Pick<CoupleProfile, 'isParent' | 'childcareState'> | null = null,
 ): Promise<IdeaObject[]> {
   // Fetch lastTime to know what to avoid
   const lastTimeSnap = await firestore
@@ -461,8 +463,11 @@ async function getCuratedIdeas(
   const scored = ideasSnap.docs
     .filter((d) => {
       const data = d.data();
-      return (typeof data.title === 'string' && data.title.length > 0) ||
+      const titled = (typeof data.title === 'string' && data.title.length > 0) ||
              (typeof data.titleNo === 'string' && data.titleNo.length > 0);
+      // Parent mode: only parent-friendly ideas unless this is a kid-free
+      // session (same rule as the client library and the AI prompt).
+      return titled && (!profile || ideaAllowedForProfile(data, profile));
     })
     .map((d) => {
       const data = d.data();
