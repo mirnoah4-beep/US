@@ -139,7 +139,12 @@ export async function submitAnswers(c: Ctx, uid: string, coupleId: unknown, medi
     if (cur.submitted?.[uid] === true) throw err('already-submitted');
     const both = cur.submitted?.[partnerUid] === true;
     tx.update(privRef, { draft: false, submittedAt: FieldValue.serverTimestamp() });
-    tx.update(ref, { [`submitted.${uid}`]: true, status: 'waiting' as Status, updatedAt: FieldValue.serverTimestamp() });
+    tx.update(ref, {
+      [`submitted.${uid}`]: true, status: 'waiting' as Status, updatedAt: FieldValue.serverTimestamp(),
+      // Both submitted → the talk can no longer expire; drop the field so the
+      // expiry query never sees this document again.
+      ...(both ? { expiresAt: FieldValue.delete(), reminderAt: FieldValue.delete(), reminderSent: FieldValue.delete() } : {}),
+    });
     return both;
   });
   let summaryReady = false;
@@ -187,6 +192,7 @@ export async function generateSummary(c: Ctx, coupleId: string, mediationId: str
   const batch = c.db.batch();
   batch.update(ref, {
     status: 'summary' as Status, updatedAt: FieldValue.serverTimestamp(),
+    expiresAt: FieldValue.delete(), reminderAt: FieldValue.delete(), reminderSent: FieldValue.delete(),
     summary: { texts: out.summary, needsConfirmed: {}, generatedAt: FieldValue.serverTimestamp(), langs },
     agreement: { revision, texts: out.agreement, hash, editedBy: null, editedAt: null, accepts: {}, activatedAt: null },
   });
@@ -324,7 +330,12 @@ export async function setNeutralState(c: Ctx, uid: string, coupleId: unknown, me
     if (!d) throw err('not-found', 'not-found');
     if (!OPEN_STATUSES.includes(d.status) && !(state === 'closed' && d.status === 'paused')) throw err('wrong-status');
     // No "by whom", no reason — the partner only ever sees the neutral state.
-    tx.update(ref, { status: state as Status, updatedAt: FieldValue.serverTimestamp(), reminderAt: null, reminderSent: true });
+    // Paused/closed talks never expire (paused is not an expirable state), so
+    // both scheduler fields are removed — they must not match any query.
+    tx.update(ref, {
+      status: state as Status, updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: FieldValue.delete(), reminderAt: FieldValue.delete(), reminderSent: FieldValue.delete(),
+    });
     return { status: state };
   });
   // Closing ends the talk for good: nothing private stays behind.
@@ -334,37 +345,60 @@ export async function setNeutralState(c: Ctx, uid: string, coupleId: unknown, me
 
 // ── Scheduler work ──────────────────────────────────────────────────────────
 
+/// Scheduler queries page through ALL matching documents: every document
+/// touched has its trigger field DELETED (not nulled), so it can never
+/// match again and stale documents cannot starve newer ones.
+const SCHEDULER_PAGE = 200;
+const SCHEDULER_MAX_PAGES = 25;
+
 /// Reminders whose time has come (partner chose "tonight"/"tomorrow").
 export async function dueReminders(db: Db, now: Date): Promise<Array<{ coupleId: string; mediationId: string; uid: string }>> {
-  const snap = await db.collectionGroup('mediations').where('reminderAt', '<=', firestore.Timestamp.fromDate(now)).limit(200).get();
   const out: Array<{ coupleId: string; mediationId: string; uid: string }> = [];
-  for (const d of snap.docs) {
-    const m = d.data();
-    if (m.reminderSent === true || !ANSWERING_STATUSES.includes(m.status) || m.submitted?.[m.partnerUid] === true) {
-      await d.ref.update({ reminderAt: null, reminderSent: true });
-      continue;
+  for (let page = 0; page < SCHEDULER_MAX_PAGES; page++) {
+    const snap = await db.collectionGroup('mediations')
+      .where('reminderAt', '<=', firestore.Timestamp.fromDate(now)).limit(SCHEDULER_PAGE).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    for (const d of snap.docs) {
+      const m = d.data();
+      batch.update(d.ref, { reminderAt: FieldValue.delete(), reminderSent: FieldValue.delete() });
+      const actionable = m.reminderSent !== true && ANSWERING_STATUSES.includes(m.status) && m.submitted?.[m.partnerUid] !== true;
+      if (actionable) out.push({ coupleId: d.ref.parent.parent!.id, mediationId: d.id, uid: m.partnerUid });
     }
-    await d.ref.update({ reminderAt: null, reminderSent: true });
-    out.push({ coupleId: d.ref.parent.parent!.id, mediationId: d.id, uid: m.partnerUid });
+    await batch.commit();
+    if (snap.size < SCHEDULER_PAGE) break;
   }
   return out;
 }
 
 /// Talks without two submissions after EXPIRY_DAYS → 'expired' (neutral).
 /// A flagged (invisible) submission counts as not submitted, so the talk
-/// simply expires like any other unanswered one.
+/// simply expires like any other unanswered one. Private data is purged.
 export async function expireStale(db: Db, now: Date): Promise<number> {
-  const snap = await db.collectionGroup('mediations').where('expiresAt', '<=', firestore.Timestamp.fromDate(now)).limit(200).get();
   let n = 0;
-  for (const d of snap.docs) {
-    const m = d.data();
-    if (EXPIRABLE_STATUSES.includes(m.status)) {
-      await d.ref.update({ status: 'expired' as Status, expiresAt: null, reminderAt: null, reminderSent: true, updatedAt: FieldValue.serverTimestamp() });
-      await purgePrivateData(d.ref);
-      n++;
-    } else {
-      await d.ref.update({ expiresAt: null });
+  for (let page = 0; page < SCHEDULER_MAX_PAGES; page++) {
+    const snap = await db.collectionGroup('mediations')
+      .where('expiresAt', '<=', firestore.Timestamp.fromDate(now)).limit(SCHEDULER_PAGE).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    const toPurge: firestore.DocumentReference[] = [];
+    for (const d of snap.docs) {
+      const m = d.data();
+      if (EXPIRABLE_STATUSES.includes(m.status)) {
+        batch.update(d.ref, {
+          status: 'expired' as Status, updatedAt: FieldValue.serverTimestamp(),
+          expiresAt: FieldValue.delete(), reminderAt: FieldValue.delete(), reminderSent: FieldValue.delete(),
+        });
+        toPurge.push(d.ref);
+        n++;
+      } else {
+        // Legacy/stale: left an expirable state without dropping the field.
+        batch.update(d.ref, { expiresAt: FieldValue.delete() });
+      }
     }
+    await batch.commit();
+    for (const ref of toPurge) await purgePrivateData(ref);
+    if (snap.size < SCHEDULER_PAGE) break;
   }
   return n;
 }

@@ -309,3 +309,60 @@ test('a flagged user resubmitting still-flagged text is flagged again and can ne
   assert.strictEqual((await mref(id).collection('safety').get()).size, 0);
   assert.strictEqual(ai.calls.safety, 2, 'screened on each submission');
 });
+
+test('scheduler cannot be starved: 250 stale docs + 1 due reminder + 1 due expiry are all handled in ONE run', async () => {
+  const ai = fakeAi();
+  const past = admin.firestore.Timestamp.fromDate(new Date('2026-09-01T00:00:00Z'));
+  // 250 stale documents in non-actionable states that still carry past trigger fields.
+  let batch = db.batch(); let inBatch = 0;
+  for (let i = 0; i < 250; i++) {
+    batch.set(db.doc(`couples/${C}/mediations/stale${i}`), {
+      category: 'other', starterUid: A, partnerUid: B, status: i % 2 ? 'closed' : 'active',
+      submitted: { [A]: true, [B]: true }, reminderAt: past, reminderSent: true, expiresAt: past,
+    });
+    if (++inBatch === 400) { await batch.commit(); batch = db.batch(); inBatch = 0; }
+  }
+  await batch.commit();
+  // One genuinely due reminder and one genuinely due expiry.
+  const at = () => new Date('2026-09-28T16:00:00Z');
+  const { mediationId: due } = await createMediation(ctx(ai, at), A, C, 'time');
+  await respondToInvite(ctx(ai, at), B, C, due, 'tonight');                       // reminder 17:00Z
+  await setNeutralState(ctx(ai), A, C, due, 'paused');                            // free the "one open talk" slot…
+  await mref(due).update({ status: 'answering', reminderAt: admin.firestore.Timestamp.fromDate(new Date('2026-09-28T17:00:00Z')) }); // …but keep it answering for the test
+  const { mediationId: old } = await createMediation(ctx(ai, () => new Date('2026-09-01T10:00:00Z')), A, C, 'money').catch(async () => {
+    await mref(due).update({ status: 'paused' });
+    const r = await createMediation(ctx(ai, () => new Date('2026-09-01T10:00:00Z')), A, C, 'money');
+    await mref(due).update({ status: 'answering' });
+    return r;
+  });
+  const now = new Date('2026-09-28T18:00:00Z');
+  const reminders = await dueReminders(db, now);
+  assert.deepStrictEqual(reminders, [{ coupleId: C, mediationId: due, uid: B }], 'the one due reminder is found past 250 stale docs');
+  const expired = await expireStale(db, now);
+  assert.strictEqual(expired, 1, 'the one due expiry is processed');
+  assert.strictEqual((await mref(old).get()).data()!.status, 'expired');
+  // Nothing matches any more: stale docs lost their trigger fields.
+  const remR = await db.collectionGroup('mediations').where('reminderAt', '<=', admin.firestore.Timestamp.fromDate(now)).get();
+  const remE = await db.collectionGroup('mediations').where('expiresAt', '<=', admin.firestore.Timestamp.fromDate(now)).get();
+  assert.strictEqual(remR.size, 0); assert.strictEqual(remE.size, 0);
+  const stale = (await db.doc(`couples/${C}/mediations/stale7`).get()).data()!;
+  assert.ok(!('expiresAt' in stale) && !('reminderAt' in stale) && !('reminderSent' in stale));
+  assert.strictEqual(stale.status, 'closed', 'stale docs are otherwise untouched');
+});
+
+test('leaving an expirable state deletes expiresAt (both submitted, pause, close); paused talks never expire', async () => {
+  const ai = fakeAi();
+  const id = await toSummary(ai);
+  const m = (await mref(id).get()).data()!;
+  assert.ok(!('expiresAt' in m) && !('reminderAt' in m) && !('reminderSent' in m));
+  const { mediationId: p } = await createMediation(ctx(ai), A, C, 'kids').catch(async () => {
+    await setNeutralState(ctx(ai), A, C, id, 'closed').catch(() => {});
+    return createMediation(ctx(ai), A, C, 'kids');
+  });
+  assert.ok('expiresAt' in (await mref(p).get()).data()!);
+  await setNeutralState(ctx(ai), B, C, p, 'paused');
+  const paused = (await mref(p).get()).data()!;
+  assert.ok(!('expiresAt' in paused), 'paused → cannot expire, field removed');
+  assert.strictEqual(await expireStale(db, new Date('2030-01-01T00:00:00Z')), 0);
+  assert.strictEqual((await mref(p).get()).data()!.status, 'paused');
+});
