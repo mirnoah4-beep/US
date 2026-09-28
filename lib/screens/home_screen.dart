@@ -20,6 +20,7 @@ import '../models/home_time_filter.dart';
 import '../models/idea_library.dart';
 import '../models/weekly_ideas_provider.dart';
 import '../widgets/for_tonight_sheet.dart';
+import '../widgets/home_recommendation_header.dart';
 import '../widgets/home_time_selector.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
@@ -1451,68 +1452,36 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(
-                heading,
-                softWrap: false,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Georgia',
-                ),
-              ),
-            ),
-            if (showingTonight) ...[
-              const SizedBox(width: 8),
+        HomeRecommendationHeader(
+          s: s,
+          heading: heading,
+          onTonight: appState.coupleId.isNotEmpty && appState.partnerId.isNotEmpty
+              ? () => _openForTonight(context)
+              : null,
+          tonightLoading: provider.tonightLoading,
+          badge: showingTonight
               // Badge + × : discarding restores the weekly set instantly.
-              InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => context.read<WeeklyIdeasProvider>().clearForTonight(),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(8, 2, 4, 2),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentRose.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+              ? InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => context.read<WeeklyIdeasProvider>().clearForTonight(),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(8, 2, 4, 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentRose.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(s.forTonightBadge,
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accentRose)),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.close, size: 13, color: AppTheme.accentRose),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(s.forTonightBadge,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accentRose)),
-                      const SizedBox(width: 2),
-                      const Icon(Icons.close, size: 13, color: AppTheme.accentRose),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            // Secondary action — visually lighter than the heading.
-            if (appState.coupleId.isNotEmpty && appState.partnerId.isNotEmpty)
-              TextButton(
-                onPressed: provider.tonightLoading ? null : () => _openForTonight(context),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: const Size(0, 28),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  foregroundColor: AppTheme.accentRose,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(s.forTonightTitle,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                    const SizedBox(width: 3),
-                    provider.tonightLoading
-                        ? const SizedBox(width: 11, height: 11, child: CircularProgressIndicator(strokeWidth: 1.5))
-                        : const Icon(Icons.arrow_forward_rounded, size: 13),
-                  ],
-                ),
-              ),
-          ],
+                )
+              : null,
         ),
         const SizedBox(height: 10),
         // Session-only time shortcut (in memory; never persisted) — part of
