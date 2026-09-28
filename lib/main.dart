@@ -17,6 +17,7 @@ import 'models/app_state.dart';
 import 'models/chat_provider.dart';
 import 'models/mediation_provider.dart';
 import 'models/push_routing.dart';
+import 'widgets/mediation_invite_dialog.dart';
 import 'models/couple_model.dart';
 import 'models/language_provider.dart';
 import 'models/memories_provider.dart';
@@ -590,14 +591,18 @@ class _MainShellState extends State<MainShell> {
         if (nav != null && nav.canPop()) nav.pop();
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: _currentIndex,
-          children: List.generate(
-            _tabScreens.length,
-            (i) => Navigator(
-              key: _tabNavKeys[i],
-              onGenerateRoute: (_) => MaterialPageRoute(
-                builder: (_) => _tabScreens[i],
+        // Auto-opens the "partner wants to work something out" dialog once
+        // per talk + actionable state, wherever the user is in the app.
+        body: MediationInviteWatcher(
+          child: IndexedStack(
+            index: _currentIndex,
+            children: List.generate(
+              _tabScreens.length,
+              (i) => Navigator(
+                key: _tabNavKeys[i],
+                onGenerateRoute: (_) => MaterialPageRoute(
+                  builder: (_) => _tabScreens[i],
+                ),
               ),
             ),
           ),

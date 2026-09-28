@@ -749,6 +749,13 @@ class AppStrings {
   String get notifChannelMediation => isNorwegian ? 'Oss mot problemet' : 'Us vs. the problem';
   String get notifChannelReminders => isNorwegian ? 'Påminnelser' : 'Reminders';
   String get notifChannelGeneral => isNorwegian ? 'Varsler' : 'Notifications';
+  // Auto-opened in-app dialog when a talk awaits the current user.
+  String medInviteDialogTitle(String partner) => isNorwegian ? '💬 $partner vil løse noe sammen' : '$partner wants to work something out';
+  String medInviteDialogBody(String partner) => isNorwegian
+      ? 'Det er noe $partner gjerne vil snakke med deg om. Ta det når det passer.'
+      : "There's something $partner would like to talk through with you. Open it when you're ready.";
+  String get medInviteDialogNotNow => isNorwegian ? 'Ikke nå' : 'Not now';
+  String get medInviteDialogOpen => isNorwegian ? 'Se samtalen' : 'Open conversation';
   String get pairInvalidCode => isNorwegian ? 'Ugyldig kode.' : 'Invalid code.';
   String get pairOwnInvite => isNorwegian ? 'Du kan ikke bruke din egen kode.' : 'You can\'t use your own code.';
   String get pairSelfAlreadyPartnered =>
