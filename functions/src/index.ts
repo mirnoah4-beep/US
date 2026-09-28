@@ -4,8 +4,6 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { generateForCouple, generateTemporaryIdeas, getWeekNumber } from './generateWeeklyIdeas';
 import { parseOverrides } from './preferences';
-import { IDEA_LIBRARY, libraryIdeaDoc } from './ideasLibrary';
-import { resolveCoverForIdea } from './ideaImages';
 import OpenAI from 'openai';
 import {
   isPartnerTemplateId,
@@ -337,59 +335,6 @@ export const generateForTonight = onCall(
 
 const FOR_TONIGHT_MAX_PER_HOUR = 8;
 
-// ── TEMPORARY (pre-launch): sync the idea library into Firestore and ensure
-// every library idea has a cover, reusing existing ones first. Triggered by
-// creating adminJobs/{jobId} = { token, dryRun, maxNewImages } (a server-only
-// collection — no client rule exists for it), result written back to the
-// document. Delete after the library backfill has run.
-const LIBRARY_SYNC_TOKEN = 'us-library-sync-2026-09-28';
-export const adminSyncIdeaLibrary = onDocumentCreated(
-  { document: 'adminJobs/{jobId}', region: 'europe-west1', secrets: ['OPENAI_API_KEY'], timeoutSeconds: 540, memory: '512MiB' },
-  async (event) => {
-    const job = event.data?.data();
-    const ref = event.data?.ref;
-    if (!job || !ref) return;
-    if (job.token !== LIBRARY_SYNC_TOKEN || job.type !== 'syncIdeaLibrary') {
-      await ref.set({ status: 'rejected' }, { merge: true });
-      return;
-    }
-    if (job.status) return; // one-shot guard
-    await ref.set({ status: 'running', startedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-    const dryRun = job.dryRun !== false;
-    const maxNewImages = Math.min(Number(job.maxNewImages ?? 0) || 0, 80);
-    const firestore = admin.firestore();
-    const deps = { firestore, bucket: admin.storage().bucket(), openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) };
-    const out = { dryRun, docsWritten: 0, alreadyOk: 0, repaired: 0, generated: 0, failed: 0, wouldGenerate: [] as string[], errors: [] as string[] };
-    let budget = maxNewImages;
-    for (const idea of IDEA_LIBRARY) {
-      if (!dryRun) {
-        await firestore.collection('ideas').doc(idea.id).set(libraryIdeaDoc(idea), { merge: true });
-        out.docsWritten++;
-      }
-      // imageHint replaces the literal activity text in the prompt (scene-based, safe).
-      const source = idea.imageHint
-        ? { titleEn: `${idea.categoryEn} scene`, descriptionEn: idea.imageHint, categoryEn: idea.categoryEn, metaEn: idea.durationEn, effort: idea.effort }
-        : { titleNo: idea.titleNo, titleEn: idea.titleEn, categoryNo: idea.categoryNo, categoryEn: idea.categoryEn, metaNo: idea.durationNo, metaEn: idea.durationEn, descriptionNo: idea.descNo, descriptionEn: idea.descEn, effort: idea.effort };
-      if (dryRun) {
-        const snap = await firestore.collection('ideas').doc(idea.id).get();
-        const url = snap.data()?.coverImageUrl;
-        if (typeof url === 'string' && url.startsWith('http')) { out.alreadyOk++; continue; }
-        if (url !== undefined && url !== null) out.errors.push(`${idea.id}: broken coverImageUrl`);
-        const [exists] = await deps.bucket.file(`ideas/${idea.id}/cover.jpg`).exists();
-        if (exists) { out.repaired++; continue; }
-        out.wouldGenerate.push(idea.id);
-        continue;
-      }
-      const res = await resolveCoverForIdea(deps, source, idea.id, { allowGenerate: budget > 0 });
-      if (res.outcome === 'generated') { budget--; out.generated++; }
-      else if (res.outcome === 'already-ok') out.alreadyOk++;
-      else if (res.outcome === 'repaired') out.repaired++;
-      else { out.failed++; out.errors.push(`${idea.id}: ${res.error}`); }
-    }
-    console.log(`[librarySync] ${JSON.stringify({ ...out, wouldGenerate: out.wouldGenerate.length })}`);
-    await ref.set({ status: 'done', finishedAt: admin.firestore.FieldValue.serverTimestamp(), result: out }, { merge: true });
-  }
-);
 
 // Callable: fully delete the caller's account. Runs with the Admin SDK so it
 // can delete the Auth user WITHOUT a recent re-login. Ordering: Storage files
