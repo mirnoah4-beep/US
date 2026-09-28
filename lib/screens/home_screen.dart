@@ -22,6 +22,7 @@ import '../models/weekly_ideas_provider.dart';
 import '../widgets/for_tonight_sheet.dart';
 import '../widgets/home_recommendation_header.dart';
 import '../widgets/home_time_selector.dart';
+import '../widgets/idea_card_title.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
@@ -102,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 statusLine: s.batteryStatus(state.batteryPercent),
                 message: s.batteryMsg(state.batteryPercent),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
             ],
             const _WeeklyIdeasCarousel(),
             const SizedBox(height: 4),
@@ -2404,19 +2405,8 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
                   children: [
                     badge,
                     const SizedBox(height: 6),
-                    AutoSizeText(
-                      widget.idea.title(isNo),
-                      style: const TextStyle(
-                        color: Color(0xFF1A1A1A),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'Georgia',
-                        height: 1.2,
-                      ),
-                      minFontSize: 13,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    // Never breaks a word mid-line (see IdeaCardTitle).
+                    IdeaCardTitle(widget.idea.title(isNo)),
                     const SizedBox(height: 3),
                     Builder(builder: (context) {
                       final sub = widget.idea.subtitle(isNo).isNotEmpty

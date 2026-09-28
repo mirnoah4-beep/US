@@ -107,7 +107,7 @@ class _TonightAction extends StatelessWidget {
     )..layout();
     final w = p.width;
     p.dispose();
-    return w + 4 + 15 + 12;
+    return w + 4 + 15 + 8;
   }
 
   @override
@@ -116,7 +116,7 @@ class _TonightAction extends StatelessWidget {
     return TextButton(
       onPressed: loading ? null : onTap,
       style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         minimumSize: const Size(0, 28),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         foregroundColor: AppTheme.accentRose,

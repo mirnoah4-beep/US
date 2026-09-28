@@ -28,18 +28,19 @@ Widget host({required bool no, required double scale, bool withBadge = false}) {
   );
 }
 
-Future<void> setPhone(WidgetTester t) async {
-  t.view.physicalSize = const Size(320, 700);
+Future<void> setPhone(WidgetTester t, [double width = 320]) async {
+  t.view.physicalSize = Size(width, 700);
   t.view.devicePixelRatio = 1.0;
   addTearDown(t.view.resetPhysicalSize);
   addTearDown(t.view.resetDevicePixelRatio);
 }
 
 void main() {
+  for (final width in [320.0, 360.0, 393.0, 412.0]) {
   for (final no in [true, false]) {
     for (final scale in [1.0, 1.3]) {
-      testWidgets('${no ? 'NO' : 'EN'} @ ${scale}x: no overflow, no clip, no overlap', (t) async {
-        await setPhone(t);
+      testWidgets('${width.toInt()} dp ${no ? 'NO' : 'EN'} @ ${scale}x: one line, no overflow, no clip, no overlap', (t) async {
+        await setPhone(t, width);
         await t.pumpWidget(host(no: no, scale: scale));
         expect(t.takeException(), isNull, reason: 'RenderFlex overflow would throw here');
         final s = AppStrings(isNorwegian: no);
@@ -58,10 +59,12 @@ void main() {
         final h = t.getRect(headingFinder);
         final a = t.getRect(actionFinder);
         expect(h.right <= a.left || h.bottom <= a.top, isTrue, reason: 'heading overlaps the action');
-        // Everything inside the 320 dp screen.
-        expect(a.right <= 320, isTrue);
+        // Everything inside the screen; the heading really is one line.
+        expect(a.right <= width, isTrue);
+        expect(para.didExceedMaxLines, isFalse, reason: 'heading needed a second line');
       });
     }
+  }
   }
 
   testWidgets('EN @ 1.3x with the Tonight badge still fits', (t) async {
