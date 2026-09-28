@@ -18,6 +18,10 @@ class WeeklyIdea {
   final String subtitleEn;
   final Color buttonColor;
 
+  /// Cover lookup id when the idea comes from the bundled library (its doc
+  /// id, not `toId(titleNo)`). Null for server-generated weekly ideas.
+  final String? imageId;
+
   const WeeklyIdea({
     required this.titleNo,
     required this.titleEn,
@@ -34,6 +38,7 @@ class WeeklyIdea {
     this.subtitleNo = '',
     this.subtitleEn = '',
     this.buttonColor = const Color(0xFF8B2E42),
+    this.imageId,
   });
 
   String title(bool isNorwegian) => isNorwegian

@@ -16,8 +16,11 @@ import '../models/language_provider.dart';
 import '../models/memories_provider.dart';
 import '../models/memory_model.dart';
 import '../models/weekly_idea.dart';
+import '../models/home_time_filter.dart';
+import '../models/idea_library.dart';
 import '../models/weekly_ideas_provider.dart';
 import '../widgets/for_tonight_sheet.dart';
+import '../widgets/home_time_selector.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
@@ -100,6 +103,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 28),
             ],
+            // Session-only time shortcut (in memory; never persisted).
+            ValueListenableBuilder<HomeTimeBucket?>(
+              valueListenable: HomeTimeSelection.instance,
+              builder: (_, selected, _) => HomeTimeSelector(
+                s: s,
+                selected: selected,
+                onToggle: HomeTimeSelection.instance.toggle,
+              ),
+            ),
+            const SizedBox(height: 18),
             const _WeeklyIdeasCarousel(),
             const SizedBox(height: 4),
             const _SeeAllIdeasLink(),
@@ -1280,6 +1293,22 @@ class _WeeklyIdeasCarousel extends StatefulWidget {
 }
 
 class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
+  // Time shortcut: library ideas replace the weekly/tonight set while a
+  // bucket is selected; clearing restores them untouched.
+  List<LibraryIdea> _library = const [];
+  void _onTimeChanged() {
+    if (!mounted) return;
+    if (_controller.hasClients) _controller.jumpToPage(0);
+    setState(() => _page = 0);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    HomeTimeSelection.instance.addListener(_onTimeChanged);
+    IdeaLibrary.load().then((l) { if (mounted) setState(() => _library = l); });
+  }
+
   final _controller = PageController();
   int _page = 0;
   bool _precaching = false;
@@ -1302,6 +1331,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   @override
   void dispose() {
     _controller.dispose();
+    HomeTimeSelection.instance.removeListener(_onTimeChanged);
     super.dispose();
   }
 
@@ -1334,12 +1364,32 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
     final provider = context.watch<WeeklyIdeasProvider>();
     // Tonight's temporary set (in memory only) takes the carousel over until
     // discarded; the weekly set underneath is never modified.
-    final showingTonight = provider.tonightIdeas != null;
-    final ideas = provider.displayIdeas
-        .where((idea) => idea.titleNo.isNotEmpty || idea.titleEn.isNotEmpty)
-        .take(4)
-        .toList();
     final appState = context.watch<AppState>();
+    final timeBucket = HomeTimeSelection.instance.value;
+    final showingTonight = timeBucket == null && provider.tonightIdeas != null;
+    final List<WeeklyIdea> ideas;
+    if (timeBucket != null) {
+      // Hard constraints only: selected bucket + parent-mode rule. A kid-free
+      // "For i kveld" session keeps admitting couple-only ideas.
+      final pool = ideasForBucket(
+        _library, timeBucket,
+        parentMode: appState.hasChildren,
+        kidFreeSession: provider.tonightIdeas != null && provider.tonightChildcare == 'kidFree',
+      );
+      ideas = shuffledPool(pool, HomeTimeSelection.instance.seed)
+          .take(4).map(libraryIdeaAsWeekly).toList();
+    } else {
+      ideas = provider.displayIdeas
+          .where((idea) => idea.titleNo.isNotEmpty || idea.titleEn.isNotEmpty)
+          .take(4)
+          .toList();
+    }
+    final heading = switch (timeBucket) {
+      HomeTimeBucket.quick => s.homeTimeHeadingQuick,
+      HomeTimeBucket.hour => s.homeTimeHeadingHour,
+      HomeTimeBucket.long => s.homeTimeHeadingLong,
+      null => s.somethingForYouTwo,
+    };
 
     // init() is idempotent — safe to call on every build.
     // Calling here (not initState) ensures it fires once coupleId is available,
@@ -1417,13 +1467,17 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              s.somethingForYouTwo,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
+            Flexible(
+              child: Text(
+                heading,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
             if (showingTonight) ...[
@@ -1494,7 +1548,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              s.homeWeeklyIdeasEmpty,
+              timeBucket != null ? s.homeTimeEmpty : s.homeWeeklyIdeasEmpty,
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
@@ -1665,7 +1719,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   @override
   void initState() {
     super.initState();
-    _imageUrl = IdeaImageService.getCachedUrl(IdeaImageService.toId(widget.idea.titleNo));
+    _imageUrl = IdeaImageService.getCachedUrl(widget.idea.imageId ?? IdeaImageService.toId(widget.idea.titleNo));
     _urlWasKnownAtInit = _imageUrl != null;
     if (_imageUrl == null) _loadImage();
     _dotCtrl = AnimationController(
@@ -1686,7 +1740,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
   }
 
   Future<void> _loadImage() async {
-    final id = IdeaImageService.toId(widget.idea.titleNo);
+    final id = widget.idea.imageId ?? IdeaImageService.toId(widget.idea.titleNo);
     final url = await IdeaImageService.fetchCoverUrl(id);
     if (mounted && url != null && url.isNotEmpty) setState(() => _imageUrl = url);
   }
@@ -1707,7 +1761,7 @@ class _IdeaPageCardState extends State<_IdeaPageCard>
       behavior: SnackBarBehavior.floating,
     ));
     try {
-      final ideaId = IdeaImageService.toId(widget.idea.titleNo);
+      final ideaId = widget.idea.imageId ?? IdeaImageService.toId(widget.idea.titleNo);
       final url = await IdeaImageService.uploadCover(ideaId, picked);
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(SnackBar(

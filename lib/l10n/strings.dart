@@ -79,6 +79,17 @@ class AppStrings {
   String get homeSendToS => isNorwegian ? 'Send til S' : 'Send to S';
   String get homeSentToS => isNorwegian ? 'Sendt til S!' : 'Sent to S!';
   String get homeWeeklyIdeasSection => isNorwegian ? 'Ukens ideer' : 'This week\'s ideas';
+  // ── Home time shortcut ("Hvor mye tid har dere?") ────────────────────────
+  String get homeTimeQuestion => isNorwegian ? 'Hvor mye tid har dere?' : 'How much time do you have?';
+  String get homeTimeQuick => '10 min';
+  String get homeTimeHour => isNorwegian ? '1 t' : '1 hr';
+  String get homeTimeLong => isNorwegian ? '2+ t' : '2+ hrs';
+  String get homeTimeHeadingQuick => isNorwegian ? 'Noe dere rekker på 10 min' : 'Something you can do in 10 min';
+  String get homeTimeHeadingHour => isNorwegian ? 'Noe dere rekker på 1 time' : 'Something you can do in 1 hour';
+  String get homeTimeHeadingLong => isNorwegian ? 'Noe for litt mer tid' : 'Something for when you have more time';
+  String get homeTimeEmpty => isNorwegian
+      ? 'Ingen ideer passer akkurat nå – prøv en annen tid.'
+      : 'No ideas fit right now – try another time.';
   String get somethingForYouTwo => isNorwegian ? 'Noe for dere to' : 'Something for you two';
   String get sendToPartner => isNorwegian ? 'Send til' : 'Send to';
   String percentCharged(int x) => isNorwegian ? '$x% ladet' : '$x% charged';
