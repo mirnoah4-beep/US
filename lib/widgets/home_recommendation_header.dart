@@ -5,9 +5,9 @@ import '../theme/app_theme.dart';
 
 /// Header row of the Home recommendation section:
 ///   Noe for dere / Something for you        For i kveld →
-/// The heading keeps its size and may wrap to a second line on narrow
-/// widths / large text; it never clips, and the secondary action never
-/// overlaps it (it sits in its own slot, aligned to the top).
+/// The heading is always ONE line (riktigbr.png). The action shares the row
+/// when the measured heading + action fit; otherwise it drops right-aligned
+/// under the heading, so nothing ever wraps, clips or overlaps.
 class HomeRecommendationHeader extends StatelessWidget {
   final AppStrings s;
   final String heading;
@@ -26,16 +26,26 @@ class HomeRecommendationHeader extends StatelessWidget {
     this.badge,
   });
 
+  // Same weight/family as the Home greeting, a step larger than body copy
+  // (riktigbr.png). Always a single line.
   static const _headingStyle = TextStyle(
     color: AppTheme.textPrimary,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: FontWeight.w700,
     fontFamily: 'Georgia',
+    letterSpacing: -0.3,
+    height: 1.15,
   );
 
   @override
   Widget build(BuildContext context) {
-    final headingText = Text(heading, style: _headingStyle, softWrap: true);
+    // One line, never wrapped or truncated: when even the full width is too
+    // narrow (extreme text scale), the line scales down slightly instead.
+    final headingText = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(heading, style: _headingStyle, maxLines: 1, softWrap: false),
+    );
     final action = onTonight == null ? null : _TonightAction(s: s, onTap: onTonight!, loading: tonightLoading);
     final badgeRow = badge == null ? null : Padding(padding: const EdgeInsets.only(left: 8), child: badge);
 
@@ -85,7 +95,7 @@ class _TonightAction extends StatelessWidget {
   final bool loading;
   const _TonightAction({required this.s, required this.onTap, required this.loading});
 
-  static const _style = TextStyle(fontSize: 12, fontWeight: FontWeight.w500);
+  static const _style = TextStyle(fontSize: 13, fontWeight: FontWeight.w500);
 
   /// Text width + icon + gaps + button padding, at the given text scale.
   static double estimateWidth(AppStrings s, TextScaler scaler) {
@@ -97,7 +107,7 @@ class _TonightAction extends StatelessWidget {
     )..layout();
     final w = p.width;
     p.dispose();
-    return w + 3 + 13 + 12;
+    return w + 4 + 15 + 12;
   }
 
   @override
@@ -115,10 +125,10 @@ class _TonightAction extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(s.forTonightTitle, style: _style),
-          const SizedBox(width: 3),
+          const SizedBox(width: 4),
           loading
-              ? const SizedBox(width: 11, height: 11, child: CircularProgressIndicator(strokeWidth: 1.5))
-              : const Icon(Icons.arrow_forward_rounded, size: 13),
+              ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5))
+              : const Icon(Icons.arrow_forward_rounded, size: 15),
         ],
       ),
     );

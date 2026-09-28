@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 statusLine: s.batteryStatus(state.batteryPercent),
                 message: s.batteryMsg(state.batteryPercent),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
             ],
             const _WeeklyIdeasCarousel(),
             const SizedBox(height: 4),
@@ -1483,15 +1483,15 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                 )
               : null,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         // Session-only time shortcut (in memory; never persisted) — part of
-        // the recommendation section, directly under its header (den.png).
+        // the recommendation section, directly under its header (riktigbr.png).
         HomeTimeSelector(
           s: s,
           selected: timeBucket,
           onToggle: HomeTimeSelection.instance.toggle,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         if (!imagesReady)
           const SizedBox(height: 185)
         else if (ideas.isEmpty)
@@ -1536,14 +1536,14 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                 children: List.generate(ideas.length, (i) {
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    width: i == _page ? 14 : 6,
-                    height: 6,
+                    width: i == _page ? 22 : 8,
+                    height: 8,
                     margin: const EdgeInsets.symmetric(horizontal: 3),
                     decoration: BoxDecoration(
                       color: i == _page
                           ? AppTheme.accentRose
                           : const Color(0xFFDDDDDD),
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   );
                 }),

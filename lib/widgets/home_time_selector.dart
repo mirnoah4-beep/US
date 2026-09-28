@@ -29,12 +29,12 @@ class HomeTimeSelector extends StatelessWidget {
       (HomeTimeBucket.long, s.homeTimeLong),
     ];
     return Container(
-      height: 36,
+      height: 42,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: AppTheme.accentRoseLight,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.accentRose.withValues(alpha: 0.14)),
+        border: Border.all(color: AppTheme.accentRose.withValues(alpha: 0.22)),
       ),
       child: Row(
         children: [
@@ -43,7 +43,7 @@ class HomeTimeSelector extends StatelessWidget {
               // Subtle divider, hidden next to the selected segment.
               Container(
                 width: 1,
-                height: 16,
+                height: 18,
                 color: (selected == segments[i].$1 || selected == segments[i - 1].$1)
                     ? Colors.transparent
                     : AppTheme.accentRose.withValues(alpha: 0.18),
@@ -95,7 +95,7 @@ class _Segment extends StatelessWidget {
               overflow: TextOverflow.fade,
               style: TextStyle(
                 color: selected ? Colors.white : AppTheme.accentRose,
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),

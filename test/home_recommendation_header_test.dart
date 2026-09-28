@@ -47,12 +47,13 @@ void main() {
         final actionFinder = find.text(s.forTonightTitle);
         expect(headingFinder, findsOneWidget);
         expect(actionFinder, findsOneWidget);
-        // Not clipped: the paragraph fits its box (no truncation beyond 2 lines).
+        // Not clipped: the paragraph fits its box (single line, never truncated).
         final para = t.renderObject<RenderParagraph>(headingFinder);
         expect(para.textSize.height <= para.size.height + 0.5, isTrue, reason: 'heading clipped');
         expect(para.textSize.width <= para.size.width + 0.5, isTrue, reason: 'heading wider than its box');
         // Font size preserved (no shrinking).
-        expect(t.widget<Text>(headingFinder).style!.fontSize, 18);
+        expect(t.widget<Text>(headingFinder).style!.fontSize, 22);
+        expect(t.widget<Text>(headingFinder).maxLines, 1, reason: 'heading is always one line');
         // No overlap between heading and the action (side by side, or stacked).
         final h = t.getRect(headingFinder);
         final a = t.getRect(actionFinder);
