@@ -63,16 +63,7 @@ export interface GenerationSummary {
   imageError: string | null;
 }
 
-export interface GenerateOptions {
-  /// "For tonight" per-request overrides (already validated by the caller).
-  /// Applied to this generation only — never written to anyone's preferences.
-  overrides?: SessionOverrides | null;
-}
-
-export async function generateForCouple(
-  coupleId: string,
-  options: GenerateOptions = {},
-): Promise<GenerationSummary> {
+export async function generateForCouple(coupleId: string): Promise<GenerationSummary> {
   const summary: GenerationSummary = {
     coupleId,
     subscriptionTier: 'unknown',
@@ -94,10 +85,10 @@ export async function generateForCouple(
   const subscriptionTier: string = data.subscriptionTier ?? 'free';
   summary.subscriptionTier = subscriptionTier;
 
-  const ctx = await buildContext(firestore, coupleId, data, options.overrides ?? null);
+  const ctx = await buildContext(firestore, coupleId, data, null);
   const weekNumber = getWeekNumber();
   console.log(
-    `generateForCouple: profile source=${ctx.profile.source} overridden=${ctx.profile.overridden} `
+    `generateForCouple: profile source=${ctx.profile.source} `
     + `time=${ctx.profile.availableTime} parent=${ctx.profile.isParent} care=${ctx.profile.childcareState} `
     + `locations=${ctx.profile.locations.map((l) => `${l.id}:${l.weight}`).join(',')}`,
   );
@@ -210,16 +201,46 @@ export async function generateForCouple(
     weekNumber,
     generatedBy,
     ideas,
-    // Present only when this set was made for a one-off "For tonight"
-    // request, so the client can label it. Never copied into preferences.
-    forTonight: options.overrides
-      ? { ...options.overrides, at: admin.firestore.FieldValue.serverTimestamp() }
-      : null,
   });
 
   summary.generatedBy = generatedBy;
   summary.titles = ideas.map((i) => (i.titleNo ?? '').trim() || i.title || '');
   return summary;
+}
+
+/// "For tonight": a TEMPORARY recommendation set for one request. Reuses the
+/// same context, profile derivation, prompt and curation as the weekly run,
+/// with the per-session overrides applied — but writes nothing: the weekly
+/// set, its history and everyone's preferences stay exactly as they are.
+/// No cover images and no push either; the result is returned to the caller
+/// and discarded when they close it.
+export interface TemporaryIdeasResult {
+  ideas: IdeaObject[];
+  generatedBy: GeneratedBy;
+  profile: CoupleProfile;
+}
+
+export async function generateTemporaryIdeas(
+  coupleId: string,
+  overrides: SessionOverrides | null,
+): Promise<TemporaryIdeasResult | null> {
+  const firestore = db();
+  const coupleSnap = await firestore.collection('couples').doc(coupleId).get();
+  if (!coupleSnap.exists) return null;
+  const data = coupleSnap.data()!;
+  const subscriptionTier: string = data.subscriptionTier ?? 'free';
+  const ctx = await buildContext(firestore, coupleId, data, overrides);
+  console.log(
+    `generateTemporaryIdeas: couple=${coupleId} tier=${subscriptionTier} overridden=${ctx.profile.overridden} `
+    + `time=${ctx.profile.availableTime} care=${ctx.profile.childcareState} `
+    + `locations=${ctx.profile.locations.map((l) => l.id).join(',')}`,
+  );
+  if (subscriptionTier === 'premium') {
+    const ai = await callOpenAI(buildPrompt(ctx));
+    return { ideas: ai.ideas, generatedBy: ai.usedFallback ? 'fallback' : 'ai', profile: ctx.profile };
+  }
+  const ideas = await getCuratedIdeas(firestore, coupleId, ctx.batteryLevel, ctx.season, preferredEffort(ctx.profile));
+  return { ideas, generatedBy: 'curated', profile: ctx.profile };
 }
 
 /// Keep a bounded window of recent weeks — buildContext() only reads the last

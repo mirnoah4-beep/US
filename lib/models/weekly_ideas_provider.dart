@@ -208,6 +208,7 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     if (_coupleId == coupleId && _sub != null) return;
     _coupleId = coupleId;
     _initialized = false;
+    _tonight = null;   // a temporary set never survives a couple change
     _sub?.cancel();
 
     try {
@@ -285,28 +286,53 @@ class WeeklyIdeasProvider extends ChangeNotifier {
     }
   }
 
-  /// "For tonight": regenerates the set with per-request overrides. The
-  /// overrides steer this generation only — the server never writes them to
-  /// anyone's preferences. Returns false when the call failed.
+  // ── "For tonight" (temporary, never persisted) ─────────────────────────
+  List<WeeklyIdea>? _tonight;
+  bool _tonightLoading = false;
+
+  /// The temporary set shown instead of the weekly one until discarded.
+  List<WeeklyIdea>? get tonightIdeas => _tonight;
+  bool get tonightLoading => _tonightLoading;
+
+  /// What the carousel renders: tonight's temporary set when present, else
+  /// the untouched weekly set.
+  List<WeeklyIdea> get displayIdeas => _tonight ?? ideas;
+
+  /// Asks the server for a one-off set with per-request overrides. The
+  /// weekly set, its history and both partners' preferences are untouched —
+  /// the result lives only in memory here. Returns false on failure.
   Future<bool> generateForTonight(String coupleId, Map<String, dynamic> overrides) async {
-    if (_generationPending) return false;
-    _generationPending = true;
-    _loading = true;
+    if (_tonightLoading) return false;
+    _tonightLoading = true;
     notifyListeners();
     try {
       final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('generateWeeklyIdeasNow');
-      await callable.call({'coupleId': coupleId, 'overrides': overrides});
+          .httpsCallable('generateForTonight');
+      final result = await callable.call<Map<String, dynamic>>({'coupleId': coupleId, 'overrides': overrides});
+      final raw = result.data['ideas'] as List<dynamic>? ?? const [];
+      final parsed = raw
+          .map((e) => WeeklyIdea.fromJson(Map<String, dynamic>.from(e as Map)))
+          .where((i) => i.titleNo.isNotEmpty || i.titleEn.isNotEmpty)
+          .toList();
+      if (parsed.isEmpty) return false;
+      await _prefetchImageUrls(parsed.take(4).toList());
+      _tonight = parsed;
       return true;
     } catch (e, st) {
       if (kDebugMode) debugPrint('WeeklyIdeasProvider forTonight failed: $e');
       FirebaseCrashlytics.instance.recordError(e, st, reason: 'generateForTonight');
-      _loading = false;
-      notifyListeners();
       return false;
     } finally {
-      _generationPending = false;
+      _tonightLoading = false;
+      notifyListeners();
     }
+  }
+
+  /// Discards the temporary set; the weekly ideas reappear unchanged.
+  void clearForTonight() {
+    if (_tonight == null) return;
+    _tonight = null;
+    notifyListeners();
   }
 
   Future<void> sendIdea(

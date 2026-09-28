@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
-import { generateForCouple, getWeekNumber } from './generateWeeklyIdeas';
+import { generateForCouple, generateTemporaryIdeas, getWeekNumber } from './generateWeeklyIdeas';
 import { parseOverrides } from './preferences';
 import OpenAI from 'openai';
 import {
@@ -276,30 +276,64 @@ export const generateWeeklyIdeasNow = onCall(
     if (!members.includes(request.auth.uid)) {
       throw new HttpsError('permission-denied', 'Not a member of this couple');
     }
-    // "For tonight": bounded, server-validated per-request overrides. They
-    // steer THIS generation only and are never written to preferences.
+    await generateForCouple(coupleId);
+    return { success: true };
+  }
+);
+
+// Callable: "For tonight" — a TEMPORARY idea set for one request. The
+// bounded overrides (time, kids home / kid-free, locations) are validated
+// here and steer only this generation. Nothing is written: the weekly set
+// (weeklyIdeas/current), its history and both partners' preferences are
+// untouched; the client shows the result and discards it. Separate from the
+// weekly cooldown so adjusting the filters and trying again just works —
+// bounded only by a per-couple hourly cap (premium runs cost an OpenAI call).
+export const generateForTonight = onCall(
+  { region: 'europe-west1', secrets: ['OPENAI_API_KEY'] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
+    const coupleId: unknown = request.data?.coupleId;
+    if (typeof coupleId !== 'string' || !coupleId) {
+      throw new HttpsError('invalid-argument', 'coupleId is required');
+    }
+    const coupleSnap = await admin.firestore().collection('couples').doc(coupleId).get();
+    if (!coupleSnap.exists) {
+      throw new HttpsError('not-found', 'Couple not found');
+    }
+    const members: string[] = coupleSnap.data()?.members ?? [];
+    if (!members.includes(request.auth.uid)) {
+      throw new HttpsError('permission-denied', 'Not a member of this couple');
+    }
     let overrides = null;
     try {
       overrides = parseOverrides(request.data?.overrides);
     } catch (e) {
       throw new HttpsError('invalid-argument', (e as Error).message);
     }
-    if (overrides) {
-      // Cooldown: one "For tonight" regeneration per couple per 10 minutes —
-      // premium runs cost an OpenAI call, and a double tap must not double it.
-      const current = await admin.firestore()
-        .collection('couples').doc(coupleId).collection('weeklyIdeas').doc('current').get();
-      const at = current.data()?.forTonight?.at as admin.firestore.Timestamp | undefined;
-      if (at && Date.now() - at.toMillis() < FOR_TONIGHT_COOLDOWN_MS) {
-        return { success: true, skipped: 'cooldown' };
-      }
+    // Cost cap: FOR_TONIGHT_MAX_PER_HOUR temporary generations per couple per
+    // rolling hour, tracked in the server-only rateLimits collection.
+    const limitRef = admin.firestore().collection('rateLimits').doc(`forTonight_${coupleId}`);
+    const allowed = await admin.firestore().runTransaction(async (tx) => {
+      const snap = await tx.get(limitRef);
+      const now = Date.now();
+      const windowStart: number = snap.data()?.windowStart ?? 0;
+      const count: number = now - windowStart < 60 * 60 * 1000 ? (snap.data()?.count ?? 0) : 0;
+      if (count >= FOR_TONIGHT_MAX_PER_HOUR) return false;
+      tx.set(limitRef, { windowStart: count === 0 ? now : windowStart, count: count + 1 });
+      return true;
+    });
+    if (!allowed) {
+      throw new HttpsError('resource-exhausted', 'too-many-requests', { reason: 'too-many-requests' });
     }
-    await generateForCouple(coupleId, { overrides });
-    return { success: true };
+    const result = await generateTemporaryIdeas(coupleId, overrides);
+    if (!result) throw new HttpsError('not-found', 'Couple not found');
+    return { ideas: result.ideas, generatedBy: result.generatedBy };
   }
 );
 
-const FOR_TONIGHT_COOLDOWN_MS = 10 * 60 * 1000;
+const FOR_TONIGHT_MAX_PER_HOUR = 8;
 
 // Callable: fully delete the caller's account. Runs with the Admin SDK so it
 // can delete the Auth user WITHOUT a recent re-login. Ordering: Storage files

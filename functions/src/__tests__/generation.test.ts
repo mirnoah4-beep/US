@@ -32,6 +32,7 @@ function optionsBlockFor(name: string): string {
 const OPENAI_DEPENDENT = [
   'generateWeeklyIdeasScheduled', // calls generateForCouple
   'generateWeeklyIdeasNow',       // calls generateForCouple
+  'generateForTonight',           // calls generateTemporaryIdeas → callOpenAI
   'callOpenAI',                   // reads the key directly
 ];
 
@@ -54,7 +55,7 @@ test('every function calling generateForCouple is in the audited list', () => {
   for (const line of lines) {
     const def = line.match(/export const (\w+) = (?:onCall|onSchedule|onRequest|onDocument\w+)\(/);
     if (def) current = def[1];
-    if (/generateForCouple\(/.test(line) && current) callers.add(current);
+    if (/generate(ForCouple|TemporaryIdeas)\(/.test(line) && current) callers.add(current);
   }
   for (const caller of callers) {
     assert.ok(
@@ -66,6 +67,7 @@ test('every function calling generateForCouple is in the audited list', () => {
   // Sanity: the two known callers are detected.
   assert.ok(callers.has('generateWeeklyIdeasScheduled'));
   assert.ok(callers.has('generateWeeklyIdeasNow'));
+  assert.ok(callers.has('generateForTonight'));
 });
 
 // ── 3. generatedBy provenance ───────────────────────────────────────────────

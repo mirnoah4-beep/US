@@ -1331,7 +1331,10 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().s;
     final provider = context.watch<WeeklyIdeasProvider>();
-    final ideas = provider.ideas
+    // Tonight's temporary set (in memory only) takes the carousel over until
+    // discarded; the weekly set underneath is never modified.
+    final showingTonight = provider.tonightIdeas != null;
+    final ideas = provider.displayIdeas
         .where((idea) => idea.titleNo.isNotEmpty || idea.titleEn.isNotEmpty)
         .take(4)
         .toList();
@@ -1422,29 +1425,43 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
                 letterSpacing: 0.3,
               ),
             ),
-            if (provider.doc?.forTonight == true) ...[
+            if (showingTonight) ...[
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentRose.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+              // Badge + × : discarding restores the weekly set instantly.
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => context.read<WeeklyIdeasProvider>().clearForTonight(),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 2, 4, 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentRose.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(s.forTonightBadge,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accentRose)),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.close, size: 13, color: AppTheme.accentRose),
+                    ],
+                  ),
                 ),
-                child: Text(s.forTonightBadge,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accentRose)),
               ),
             ],
             const Spacer(),
             if (appState.coupleId.isNotEmpty && appState.partnerId.isNotEmpty)
               TextButton.icon(
-                onPressed: provider.loading ? null : () => _openForTonight(context),
+                onPressed: provider.tonightLoading ? null : () => _openForTonight(context),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   minimumSize: const Size(0, 28),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   foregroundColor: AppTheme.accentRose,
                 ),
-                icon: const Icon(Icons.nightlight_round, size: 14),
+                icon: provider.tonightLoading
+                    ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.nightlight_round, size: 14),
                 label: Text(s.forTonightTitle,
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               ),
