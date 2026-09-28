@@ -33,7 +33,6 @@ const OPENAI_DEPENDENT = [
   'generateWeeklyIdeasScheduled', // calls generateForCouple
   'generateWeeklyIdeasNow',       // calls generateForCouple
   'generateForTonight',           // calls generateTemporaryIdeas → callOpenAI
-  'callOpenAI',                   // reads the key directly
   // mediation: mediationCtx() → mediationAi() reads the key
   'mediationCreate', 'mediationRespond', 'mediationSubmit', 'mediationRetrySummary', 'mediationNudge',
   'mediationCorrectNeed', 'mediationEditAgreement', 'mediationAccept', 'mediationSetState',
