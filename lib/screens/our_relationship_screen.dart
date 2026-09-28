@@ -9,6 +9,7 @@ import '../models/language_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'mediation/mediation_hub_screen.dart';
+import '../widgets/mediation_waiting_banner.dart';
 
 class OurRelationshipScreen extends StatefulWidget {
   const OurRelationshipScreen({super.key});
@@ -449,7 +450,10 @@ class _OurRelationshipScreenState extends State<OurRelationshipScreen> {
           style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
         ),
         subtitle: Text(s.medEntrySubtitle, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-        trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted),
+        trailing: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [MediationBadgeDot(), Icon(Icons.chevron_right, color: AppTheme.textMuted)],
+        ),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const MediationHubScreen()),
         ),

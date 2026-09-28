@@ -23,6 +23,7 @@ import '../widgets/for_tonight_sheet.dart';
 import '../widgets/home_recommendation_header.dart';
 import '../widgets/home_time_selector.dart';
 import '../widgets/idea_card_title.dart';
+import '../widgets/mediation_waiting_banner.dart';
 import '../services/firestore_service.dart';
 import '../services/idea_image_service.dart';
 import '../theme/app_theme.dart';
@@ -81,6 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 6),
+            // Only when a talk awaits this user; otherwise renders nothing.
+            const MediationWaitingBanner(),
             if (!hasPartner && !_bannerDismissed) ...[
               _InviteBanner(
                 onTap: () => _openInviteFlow(context, state.userId),

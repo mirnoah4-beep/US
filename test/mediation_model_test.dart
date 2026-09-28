@@ -90,6 +90,28 @@ void main() {
     expect(closed.closingNoteFor('en'), 'Fine');
   });
 
+  test('awaitsAction: who the talk is waiting on, per status', () {
+    Mediation at(String status, {Map<String, dynamic>? answered, Map<String, dynamic>? accepts}) =>
+        Mediation.fromMap('m', doc(status: status, answered: answered, accepts: accepts))!;
+    expect(at('drafting').awaitsAction('A'), isFalse, reason: 'still writing, nothing pending');
+    expect(at('invitationDraft').awaitsAction('A'), isTrue, reason: 'initiator must approve');
+    expect(at('invitationDraft').awaitsAction('B'), isFalse, reason: 'partner knows nothing yet');
+    expect(at('invited').awaitsAction('B'), isTrue);
+    expect(at('invited').awaitsAction('A'), isFalse);
+    expect(at('answering').awaitsAction('B'), isTrue);
+    expect(at('round').awaitsAction('A'), isFalse, reason: 'A already answered round 1');
+    expect(at('round').awaitsAction('B'), isTrue);
+    expect(at('round', answered: {'A': true, 'B': true}).awaitsAction('B'), isFalse);
+    expect(at('agreement').awaitsAction('A'), isFalse, reason: 'A accepted the current hash');
+    expect(at('agreement').awaitsAction('B'), isTrue, reason: 'B accepted an older revision');
+    for (final st in ['active', 'unresolved', 'paused', 'closed', 'expired', 'generationFailed']) {
+      expect(at(st).awaitsAction('A'), isFalse, reason: st);
+      expect(at(st).awaitsAction('B'), isFalse, reason: st);
+    }
+    expect(const AppStrings(isNorwegian: true).medWaitingOnYou('Liv'), 'Liv venter på deg');
+    expect(const AppStrings(isNorwegian: false).medWaitingOnYou('Liv'), 'Liv is waiting for you');
+  });
+
   test('draft kinds: parsing, completeness and the exact keys written per kind', () {
     expect(MediationDraft.fromMap(null).kind, '');
     final t = MediationDraft.fromMap({'kind': 'topic', 'topic': 'a', 'wish': 'b', 'draft': true});

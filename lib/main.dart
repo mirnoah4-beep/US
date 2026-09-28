@@ -16,6 +16,7 @@ import 'firebase_options.dart';
 import 'models/app_state.dart';
 import 'models/chat_provider.dart';
 import 'models/mediation_provider.dart';
+import 'models/push_routing.dart';
 import 'models/couple_model.dart';
 import 'models/language_provider.dart';
 import 'models/memories_provider.dart';
@@ -466,6 +467,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _initFcm() async {
+    final s = context.read<LanguageProvider>().s;   // before any await
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission();
     final token = await messaging.getToken();
@@ -480,13 +482,22 @@ class _MainShellState extends State<MainShell> {
       }
     });
 
-    // Init local notifications plugin + create Android channels
-    await NotificationService().init();
+    // Init local notifications plugin + create Android channels; a tap on a
+    // foreground (local) notification lands in the same handler as a tap on
+    // a background push.
+    await NotificationService().init(
+      channelNames: PushChannelNames(chat: s.notifChannelChat, mediation: s.notifChannelMediation, reminders: s.notifChannelReminders, general: s.notifChannelGeneral),
+      onTap: _handleNotificationTap,
+    );
 
     // Foreground: no system banner — silently refresh so the stream fires and
     // PendingIdeaCard mounts, which auto-opens the modal via its initState hook.
     FirebaseMessaging.onMessage.listen((message) {
       if (!mounted) return;
+      // Chat and mediation pushes must be shown by the app while it is open.
+      if (showsForegroundNotification(message.data['type'] as String?)) {
+        NotificationService().showFcmMessage(message);
+      }
       final appState = context.read<AppState>();
       final coupleId = appState.coupleId;
       final userId = appState.userId;

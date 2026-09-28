@@ -133,6 +133,17 @@ class Mediation {
   bool isInitiator(String uid) => uid == initiatorUid;
   MediationRound? get currentRound => rounds[round];
 
+  /// True when the talk is waiting for [uid] to do something: approve their
+  /// invitation draft, respond to / answer an invitation, give round
+  /// feedback, or accept the agreement.
+  bool awaitsAction(String uid) => switch (status) {
+        'invitationDraft' => isInitiator(uid),
+        'invited' || 'answering' => !isInitiator(uid),
+        'round' => !(currentRound?.hasAnswered(uid) ?? false),
+        'agreement' => !hasAccepted(uid),
+        _ => false,
+      };
+
   /// Each partner reads the text in their own language; falls back to
   /// whatever language exists.
   String? invitationFor(String lang) =>

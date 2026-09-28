@@ -12,6 +12,7 @@ import '../models/weekly_ideas_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
 import 'mediation/mediation_hub_screen.dart';
+import '../widgets/mediation_waiting_banner.dart';
 import 'couple_game_screen.dart';
 import 'ideas_screen.dart';
 
@@ -897,6 +898,7 @@ class _MediationEntryCard extends StatelessWidget {
               ],
             ),
           ),
+          const MediationBadgeDot(),
           IconButton(
             icon: const Icon(Icons.chevron_right, color: Color(0xFF8B2E42)),
             onPressed: () => Navigator.of(context, rootNavigator: true).push(

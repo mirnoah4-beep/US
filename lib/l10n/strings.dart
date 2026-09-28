@@ -743,6 +743,12 @@ class AppStrings {
   String get medSafetyOk => isNorwegian ? 'Jeg forstår' : 'I understand';
   String get medSafetyCloseTalk => isNorwegian ? 'Avslutt samtalen' : 'Close the talk';
   String get medPlanEntryLine => isNorwegian ? 'Ta opp noe – privat først' : 'Bring something up – privately first';
+  String medWaitingOnYou(String partner) => isNorwegian ? '$partner venter på deg' : '$partner is waiting for you';
+  // Android notification channel names (shown in system settings).
+  String get notifChannelChat => isNorwegian ? 'Meldinger' : 'Messages';
+  String get notifChannelMediation => isNorwegian ? 'Oss mot problemet' : 'Us vs. the problem';
+  String get notifChannelReminders => isNorwegian ? 'Påminnelser' : 'Reminders';
+  String get notifChannelGeneral => isNorwegian ? 'Varsler' : 'Notifications';
   String get pairInvalidCode => isNorwegian ? 'Ugyldig kode.' : 'Invalid code.';
   String get pairOwnInvite => isNorwegian ? 'Du kan ikke bruke din egen kode.' : 'You can\'t use your own code.';
   String get pairSelfAlreadyPartnered =>
