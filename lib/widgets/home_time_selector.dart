@@ -4,10 +4,11 @@ import '../l10n/strings.dart';
 import '../models/home_time_filter.dart';
 import '../theme/app_theme.dart';
 
-/// "Hvor mye tid har dere?" — three compact single-select rounded rectangles
-/// (18 px radius, the Home shape language; not pills, not Material chips).
-/// Selected: burgundy background, white icon/text. Unselected: cream
-/// background, burgundy icon/text. Tapping the selected one clears it.
+/// Three compact single-select rounded rectangles (18 px radius — not pills,
+/// not Material chips), equal widths on one row. Selected: burgundy
+/// background, white icon/text. Unselected: light pink background with a
+/// faint pink outline, burgundy icon/text. Tapping the selected one clears
+/// it. No heading — the selected control is the feedback (den.png).
 class HomeTimeSelector extends StatelessWidget {
   final AppStrings s;
   final HomeTimeBucket? selected;
@@ -22,44 +23,34 @@ class HomeTimeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    // One row, three equal widths — never wraps, never overflows (den.png).
+    return Row(
       children: [
-        Text(
-          s.homeTimeQuestion,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
+        Expanded(
+          child: _TimeOption(
+            icon: Icons.bolt_rounded,
+            label: s.homeTimeQuick,
+            selected: selected == HomeTimeBucket.quick,
+            onTap: () => onToggle(HomeTimeBucket.quick),
           ),
         ),
-        const SizedBox(height: 10),
-        // Wrap (not Row) so large text / 320 dp never overflows — options
-        // move to a second line instead.
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _TimeOption(
-              icon: Icons.bolt_rounded,
-              label: s.homeTimeQuick,
-              selected: selected == HomeTimeBucket.quick,
-              onTap: () => onToggle(HomeTimeBucket.quick),
-            ),
-            _TimeOption(
-              icon: Icons.schedule_rounded,
-              label: s.homeTimeHour,
-              selected: selected == HomeTimeBucket.hour,
-              onTap: () => onToggle(HomeTimeBucket.hour),
-            ),
-            _TimeOption(
-              icon: Icons.nightlight_round,
-              label: s.homeTimeLong,
-              selected: selected == HomeTimeBucket.long,
-              onTap: () => onToggle(HomeTimeBucket.long),
-            ),
-          ],
+        const SizedBox(width: 10),
+        Expanded(
+          child: _TimeOption(
+            icon: Icons.schedule_rounded,
+            label: s.homeTimeHour,
+            selected: selected == HomeTimeBucket.hour,
+            onTap: () => onToggle(HomeTimeBucket.hour),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _TimeOption(
+            icon: Icons.nightlight_round,
+            label: s.homeTimeLong,
+            selected: selected == HomeTimeBucket.long,
+            onTap: () => onToggle(HomeTimeBucket.long),
+          ),
         ),
       ],
     );
@@ -95,22 +86,27 @@ class _TimeOption extends StatelessWidget {
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: selected ? AppTheme.accentRose : AppTheme.accentRose.withValues(alpha: 0.25),
+                color: selected ? AppTheme.accentRose : AppTheme.accentRose.withValues(alpha: 0.18),
               ),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 16, color: fg),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(color: fg, fontSize: 13, fontWeight: FontWeight.w600),
+                Icon(icon, size: 17, color: fg),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: fg, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),

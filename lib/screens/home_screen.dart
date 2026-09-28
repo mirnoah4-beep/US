@@ -101,18 +101,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 statusLine: s.batteryStatus(state.batteryPercent),
                 message: s.batteryMsg(state.batteryPercent),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
             ],
-            // Session-only time shortcut (in memory; never persisted).
-            ValueListenableBuilder<HomeTimeBucket?>(
-              valueListenable: HomeTimeSelection.instance,
-              builder: (_, selected, _) => HomeTimeSelector(
-                s: s,
-                selected: selected,
-                onToggle: HomeTimeSelection.instance.toggle,
-              ),
-            ),
-            const SizedBox(height: 18),
             const _WeeklyIdeasCarousel(),
             const SizedBox(height: 4),
             const _SeeAllIdeasLink(),
@@ -1384,12 +1374,9 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           .take(4)
           .toList();
     }
-    final heading = switch (timeBucket) {
-      HomeTimeBucket.quick => s.homeTimeHeadingQuick,
-      HomeTimeBucket.hour => s.homeTimeHeadingHour,
-      HomeTimeBucket.long => s.homeTimeHeadingLong,
-      null => s.somethingForYouTwo,
-    };
+    // The heading never changes with the time filter — the selected control
+    // is the feedback (den.png).
+    final heading = s.somethingForYouTwo;
 
     // init() is idempotent — safe to call on every build.
     // Calling here (not initState) ensures it fires once coupleId is available,
@@ -1470,13 +1457,13 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
             Flexible(
               child: Text(
                 heading,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Georgia',
                 ),
               ),
             ),
@@ -1541,7 +1528,15 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
               ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
+        // Session-only time shortcut (in memory; never persisted) — part of
+        // the recommendation section, directly under its header (den.png).
+        HomeTimeSelector(
+          s: s,
+          selected: timeBucket,
+          onToggle: HomeTimeSelection.instance.toggle,
+        ),
+        const SizedBox(height: 14),
         if (!imagesReady)
           const SizedBox(height: 185)
         else if (ideas.isEmpty)

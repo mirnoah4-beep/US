@@ -1,4 +1,4 @@
-// Widget: NO/EN labels, no overflow at 320 dp × 1.3 text scale, semantics, toggle.
+// Widget: NO/EN labels, one row without overflow at 320 dp × 1.3 text scale, semantics, toggle.
 import 'package:flutter/material.dart';
 import 'dart:ui' show Tristate;
 import 'package:flutter_test/flutter_test.dart';
@@ -20,19 +20,21 @@ Widget host({required bool no, HomeTimeBucket? selected, void Function(HomeTimeB
     );
 
 void main() {
-  testWidgets('Norwegian labels and heading', (t) async {
+  testWidgets('Norwegian labels, one row, no heading', (t) async {
     await t.pumpWidget(host(no: true));
-    expect(find.text('Hvor mye tid har dere?'), findsOneWidget);
+    expect(find.text('Hvor mye tid har dere?'), findsNothing);
+    expect(find.byType(Row), findsWidgets);
     expect(find.text('10 min'), findsOneWidget);
     expect(find.text('1 t'), findsOneWidget);
     expect(find.text('2+ t'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
 
-  testWidgets('English labels and heading, 320 dp at 1.3× — no overflow', (t) async {
+  testWidgets('English labels, 320 dp at 1.3× — no overflow, all three on one row', (t) async {
     await t.pumpWidget(host(no: false));
-    expect(find.text('How much time do you have?'), findsOneWidget);
     expect(find.text('1 hr'), findsOneWidget);
+    final y = ['10 min', '1 hr', '2+ hrs'].map((l) => t.getTopLeft(find.text(l)).dy).toSet();
+    expect(y.length, 1, reason: 'the three options share one row');
     expect(find.text('2+ hrs'), findsOneWidget);
     expect(t.takeException(), isNull, reason: 'a RenderFlex overflow would surface here');
   });
