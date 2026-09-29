@@ -16,12 +16,32 @@ service cloud.firestore {
                  /databases/$(database)/documents/couples/$(resource.data.coupleId)
                ).data.members);
       allow create, delete: if request.auth.uid == userId;
-      // Own document only. Pairing (setting BOTH users' coupleId) and
-      // disconnect/deletion are fully server-side (joinCouple, createInvite,
-      // disconnectPartner, deleteAccount use the Admin SDK), so no client ever
-      // needs to write another user's document. The former cross-user "join
-      // handshake" clause was removed with the joinCouple callable.
-      allow update: if request.auth.uid == userId;
+      // Own document only, and ONLY client-owned profile / preference fields.
+      // Server-owned identity and lifecycle fields (uid, email, createdAt) and
+      // the relationship pointer are NOT arbitrarily client-writable: pairing
+      // sets coupleId to a couple via the Admin SDK (joinCouple/createInvite),
+      // and the only legitimate client write of coupleId is the _CoupleGate /
+      // ensureUserDoc self-heal that clears a stale pointer to null. So a
+      // strict hasOnly() allowlist gates the writable fields, and coupleId may
+      // only ever transition TO null — never to an arbitrary couple id, which
+      // is what the deleteAccount / Storage authorization bugs relied on.
+      //
+      // NOTE: needsEmailVerification is currently client-written by the email
+      // verification screen; it is left writable here so that in-scope flow is
+      // not broken. Making it fully server-owned is audit finding M2 (email
+      // verification), deliberately out of scope for this patch.
+      allow update: if request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'displayName', 'avatarUrl', 'language', 'timeZone', 'fcmToken',
+             'savedIdeaIds', 'needsEmailVerification', 'coupleId',
+             'relationshipRemindersVersion', 'smartRemindersEnabled',
+             'qualityTimeReminderEnabled', 'dateReminderEnabled',
+             'weeklyRelationshipReminderEnabled', 'partnerMessagesEnabled'
+           ])
+        && (
+             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['coupleId'])
+             || request.resource.data.coupleId == null
+           );
     }
 
     // ── Couples ───────────────────────────────────────────────────────────────
@@ -43,14 +63,22 @@ service cloud.firestore {
          exists(/databases/$(database)/documents/invites/$(resource.data.inviteCode)))
       );
 
-      // Update: existing members only (normal edits such as togetherSince or
-      // streakRecord). Joining — adding a member and flipping the status to
-      // active — is performed exclusively by the joinCouple callable with the
-      // Admin SDK; the former client "join" clause was removed with it.
+      // Update: existing members only, and ONLY the client-owned fields.
+      // Membership and lifecycle (members, status, inviteCode, activatedAt,
+      // createdAt) and entitlement (subscriptionTier) are server-authoritative
+      // — set exclusively by the joinCouple / createInvite / dissolveCouple
+      // Admin-SDK paths, which bypass these rules. A client may therefore only
+      // touch the couple-owned relationship fields it legitimately writes:
+      //   streakRecord         (FirestoreService.updateStreakRecord)
+      //   togetherSince        (FirestoreService.setTogetherSince)
+      //   togetherSinceProposal(anniversary propose/approve flow)
+      // A strict hasOnly() allowlist means a client can NEVER add a third
+      // member, remove their partner, replace members, change status, alter
+      // the invite identity, or self-grant a subscription.
       allow update: if request.auth != null
-        // subscriptionTier is server-owned — no client update may change it.
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscriptionTier'])
-        && request.auth.uid in resource.data.members;
+        && request.auth.uid in resource.data.members
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['streakRecord', 'togetherSince', 'togetherSinceProposal']);
 
       // Delete: existing members only (used by cancelInvite).
       allow delete: if request.auth != null &&

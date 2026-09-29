@@ -135,3 +135,36 @@ test('the memories folder rules are unchanged', async () => {
   await assertSucceeds(uploadBytes(mem(A), JPEG, IMG));
   await assertFails(uploadBytes(ref(storageAs(OUTSIDER), `couples/${COUPLE}/memories/y.jpg`), JPEG, IMG));
 });
+
+// ── Security regression: M1 — partner Storage access is decided by the
+// authoritative couple document, not by self-asserted coupleId fields. ───────
+// COUPLE (c1) = [A, B]. An attacker who points their OWN users/{uid}.coupleId
+// at the victim's couple must NOT gain read access to users/{victim}/**.
+
+test('M1: a caller cannot read another user\'s files by spoofing their own coupleId', async () => {
+  await env.withSecurityRulesDisabled(async (ctx: RulesTestContext) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'users', A), { coupleId: COUPLE });
+    await setDoc(doc(db, 'users', B), { coupleId: COUPLE });
+    // The attacker spoofs their own pointer at the victim's couple.
+    await setDoc(doc(db, 'users', OUTSIDER), { coupleId: COUPLE });
+  });
+  const avatar = fresh();
+  await assertSucceeds(uploadBytes(ref(storageAs(A), `users/${A}/${avatar}`), JPEG, IMG));
+  // Attacker X is NOT in couples/c1.members, so the spoof buys nothing.
+  await assertFails(getBytes(ref(storageAs(OUTSIDER), `users/${A}/${avatar}`)));
+  // An unauthenticated caller is likewise denied.
+  await assertFails(getBytes(ref(storageAs(null), `users/${A}/${avatar}`)));
+});
+
+test('M1: the owner and the real partner can still read the user\'s files', async () => {
+  await env.withSecurityRulesDisabled(async (ctx: RulesTestContext) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'users', A), { coupleId: COUPLE });
+    await setDoc(doc(db, 'users', B), { coupleId: COUPLE });
+  });
+  const avatar = fresh();
+  await assertSucceeds(uploadBytes(ref(storageAs(A), `users/${A}/${avatar}`), JPEG, IMG));
+  await assertSucceeds(getBytes(ref(storageAs(A), `users/${A}/${avatar}`)));   // owner
+  await assertSucceeds(getBytes(ref(storageAs(B), `users/${A}/${avatar}`)));   // real partner (member of c1)
+});

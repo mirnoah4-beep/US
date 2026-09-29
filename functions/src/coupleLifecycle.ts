@@ -101,13 +101,39 @@ export async function deleteUserData(
 
   // 2. Dissolve the couple (unlinks every member, deletes couple Storage, the
   //    couple doc + subcollections and its invite).
+  //
+  //    SECURITY: users/{uid}.coupleId is client-writable and must NOT be
+  //    trusted as proof of membership. Before touching the couple we read the
+  //    authoritative couple document and confirm this uid is actually in its
+  //    `members`. A spoofed, stale or foreign coupleId (couple missing, or the
+  //    caller not a member) means we dissolve NOTHING — no unlink, no Storage
+  //    deletion, no recursive delete of another couple's data — and only the
+  //    caller's own account/user data is removed (steps 1 and 3). This mirrors
+  //    the membership check disconnectPartner already performs.
   if (coupleId) {
+    let isMember = false;
     try {
-      const r = await dissolveCouple(db, bucket, coupleId);
-      if (r.storage.failed > 0) warnings.push('storage-couple');
+      const coupleSnap = await db.collection('couples').doc(coupleId).get();
+      const rawMembers = coupleSnap.data()?.members;
+      const members: string[] = Array.isArray(rawMembers)
+        ? rawMembers.filter((m): m is string => typeof m === 'string')
+        : [];
+      isMember = coupleSnap.exists && members.includes(uid);
     } catch (e) {
-      console.error('[lifecycle] dissolveCouple threw', (e as { code?: unknown })?.code ?? 'unknown');
-      warnings.push('couple');
+      console.error('[lifecycle] couple membership read threw', (e as { code?: unknown })?.code ?? 'unknown');
+      warnings.push('read-couple');
+    }
+    if (isMember) {
+      try {
+        const r = await dissolveCouple(db, bucket, coupleId);
+        if (r.storage.failed > 0) warnings.push('storage-couple');
+      } catch (e) {
+        console.error('[lifecycle] dissolveCouple threw', (e as { code?: unknown })?.code ?? 'unknown');
+        warnings.push('couple');
+      }
+    } else {
+      // Not a member of the referenced couple — do not touch it.
+      console.warn('[lifecycle] deleteAccount: caller not a member of referenced coupleId; skipping couple dissolution');
     }
   }
 

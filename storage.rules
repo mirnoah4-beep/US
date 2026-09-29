@@ -34,16 +34,23 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // Partner access is decided by the AUTHORITATIVE couple document, not by
+    // comparing self-asserted coupleId fields. We resolve the TARGET user's
+    // couple and require the requester to actually be in its `members`. This
+    // means a caller cannot gain access by pointing their own users/{uid}
+    // .coupleId at a victim's couple: the check never reads the requester's
+    // own coupleId.
     function isPartnerOf(userId) {
       return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(userId))
         && firestore.get(
-          /databases/(default)/documents/users/$(request.auth.uid)
-        ).data.coupleId != null
-        && firestore.get(
-          /databases/(default)/documents/users/$(request.auth.uid)
-        ).data.coupleId == firestore.get(
-          /databases/(default)/documents/users/$(userId)
-        ).data.coupleId;
+             /databases/(default)/documents/users/$(userId)
+           ).data.coupleId != null
+        && isCoupleMember(
+             firestore.get(
+               /databases/(default)/documents/users/$(userId)
+             ).data.coupleId
+           );
     }
 
     // ---------- User avatars/files ----------

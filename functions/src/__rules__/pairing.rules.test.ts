@@ -81,3 +81,84 @@ test('remaining client flows still work: cancel invite, member edits, own self-h
   // A member may still add coupleId to their own doc (server does this too).
   await assertSucceeds(setDoc(doc(dbAs(JOINER), 'users', JOINER), { coupleId: null }, { merge: true }));
 });
+
+// ── Security regression: H1 — couple membership/lifecycle is server-owned ────
+// A legitimate member of an active couple must not be able to rewrite the
+// server-authoritative fields on the couple document. Only the client-owned
+// relationship fields (streakRecord, togetherSince, togetherSinceProposal)
+// may change. 'live' is [m1, m2]; m1 acts as an authenticated member.
+
+test('H1: a member cannot add a third member to the couple', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { members: ['m1', 'm2', OUTSIDER] }));
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { members: arrayUnion(OUTSIDER) }));
+});
+
+test('H1: a member cannot remove their partner', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { members: ['m1'] }));
+});
+
+test('H1: a member cannot replace the partner identity', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { members: ['m1', OUTSIDER] }));
+});
+
+test('H1: a member cannot change couple status', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { status: 'pending' }));
+});
+
+test('H1: a member cannot change the invite identity', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { inviteCode: 'HACKED12' }));
+});
+
+test('H1: a member cannot self-grant a subscription', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { subscriptionTier: 'premium' }));
+});
+
+test('H1: a member cannot smuggle a protected field alongside a legit one', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { streakRecord: 5, members: ['m1', 'm2', OUTSIDER] }));
+});
+
+test('H1: a member CAN still perform every legitimate couple edit', async () => {
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { streakRecord: 5 }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'couples', 'live'), { togetherSince: new Date() }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'couples', 'live'), {
+    togetherSinceProposal: { date: new Date(), proposedBy: 'm1' },
+  }));
+});
+
+// ── Security regression: H3 — users/{uid} fields are gated; coupleId → null ──
+// A user may edit only their own client-owned profile/preference fields, and
+// may only ever clear coupleId to null — never point it at another couple
+// (the write the deleteAccount and Storage authorization bugs relied on).
+// In beforeEach, users/m1 = { coupleId: 'live' }, users/uidX = { coupleId: null }.
+
+test('H3: a user cannot repoint their own coupleId at another couple', async () => {
+  // couple A -> couple B
+  await assertFails(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { coupleId: PENDING }));
+  await assertFails(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { coupleId: 'victimCouple' }));
+});
+
+test('H3: a user cannot set coupleId from null to an arbitrary couple', async () => {
+  // null -> arbitrary id
+  await assertFails(updateDoc(doc(dbAs(OUTSIDER), 'users', OUTSIDER), { coupleId: 'live' }));
+  await assertFails(setDoc(doc(dbAs(OUTSIDER), 'users', OUTSIDER), { coupleId: 'live' }, { merge: true }));
+});
+
+test('H3: a user cannot rewrite server-owned identity fields', async () => {
+  await assertFails(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { uid: 'evil' }));
+  await assertFails(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { email: 'attacker@example.com' }));
+  await assertFails(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { createdAt: new Date() }));
+});
+
+test('H3: a user CAN change legitimate profile/preference fields', async () => {
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { displayName: 'New Name' }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { avatarUrl: 'https://example.com/a.jpg' }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { language: 'en' }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { fcmToken: 'token-123' }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { savedIdeaIds: ['idea1', 'idea2'] }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { smartRemindersEnabled: false }));
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { partnerMessagesEnabled: false }));
+});
+
+test('H3: a user CAN still clear their own stale coupleId to null', async () => {
+  await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { coupleId: null }));
+});

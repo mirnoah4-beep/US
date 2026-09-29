@@ -289,3 +289,54 @@ test('invalid ids are rejected before any prefix is built', async () => {
   await assert.rejects(() => dissolveCouple(db, bucket, 'a/b'), /invalid/);
   await assert.rejects(() => deleteUserData(db, bucket, ''), /invalid/);
 });
+
+// ── Security regression: H2 — deleteAccount must not dissolve a couple the
+// caller only *claims* to belong to via a client-writable users.coupleId. ────
+
+test('H2: account deletion of an attacker who spoofed coupleId leaves the victim couple intact', async () => {
+  const victim = freshId('vic');
+  await seedCouple(victim, [B, Y]);            // authentic couple [B, Y]
+  await uploadAsMember(B, victim, 'chatImages', 'm1.jpg');
+  await uploadAsMember(Y, victim, 'memories', 'd1.jpg');
+  const docsBefore = await firestoreDocCount(victim);
+  const filesBefore = await count(`couples/${victim}/`);
+
+  // Attacker A: NOT a member of `victim`, but their own user doc points at it.
+  await env.withSecurityRulesDisabled(async (ctx: RulesTestContext) => {
+    await setDoc(doc(ctx.firestore(), 'users', A), { coupleId: victim, displayName: 'attacker' });
+  });
+  await assertSucceeds(uploadBytes(ref(storageAs(A), `users/${A}/avatar.jpg`), JPEG, IMG));
+
+  const r = await deleteUserData(db, bucket, A);
+
+  // The couple dissolution was skipped entirely — no 'couple'/'storage-couple' warning.
+  assert.deepStrictEqual(r.warnings, []);
+
+  // Victim couple is fully intact: doc, members, subcollections and Storage.
+  assert.strictEqual(await firestoreDocCount(victim), docsBefore);
+  assert.strictEqual(await count(`couples/${victim}/`), filesBefore);
+  await env.withSecurityRulesDisabled(async (ctx: RulesTestContext) => {
+    const d = ctx.firestore();
+    const couple = await getDoc(doc(d, 'couples', victim));
+    assert.strictEqual(couple.exists(), true, 'victim couple doc survives');
+    assert.deepStrictEqual(couple.data()?.members, [B, Y], 'victim members unchanged');
+    assert.strictEqual((await getDoc(doc(d, 'users', B))).data()?.coupleId, victim, 'victim B still linked');
+    assert.strictEqual((await getDoc(doc(d, 'users', Y))).data()?.coupleId, victim, 'victim Y still linked');
+  });
+
+  // Only the attacker's OWN account/data was removed.
+  assert.strictEqual(await count(`users/${A}/`), 0, 'attacker files deleted');
+  await env.withSecurityRulesDisabled(async (ctx: RulesTestContext) => {
+    assert.strictEqual((await getDoc(doc(ctx.firestore(), 'users', A))).exists(), false, 'attacker user doc deleted');
+  });
+});
+
+test('H2: a nonexistent / bogus coupleId on the user doc dissolves nothing', async () => {
+  await env.withSecurityRulesDisabled(async (ctx: RulesTestContext) => {
+    await setDoc(doc(ctx.firestore(), 'users', A), { coupleId: 'no-such-couple', displayName: 'a' });
+  });
+  await assertSucceeds(uploadBytes(ref(storageAs(A), `users/${A}/avatar.jpg`), JPEG, IMG));
+  const r = await deleteUserData(db, bucket, A);
+  assert.deepStrictEqual(r.warnings, []);
+  assert.strictEqual(await count(`users/${A}/`), 0);
+});
