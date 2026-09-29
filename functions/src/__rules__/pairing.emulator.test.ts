@@ -185,10 +185,10 @@ test('own invite, invalid / expired codes are rejected precisely', async () => {
   assert.strictEqual(await reason(joinCoupleTx(db, 'B', inv2.code)), 'invite-expired');
   // Invite whose inviter account is gone.
   await seed(async (d) => {
-    await setDoc(doc(d, 'invites', 'GHOST123'), { fromUserId: 'ghost', coupleId: 'gc' });
-    await setDoc(doc(d, 'couples', 'gc'), { members: ['ghost'], status: 'pending', inviteCode: 'GHOST123' });
+    await setDoc(doc(d, 'invites', 'GHZST234'), { fromUserId: 'ghost', coupleId: 'gc' });
+    await setDoc(doc(d, 'couples', 'gc'), { members: ['ghost'], status: 'pending', inviteCode: 'GHZST234' });
   });
-  assert.strictEqual(await reason(joinCoupleTx(db, 'B', 'GHOST123')), 'invite-expired');
+  assert.strictEqual(await reason(joinCoupleTx(db, 'B', 'GHZST234')), 'invite-expired');
 });
 
 test('same invite cannot be consumed twice', async () => {
@@ -219,11 +219,11 @@ test('concurrent join attempts cannot create 3 members', async () => {
 
 test('a pending couple that somehow already has two members cannot take a third', async () => {
   await seed(async (d) => {
-    await setDoc(doc(d, 'invites', 'FULL1234'), { fromUserId: 'A', coupleId: 'full' });
-    await setDoc(doc(d, 'couples', 'full'), { members: ['A', 'B'], status: 'pending', inviteCode: 'FULL1234' });
+    await setDoc(doc(d, 'invites', 'FULL2345'), { fromUserId: 'A', coupleId: 'full' });
+    await setDoc(doc(d, 'couples', 'full'), { members: ['A', 'B'], status: 'pending', inviteCode: 'FULL2345' });
     for (const u of ['A', 'B', 'C']) await setDoc(doc(d, 'users', u), { coupleId: null });
   });
-  assert.strictEqual(await reason(joinCoupleTx(db, 'C', 'FULL1234')), 'invite-expired');
+  assert.strictEqual(await reason(joinCoupleTx(db, 'C', 'FULL2345')), 'invite-expired');
   assert.deepStrictEqual((await adminGet('couples/full'))?.members, ['A', 'B']);
 });
 
@@ -273,4 +273,64 @@ test('lifecycle cleanup after a callable pairing stays idempotent', async () => 
   const inv2 = await createInviteTx(db, 'B');
   const r2 = await joinCoupleTx(db, 'A', inv2.code);
   assert.deepStrictEqual([...(await adminGet(`couples/${r2.coupleId}`))?.members].sort(), ['A', 'B']);
+});
+
+// ── Security regression: M6 — invite hardening ──────────────────────────────
+
+test('M6: a fresh invite carries a future expiresAt', async () => {
+  await seed(async (d) => { await setDoc(doc(d, 'users', 'A'), { coupleId: null }); });
+  const inv = await createInviteTx(db, 'A');
+  const data = await adminGet(`invites/${inv.code}`);
+  assert.ok(data?.expiresAt, 'expiresAt is set');
+  assert.ok(data!.expiresAt.toMillis() > Date.now(), 'expiresAt is in the future');
+});
+
+test('M6: an expired invite is rejected', async () => {
+  await seed(async (d) => {
+    await setDoc(doc(d, 'users', 'A'), { coupleId: null });
+    await setDoc(doc(d, 'users', 'B'), { coupleId: null });
+  });
+  const inv = await createInviteTx(db, 'A');
+  // Force the invite into the past.
+  await db.doc(`invites/${inv.code}`).update({
+    expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() - 1000),
+  });
+  assert.strictEqual(await reason(joinCoupleTx(db, 'B', inv.code)), 'invite-expired');
+  // The couple was not activated and B was not linked.
+  assert.strictEqual((await adminGet(`couples/${inv.coupleId}`))?.status, 'pending');
+  assert.strictEqual((await adminGet('users/B'))?.coupleId, null);
+});
+
+test('M6: reuse refreshes the expiry window', async () => {
+  await seed(async (d) => { await setDoc(doc(d, 'users', 'A'), { coupleId: null }); });
+  const inv = await createInviteTx(db, 'A');
+  await db.doc(`invites/${inv.code}`).update({
+    expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() - 1000),
+  });
+  const again = await createInviteTx(db, 'A');
+  assert.strictEqual(again.code, inv.code, 'same invite reused');
+  const data = await adminGet(`invites/${inv.code}`);
+  assert.ok(data!.expiresAt.toMillis() > Date.now(), 'expiry refreshed into the future');
+});
+
+test('M6: legacy short / non-alphabet codes are rejected as invalid before any read', async () => {
+  await seed(async (d) => { await setDoc(doc(d, 'users', 'B'), { coupleId: null }); });
+  for (const bad of ['123456', 'ABCDEF', '1234567', 'ABCD234O', 'ABCD234I', 'abcd2345']) {
+    assert.strictEqual(await reason(joinCoupleTx(db, 'B', bad)), 'invalid-code', `code ${bad} must be invalid`);
+  }
+});
+
+test('M6: an invite with NO expiresAt is rejected — no immortal legacy invites', async () => {
+  await seed(async (d) => {
+    await setDoc(doc(d, 'users', 'B'), { coupleId: null });
+    await setDoc(doc(d, 'users', 'A'), { coupleId: 'lc' });
+    // A legacy invite written before expiresAt existed: valid format, valid
+    // pending couple, live inviter — the ONLY thing wrong is no expiresAt.
+    await setDoc(doc(d, 'invites', 'LEGACY23'), { fromUserId: 'A', coupleId: 'lc' });
+    await setDoc(doc(d, 'couples', 'lc'), { members: ['A'], status: 'pending', inviteCode: 'LEGACY23' });
+  });
+  assert.strictEqual(await reason(joinCoupleTx(db, 'B', 'LEGACY23')), 'invite-expired');
+  // Couple not activated, joiner not linked.
+  assert.strictEqual((await adminGet('couples/lc'))?.status, 'pending');
+  assert.strictEqual((await adminGet('users/B'))?.coupleId, null);
 });

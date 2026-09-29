@@ -24,6 +24,30 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       await widget.user.reload();
       final fresh = FirebaseAuth.instance.currentUser;
       if (fresh != null && fresh.emailVerified) {
+        // M2 ordering invariant: the couple rules/callables now require the ID
+        // token's email_verified == true claim. reload() flips the local
+        // User.emailVerified flag but does NOT refresh the token, so we must
+        // force a fresh token carrying the verified claim BEFORE clearing the
+        // routing flag — otherwise the app routes into couple-scoped access
+        // while the stale token still says email_verified == false and the
+        // hardened rules deny everything until the token refreshes on its own.
+        try {
+          await fresh.getIdToken(true);
+        } catch (_) {
+          // Token refresh failed: keep the user on the verification screen with
+          // needsEmailVerification intact, and let them retry. Never clear the
+          // flag or route forward without a verified token.
+          if (mounted) {
+            final s = context.read<LanguageProvider>().s;
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(s.emailVerifyNotYet),
+              backgroundColor: AppTheme.textPrimary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ));
+          }
+          return;
+        }
         await FirestoreService.updateUser(fresh.uid, {'needsEmailVerification': false});
         // AuthGate's Firestore stream re-fires → routes normally
       } else {

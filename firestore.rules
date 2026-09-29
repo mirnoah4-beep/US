@@ -2,16 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Server-authoritative email verification at the rules layer (audit M2).
+    // A password-provider account must have a verified email (from the auth
+    // TOKEN, never the client-writable users/{uid}.needsEmailVerification) to
+    // reach sensitive couple-scoped data. Federated providers (google.com,
+    // apple.com, …) are not 'password' and are always allowed. This is ANDed
+    // into every couple-membership grant below, so an already-paired but
+    // unverified password account is denied couple access even though it is
+    // still listed in couples.members. Own users/{uid} access, pairing/leave
+    // callables, and the login/verification screen are unaffected.
+    function passwordVerified() {
+      return request.auth != null && (
+        request.auth.token.firebase.sign_in_provider != 'password'
+        || request.auth.token.email_verified == true
+      );
+    }
+
     // ── Users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Read: yourself, or your partner once you are both members of the same
-      // couple. There is intentionally NO general "any signed-in user" clause.
-      // The join handshake no longer reads the inviter's user doc — the
+      // Read: yourself (always), or your partner once you are both members of
+      // the same couple. There is intentionally NO general "any signed-in user"
+      // clause. The join handshake no longer reads the inviter's user doc — the
       // "inviter already partnered" guard moved to the cross-user update rule
       // below (coupleId == null), so nothing legitimately needs to read a
       // stranger's profile.
+      //
+      // M2: the PARTNER-read branch also requires passwordVerified(), so an
+      // already-paired but unverified password account cannot read its
+      // partner's user document (email, fcmToken, …). Owner self-read is never
+      // gated — the login/verification screen must always read its own doc.
       allow read: if request.auth.uid == userId
-        || (resource.data.coupleId != null
+        || (passwordVerified()
+            && resource.data.coupleId != null
             && request.auth.uid in get(
                  /databases/$(database)/documents/couples/$(resource.data.coupleId)
                ).data.members);
@@ -53,15 +75,15 @@ service cloud.firestore {
       // subscriptionTier at creation.
       allow create: if false;
 
-      // Read: existing members, OR anyone authenticated when the couple is
-      // still pending with a live invite — the joiner must read the doc to
-      // verify status before committing.
-      allow read: if request.auth != null && (
-        request.auth.uid in resource.data.members ||
-        (resource.data.status == 'pending' &&
-         resource.data.inviteCode != null &&
-         exists(/databases/$(database)/documents/invites/$(resource.data.inviteCode)))
-      );
+      // Read: existing members only. Joining is fully server-side (the
+      // joinCouple callable reads the pending couple with the Admin SDK, which
+      // bypasses these rules), so a client never needs to read a couple it is
+      // not a member of. The former "anyone authenticated may read a pending
+      // couple" branch was unnecessary client exposure — a stranger who
+      // learned a pending coupleId could read its members — and is removed.
+      allow read: if request.auth != null
+        && passwordVerified()
+        && request.auth.uid in resource.data.members;
 
       // Update: existing members only, and ONLY the client-owned fields.
       // Membership and lifecycle (members, status, inviteCode, activatedAt,
@@ -76,6 +98,7 @@ service cloud.firestore {
       // member, remove their partner, replace members, change status, alter
       // the invite identity, or self-grant a subscription.
       allow update: if request.auth != null
+        && passwordVerified()
         && request.auth.uid in resource.data.members
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['streakRecord', 'togetherSince', 'togetherSinceProposal']);
@@ -96,6 +119,7 @@ service cloud.firestore {
           && subcollection != 'settings'
           && subcollection != 'mediations'
           && request.auth != null
+          && passwordVerified()
           && request.auth.uid in get(
             /databases/$(database)/documents/couples/$(coupleId)
           ).data.members;
@@ -111,6 +135,7 @@ service cloud.firestore {
       match /settings/{docId} {
         function isSettingsMember() {
           return request.auth != null
+            && passwordVerified()
             && request.auth.uid in get(
               /databases/$(database)/documents/couples/$(coupleId)
             ).data.members;
@@ -148,6 +173,7 @@ service cloud.firestore {
       match /mediations/{mediationId} {
         function isMedMember() {
           return request.auth != null
+            && passwordVerified()
             && request.auth.uid in get(
               /databases/$(database)/documents/couples/$(coupleId)
             ).data.members;
@@ -200,6 +226,7 @@ service cloud.firestore {
       // them from `members` — there is no cached grant to revoke.
       function isCoupleMember() {
         return request.auth != null
+          && passwordVerified()
           && request.auth.uid in get(
             /databases/$(database)/documents/couples/$(coupleId)
           ).data.members;
@@ -318,7 +345,12 @@ service cloud.firestore {
     //
     // Delete: invite creator, or an existing member of the couple (cancelInvite).
     match /invites/{inviteCode} {
-      allow get: if request.auth != null;
+      // GET is restricted to the invite's creator (used by the client
+      // cancelInvite path). Redemption goes through the joinCouple callable
+      // (Admin SDK), so a joiner never needs a client read. This closes the
+      // former oracle where any authenticated user could read an invite by
+      // code and learn its coupleId / inviter uid.
+      allow get: if request.auth != null && request.auth.uid == resource.data.fromUserId;
       allow list: if false;
       allow create: if false;
       allow delete: if request.auth != null && (

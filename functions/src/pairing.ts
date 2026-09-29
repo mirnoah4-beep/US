@@ -21,9 +21,19 @@ import { HttpsError } from 'firebase-functions/v2/https';
 
 // ── Pure helpers ────────────────────────────────────────────────────────────
 
-/// Current codes are 8 chars from a 32-char alphabet; legacy codes were
-/// 6 digits. Anything else is rejected before any read.
-export const INVITE_CODE_PATTERN = /^[A-Z0-9]{6,8}$/;
+/// Codes are exactly 8 chars from the 32-char alphabet below (O/0/I/1
+/// excluded). Legacy 6-digit codes are no longer accepted — the client has
+/// only ever generated 8-char codes via createInvite, so this rejects any
+/// short/legacy/typo code before any read.
+export const INVITE_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{8}$/;
+
+/// Invites expire this long after creation (or last reuse). joinCoupleTx
+/// rejects an expired invite; createInviteTx refreshes the window on reuse.
+/// Invites written before this field existed have no expiresAt; joinCoupleTx
+/// now rejects a missing expiresAt as expired (audit M6), so no invite is ever
+/// permanently valid — a stale legacy invite simply prompts the user to
+/// regenerate a fresh code.
+export const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 export function normalizeInviteCode(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
@@ -151,6 +161,17 @@ export async function joinCoupleTx(db: Db, uid: string, rawCode: unknown): Promi
     }
     if (inviterUid === uid) throw pairingError('own-invite');
 
+    // Reject an expired invite — and a MISSING expiresAt counts as expired
+    // (audit M6): no invite may be permanently valid. Every invite created or
+    // reused after this change carries a future expiresAt, so in practice only
+    // stale pre-change invites are rejected here, and the user just regenerates
+    // a code. No data migration is required because invites are ephemeral,
+    // single-use pairing tokens, not durable records.
+    const expiresAt = inviteSnap.data()?.expiresAt;
+    if (!expiresAt || typeof expiresAt.toMillis !== 'function' || expiresAt.toMillis() < Date.now()) {
+      throw pairingError('invite-expired');
+    }
+
     const coupleRef = db.collection('couples').doc(coupleId);
     const coupleSnap = await tx.get(coupleRef);
     if (!coupleSnap.exists) throw pairingError('invite-expired');
@@ -229,7 +250,13 @@ export async function createInviteTx(
     if (self.state.kind === 'stale') {
       tx.set(db.collection('users').doc(uid), { coupleId: null }, { merge: true });
     }
-    if (reuse) return { ...reuse, reused: true, clearedStale: self.state.kind === 'stale' };
+    if (reuse) {
+      // Extend the invite's life while the inviter is actively inviting.
+      tx.update(db.collection('invites').doc(reuse.code), {
+        expiresAt: firestore.Timestamp.fromMillis(Date.now() + INVITE_TTL_MS),
+      });
+      return { ...reuse, reused: true, clearedStale: self.state.kind === 'stale' };
+    }
 
     if (orphan) {
       // A broken invite (couple missing, ended, or joined by someone else):
@@ -249,6 +276,7 @@ export async function createInviteTx(
       fromUserId: uid,
       coupleId: coupleRef.id,
       createdAt: firestore.FieldValue.serverTimestamp(),
+      expiresAt: firestore.Timestamp.fromMillis(Date.now() + INVITE_TTL_MS),
     });
     return { code: fresh as string, coupleId: coupleRef.id, reused: false, clearedStale: self.state.kind === 'stale' };
   });

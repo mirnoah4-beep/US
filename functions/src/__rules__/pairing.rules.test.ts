@@ -162,3 +162,21 @@ test('H3: a user CAN change legitimate profile/preference fields', async () => {
 test('H3: a user CAN still clear their own stale coupleId to null', async () => {
   await assertSucceeds(updateDoc(doc(dbAs('m1'), 'users', 'm1'), { coupleId: null }));
 });
+
+// ── Security regression: M6 — invite/couple information exposure removed ─────
+// The invite doc is a coupleId/inviter oracle; only its creator may read it,
+// and a pending couple is no longer readable by non-members.
+
+test('M6: a non-owner cannot read an invite by code (oracle closed)', async () => {
+  await assertFails(getDoc(doc(dbAs(OUTSIDER), 'invites', CODE)));
+  await assertFails(getDoc(doc(dbAs(JOINER), 'invites', CODE)));
+});
+
+test('M6: the invite creator can still read (and cancel) their own invite', async () => {
+  await assertSucceeds(getDoc(doc(dbAs(INVITER), 'invites', CODE)));
+});
+
+test('M6: a non-member cannot read a pending couple', async () => {
+  await assertFails(getDoc(doc(dbAs(OUTSIDER), 'couples', PENDING)));
+  await assertFails(getDoc(doc(dbAs(JOINER), 'couples', PENDING)));
+});

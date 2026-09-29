@@ -15,6 +15,18 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // Server-authoritative email verification (audit M2), mirroring the
+    // Firestore rule. Password-provider accounts must have a verified email
+    // (from the auth TOKEN) to reach couple-scoped Storage; federated
+    // providers are always allowed. ANDed into the couple-membership and
+    // partner helpers below. Owner access to one's own files is unaffected.
+    function passwordVerified() {
+      return isSignedIn() && (
+        request.auth.token.firebase.sign_in_provider != 'password'
+        || request.auth.token.email_verified == true
+      );
+    }
+
     function isAdmin() {
       return isSignedIn()
         && request.auth.uid == '1RTxZHUV1NbvNlFsXhwl5LeEgFw1';
@@ -22,6 +34,7 @@ service firebase.storage {
 
     function isCoupleMember(coupleId) {
       return isSignedIn()
+        && passwordVerified()
         && firestore.exists(/databases/(default)/documents/couples/$(coupleId))
         && request.auth.uid in firestore.get(
           /databases/(default)/documents/couples/$(coupleId)
@@ -42,6 +55,7 @@ service firebase.storage {
     // own coupleId.
     function isPartnerOf(userId) {
       return isSignedIn()
+        && passwordVerified()
         && firestore.exists(/databases/(default)/documents/users/$(userId))
         && firestore.get(
              /databases/(default)/documents/users/$(userId)

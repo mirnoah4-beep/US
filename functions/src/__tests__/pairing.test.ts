@@ -15,10 +15,17 @@ import {
   pairingError,
 } from '../pairing';
 
-test('invite codes: whitespace/case tolerant, legacy 6-digit and current 8-char accepted', () => {
+test('invite codes: whitespace/case tolerant; only the current 8-char alphabet is accepted (M6)', () => {
   assert.strictEqual(normalizeInviteCode(' wzfx szp2 '), 'WZFXSZP2');
-  assert.strictEqual(normalizeInviteCode('465604'), '465604');
-  for (const bad of ['', 'ABC', 'ABCDEFGHI', 'AB-CDEFG', 'abc/def', 42, null, undefined, {}]) {
+  // M6: legacy 6-digit codes and any code using the ambiguous chars O/0/I/1
+  // are no longer accepted — the generator has only ever produced 8-char codes
+  // from the [A-HJ-NP-Z2-9] alphabet.
+  for (const bad of [
+    '465604', '123456',          // legacy 6-digit
+    'ABC', 'ABCDEFGHI', 'ABCD234',// wrong length (3/9/7)
+    'ABCD234O', 'ABCD234I', 'ABCD2340', 'ABCD2341', // ambiguous chars O/I/0/1
+    'AB-CDEFG', 'abc/def', 42, null, undefined, {},
+  ]) {
     assert.strictEqual(normalizeInviteCode(bad), null, JSON.stringify(bad));
   }
 });

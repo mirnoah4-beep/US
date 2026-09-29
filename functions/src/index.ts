@@ -41,6 +41,7 @@ import {
 import { dissolveCouple, deleteUserData } from './coupleLifecycle';
 import { cleanupCoupleStorage } from './storageCleanup';
 import { createInviteTx, joinCoupleTx } from './pairing';
+import { passwordUserNeedsVerification, type AuthTokenClaims } from './authGuards';
 import {
   acceptAgreement, approveInvitation, createMediation, dueReminders, editAgreement, expireStale, nudgePartner,
   rephraseInvitation, respondToInvite, retryGeneration, setNeutralState, submitAnswer, submitFeedback, submitTopic,
@@ -270,6 +271,7 @@ export const generateWeeklyIdeasNow = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
+    assertEmailVerified(request);
     const coupleId: unknown = request.data?.coupleId;
     if (typeof coupleId !== 'string' || !coupleId) {
       throw new HttpsError('invalid-argument', 'coupleId is required');
@@ -281,6 +283,23 @@ export const generateWeeklyIdeasNow = onCall(
     const members: string[] = coupleSnap.data()?.members ?? [];
     if (!members.includes(request.auth.uid)) {
       throw new HttpsError('permission-denied', 'Not a member of this couple');
+    }
+    // Cost cap (audit M3): WEEKLY_NOW_MAX_PER_DAY on-demand regenerations per
+    // couple per rolling 24h, tracked in the server-only rateLimits collection
+    // (same pattern as generateForTonight). Each call is an OpenAI generation
+    // plus a push to both partners, so an unmetered loop was a cost/spam vector.
+    const limitRef = admin.firestore().collection('rateLimits').doc(`weeklyNow_${coupleId}`);
+    const allowed = await admin.firestore().runTransaction(async (tx) => {
+      const snap = await tx.get(limitRef);
+      const now = Date.now();
+      const windowStart: number = snap.data()?.windowStart ?? 0;
+      const count: number = now - windowStart < 24 * 60 * 60 * 1000 ? (snap.data()?.count ?? 0) : 0;
+      if (count >= WEEKLY_NOW_MAX_PER_DAY) return false;
+      tx.set(limitRef, { windowStart: count === 0 ? now : windowStart, count: count + 1 });
+      return true;
+    });
+    if (!allowed) {
+      throw new HttpsError('resource-exhausted', 'too-many-requests', { reason: 'too-many-requests' });
     }
     await generateForCouple(coupleId);
     return { success: true };
@@ -300,6 +319,7 @@ export const generateForTonight = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
+    assertEmailVerified(request);
     const coupleId: unknown = request.data?.coupleId;
     if (typeof coupleId !== 'string' || !coupleId) {
       throw new HttpsError('invalid-argument', 'coupleId is required');
@@ -340,6 +360,8 @@ export const generateForTonight = onCall(
 );
 
 const FOR_TONIGHT_MAX_PER_HOUR = 8;
+// On-demand weekly regenerations per couple per rolling 24h (audit M3).
+const WEEKLY_NOW_MAX_PER_DAY = 3;
 
 // ── "Oss mot problemet" / "Us vs. the problem" (mediation) ──────────────────
 // All state transitions are server-authoritative (see mediationOps.ts).
@@ -376,8 +398,24 @@ async function pushMediation(uid: string, kind: 'invite' | 'reminder' | 'nudge' 
   }
 }
 
-const requireUid = (request: { auth?: { uid: string } | null }): string => {
+// Server-authoritative email verification (audit M2). Password-provider
+// accounts must have a verified email before they may pair, use paid AI, or
+// notify a partner. Federated providers (Google/Apple) do not report
+// sign_in_provider === 'password' and are unaffected. Read paths and
+// de-escalation (deleteAccount, disconnectPartner) are intentionally NOT
+// gated, so a user can always leave or delete regardless of verification.
+// The pure decision lives in authGuards.ts and is unit-tested there.
+const assertEmailVerified = (
+  request: { auth?: { uid: string; token?: AuthTokenClaims } | null },
+): void => {
+  if (passwordUserNeedsVerification(request.auth?.token)) {
+    throw new HttpsError('failed-precondition', 'email-not-verified', { reason: 'email-not-verified' });
+  }
+};
+
+const requireUid = (request: { auth?: { uid: string; token?: AuthTokenClaims } | null }): string => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+  assertEmailVerified(request);
   return request.auth.uid;
 };
 
@@ -526,6 +564,7 @@ export const createInvite = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
+    assertEmailVerified(request);
     const r = await createInviteTx(admin.firestore(), request.auth.uid);
     if (r.clearedStale) console.log('[pairing] createInvite cleared a stale coupleId');
     return { code: r.code, coupleId: r.coupleId };
@@ -544,6 +583,7 @@ export const joinCouple = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
+    assertEmailVerified(request);
     const r = await joinCoupleTx(admin.firestore(), request.auth.uid, request.data?.code);
     if (r.cleared.joiner || r.cleared.inviter) {
       console.log(`[pairing] joinCouple cleared stale coupleId joiner=${r.cleared.joiner} inviter=${r.cleared.inviter}`);
@@ -655,6 +695,7 @@ export const sendPartnerNotification = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
+    assertEmailVerified(request);
     const senderId = request.auth.uid;
 
     const templateId: unknown = request.data?.templateId;
