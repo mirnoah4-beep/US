@@ -42,4 +42,28 @@ void main() {
       isTrue,
     );
   });
+
+  test('email sheet owns its TextEditingControllers for the sheet lifetime', () {
+    final loginStateStart = src.indexOf('class _LoginScreenState');
+    final sheetStateStart = src.indexOf('class _EmailAuthSheetState');
+    expect(loginStateStart, greaterThanOrEqualTo(0));
+    expect(sheetStateStart, greaterThan(loginStateStart));
+
+    final parentSection = src.substring(loginStateStart, sheetStateStart);
+    final sheetSection = src.substring(sheetStateStart);
+
+    expect(parentSection.contains('final _emailController = TextEditingController();'), isFalse);
+    expect(parentSection.contains('final _passwordController = TextEditingController();'), isFalse);
+    expect(parentSection.contains('emailController:'), isFalse);
+    expect(parentSection.contains('passwordController:'), isFalse);
+
+    expect(sheetSection.contains('final _emailController = TextEditingController();'), isTrue);
+    expect(sheetSection.contains('final _passwordController = TextEditingController();'), isTrue);
+    expect(sheetSection.contains('_emailController.dispose();'), isTrue);
+    expect(sheetSection.contains('_passwordController.dispose();'), isTrue);
+  });
+
+  test('async auth error paths guard setState after auth-state disposal', () {
+    expect(count('if (!mounted) return;'), greaterThanOrEqualTo(4));
+  });
 }
