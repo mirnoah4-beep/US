@@ -141,10 +141,19 @@ class AuthGate extends StatelessWidget {
 
             final userData = UserModel.fromFirestore(userDoc);
 
-            // Email verification gate — only for new email/password registrations.
-            // Existing users and federated (Google/Apple) users never have this flag.
-            if (userData.needsEmailVerification) {
-              return EmailVerificationScreen(user: user);
+            // Server rules use the Firebase auth token's email_verified claim
+            // for password-provider accounts. Do not trust only the legacy
+            // Firestore routing flag: older password accounts may predate it.
+            // FirebaseAuth.currentUser reflects reload() performed by the
+            // verification screen even though the outer authStateChanges stream
+            // itself does not emit for a reload.
+            final currentUser = FirebaseAuth.instance.currentUser ?? user;
+            final isPasswordUser = currentUser.providerData
+                .any((p) => p.providerId == 'password');
+            if (isPasswordUser &&
+                (!currentUser.emailVerified ||
+                    userData.needsEmailVerification)) {
+              return EmailVerificationScreen(user: currentUser);
             }
 
             // No name yet — must set before anything else.
@@ -157,7 +166,7 @@ class AuthGate extends StatelessWidget {
             // No couple yet — let them in with static fallback data.
             // The invite banner on HomeScreen guides them to connect a partner.
             if (coupleId == null || coupleId.isEmpty) {
-              return const _ReadyGate(requireCoupleProviders: false);
+              return _SoloRecoveryGate(uid: user.uid);
             }
 
             // Has coupleId — verify the couple's status.
@@ -167,6 +176,49 @@ class AuthGate extends StatelessWidget {
       },
     );
   }
+}
+
+// ── _SoloRecoveryGate ──────────────────────────────────────────────────────────
+
+/// A verified user with no client pointer may still belong to an ACTIVE couple
+/// if an older client incorrectly cleared users/{uid}.coupleId after a read
+/// error. Ask the server once per widget lifetime to repair that pointer from
+/// the authoritative couples.members relation. Legitimately solo users simply
+/// remain in the normal solo UI.
+class _SoloRecoveryGate extends StatefulWidget {
+  final String uid;
+
+  const _SoloRecoveryGate({required this.uid});
+
+  @override
+  State<_SoloRecoveryGate> createState() => _SoloRecoveryGateState();
+}
+
+class _SoloRecoveryGateState extends State<_SoloRecoveryGate> {
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    Future<void>(() async {
+      try {
+        await FirestoreService.recoverCoupleLink();
+        // If recovery succeeds, the server updates users/{uid}.coupleId and
+        // AuthGate's user stream re-routes automatically. No navigation here.
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[SoloRecoveryGate] recoverCoupleLink failed: $e');
+        }
+        // Fail open to the ordinary solo experience. Never mutate local data.
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      const _ReadyGate(requireCoupleProviders: false);
 }
 
 // ── _CoupleGate ────────────────────────────────────────────────────────────────
@@ -247,16 +299,13 @@ class _CoupleGateState extends State<_CoupleGate> {
         }
 
         if (snap.hasError) {
+          // IMPORTANT: an authorization/network error is not proof that the
+          // couple document is missing. Clearing coupleId here previously
+          // turned transient permission-denied errors (including stale
+          // email_verified tokens) into permanent relationship data loss.
+          // Only the successful "couple == null" branch below may clear a
+          // genuinely stale pointer.
           if (kDebugMode) debugPrint('[CoupleGate] couple stream error: ${snap.error}');
-          if (!_clearedStale) {
-            _clearedStale = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(widget.uid)
-                  .update({'coupleId': null}).catchError((_) {});
-            });
-          }
           return const SplashScreen();
         }
 
