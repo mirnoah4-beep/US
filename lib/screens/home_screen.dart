@@ -1291,6 +1291,7 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   // Time shortcut: library ideas replace the weekly/tonight set while a
   // bucket is selected; clearing restores them untouched.
   List<LibraryIdea> _library = const [];
+  bool _libraryLoaded = false;
   void _onTimeChanged() {
     if (!mounted) return;
     if (_controller.hasClients) _controller.jumpToPage(0);
@@ -1301,7 +1302,18 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   void initState() {
     super.initState();
     HomeTimeSelection.instance.addListener(_onTimeChanged);
-    IdeaLibrary.load().then((l) { if (mounted) setState(() => _library = l); });
+    IdeaLibrary.load().then((l) {
+      if (mounted) {
+        setState(() {
+          _library = l;
+          _libraryLoaded = true;
+        });
+      }
+    }).catchError((_) {
+      // A failed local-library read must not leave the Home carousel in a
+      // permanent loading state. The normal empty-state copy can take over.
+      if (mounted) setState(() => _libraryLoaded = true);
+    });
   }
 
   final _controller = PageController();
@@ -1313,13 +1325,16 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
   Future<void> _precacheAllImages(
       BuildContext ctx, List<WeeklyIdea> ideas) =>
       Future.wait(ideas.map((idea) async {
-        final url = await IdeaImageService.fetchCoverUrl(
-            IdeaImageService.toId(idea.titleNo));
-        if (url != null && url.isNotEmpty) {
-          try {
+        try {
+          final url = await IdeaImageService.fetchCoverUrl(
+              IdeaImageService.toId(idea.titleNo));
+          if (url != null && url.isNotEmpty) {
             await precacheImage(
                 CachedNetworkImageProvider(url, maxWidth: 600), ctx);
-          } catch (_) {}
+          }
+        } catch (_) {
+          // A missing/failed cover must never strand the whole carousel in a
+          // loading state; the card itself already has an image fallback path.
         }
       }));
 
@@ -1443,13 +1458,24 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
 
     final key = ideas.map((e) => e.titleNo).join(',');
     final imagesReady = _precachedKey == key;
+    final waitingForLibrary = timeBucket != null && !_libraryLoaded;
+    final waitingForImages = ideas.isNotEmpty && !imagesReady;
+    final showIdeasLoading = waitingForLibrary || waitingForImages;
 
     if (ideas.isNotEmpty && !_precaching && !imagesReady) {
       _precaching = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        await _precacheAllImages(context, ideas);
-        if (mounted) setState(() { _precachedKey = key; _precaching = false; });
+        try {
+          await _precacheAllImages(context, ideas);
+        } finally {
+          if (mounted) {
+            setState(() {
+              _precachedKey = key;
+              _precaching = false;
+            });
+          }
+        }
       });
     }
 
@@ -1496,8 +1522,8 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
           onToggle: HomeTimeSelection.instance.toggle,
         ),
         const SizedBox(height: 14),
-        if (!imagesReady)
-          const SizedBox(height: 185)
+        if (showIdeasLoading)
+          const _HomeIdeasLoading()
         else if (ideas.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1555,6 +1581,44 @@ class _WeeklyIdeasCarouselState extends State<_WeeklyIdeasCarousel> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _HomeIdeasLoading extends StatelessWidget {
+  const _HomeIdeasLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      key: ValueKey('homeIdeasLoading'),
+      height: 185,
+      child: Center(
+        child: SizedBox(
+          width: 72,
+          height: 72,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 62,
+                height: 62,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.accentRose,
+                  backgroundColor: AppTheme.accentRoseLight,
+                ),
+              ),
+              Image(
+                image: AssetImage('assets/logo/us_wordmark.png'),
+                width: 38,
+                color: AppTheme.accentRose,
+                colorBlendMode: BlendMode.srcIn,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
