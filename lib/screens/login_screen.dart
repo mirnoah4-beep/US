@@ -28,15 +28,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
 
   void _setLoading(bool value) {
     if (mounted) setState(() => _isLoading = value);
@@ -98,8 +89,6 @@ class _LoginScreenState extends State<LoginScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _EmailAuthSheet(
-        emailController: _emailController,
-        passwordController: _passwordController,
         onAuthSuccess: _handleAuthSuccess,
       ),
     );
@@ -315,13 +304,9 @@ enum _EmailAuthMode { login, create }
 /// the sheet never discloses whether a given email has an account.
 class _EmailAuthSheet extends StatefulWidget {
   const _EmailAuthSheet({
-    required this.emailController,
-    required this.passwordController,
     required this.onAuthSuccess,
   });
 
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
   final Future<void> Function(User user, {bool needsEmailVerification})
       onAuthSuccess;
 
@@ -336,18 +321,12 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
   String? _error;
   String? _info;
 
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
-  static final _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
-  @override
-  void dispose() {
-    _emailFocus.dispose();
-    _passwordFocus.dispose();
-    super.dispose();
-  }
-
+  static final _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+
   void _switchMode() {
     setState(() {
       _mode = _mode == _EmailAuthMode.login
@@ -371,8 +350,8 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
   // LOGIN — only ever signInWithEmailAndPassword. Never auto-creates an
   // account, and reports a single generic message on any failure.
   Future<void> _login() async {
-    final email = widget.emailController.text.trim();
-    final password = widget.passwordController.text;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
       setState(() {
         _error = 'Fyll inn e-post og passord.';
@@ -392,10 +371,12 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
       if (mounted) Navigator.pop(context);
       return;
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.code == 'network-request-failed'
           ? 'Nettverksfeil. Sjekk internettforbindelsen.'
           : 'Feil e-post eller passord.');
     } catch (_) {
+      if (!mounted) return;
       setState(() => _error = 'Noe gikk galt. Prøv igjen.');
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -407,8 +388,8 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
   // flow (M2 server-authoritative verification stays intact). email-already-
   // in-use is reported with a generic message that does not confirm existence.
   Future<void> _create() async {
-    final email = widget.emailController.text.trim();
-    final password = widget.passwordController.text;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
       setState(() {
         _error = 'Fyll inn e-post og passord.';
@@ -426,6 +407,7 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
           .createUserWithEmailAndPassword(email: email, password: password);
       final user = cred.user;
       if (user == null) {
+        if (!mounted) return;
         setState(() => _error = 'Noe gikk galt. Prøv igjen.');
         return;
       }
@@ -434,6 +416,7 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
       if (mounted) Navigator.pop(context);
       return;
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         switch (e.code) {
           case 'invalid-email':
@@ -452,6 +435,7 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
         }
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() => _error = 'Noe gikk galt. Prøv igjen.');
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -463,7 +447,7 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
   // so a user-not-found result is shown exactly like a success.
   Future<void> _forgotPassword() async {
     if (_busy) return;
-    final email = widget.emailController.text.trim();
+    final email = _emailController.text.trim();
     if (email.isEmpty || !_emailRe.hasMatch(email)) {
       setState(() {
         _error = 'Skriv inn e-postadressen din først.';
@@ -606,7 +590,7 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
                 const SizedBox(height: 20),
                 _field(
                   key: const ValueKey('emailField'),
-                  controller: widget.emailController,
+                  controller: _emailController,
                   focusNode: _emailFocus,
                   hint: 'E-postadresse',
                   keyboardType: TextInputType.emailAddress,
@@ -618,7 +602,416 @@ class _EmailAuthSheetState extends State<_EmailAuthSheet> {
                 const SizedBox(height: 12),
                 _field(
                   key: const ValueKey('passwordField'),
-                  controller: widget.passwordController,
+                  controller: _passwordController,
+                  focusNode: _passwordFocus,
+                  hint: 'Passord',
+                  keyboardType: TextInputType.visiblePassword,
+                  textInputAction: TextInputAction.done,
+                  obscure: _obscure,
+                  maxLength: 128,
+                  onSubmitted: (_) => _submit(),
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility_off : Icons.visibility,
+                      color: AppTheme.textMuted,
+                      size: 20,
+                    ),
+                    onPressed:
+                        _busy ? null : () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+                if (isLogin)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      key: const ValueKey('emailAuthForgot'),
+                      onPressed: _busy ? null : _forgotPassword,
+                      child: const Text(
+                        'Glemt passord?',
+                        style: TextStyle(color: AppTheme.accentRose),
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, left: 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Minst 6 tegn',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.heatRedText,
+                      ),
+                    ),
+                  ),
+                if (_info != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      _info!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 52,
+                  child: FilledButton(
+                    key: const ValueKey('emailAuthPrimary'),
+                    onPressed: _busy ? null : _submit,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.accentRose,
+                      disabledBackgroundColor:
+                          AppTheme.accentRose.withValues(alpha: 0.6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _busy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            isLogin ? 'Logg inn' : 'Opprett konto',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      isLogin ? 'Ny hos US?' : 'Har du allerede en konto?',
+                      style: const TextStyle(color: AppTheme.textSecondary),
+                    ),
+                    TextButton(
+                      key: const ValueKey('emailAuthSwitch'),
+                      onPressed: _busy ? null : _switchMode,
+                      child: Text(
+                        isLogin ? 'Opprett konto' : 'Logg inn',
+                        style: const TextStyle(
+                          color: AppTheme.accentRose,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+);
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
+  }
+
+  void _switchMode() {
+    setState(() {
+      _mode = _mode == _EmailAuthMode.login
+          ? _EmailAuthMode.create
+          : _EmailAuthMode.login;
+      _error = null;
+      _info = null;
+      _obscure = true;
+    });
+  }
+
+  void _submit() {
+    if (_busy) return;
+    if (_mode == _EmailAuthMode.login) {
+      _login();
+    } else {
+      _create();
+    }
+  }
+
+  // LOGIN — only ever signInWithEmailAndPassword. Never auto-creates an
+  // account, and reports a single generic message on any failure.
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _error = 'Fyll inn e-post og passord.';
+        _info = null;
+      });
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _info = null;
+    });
+    try {
+      await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      await FirebaseAnalytics.instance.logLogin(loginMethod: 'email');
+      if (mounted) Navigator.pop(context);
+      return;
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = e.code == 'network-request-failed'
+          ? 'Nettverksfeil. Sjekk internettforbindelsen.'
+          : 'Feil e-post eller passord.');
+    } catch (_) {
+      setState(() => _error = 'Noe gikk galt. Prøv igjen.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // CREATE — only ever createUserWithEmailAndPassword. On success it sends the
+  // verification email and routes through the existing needsEmailVerification
+  // flow (M2 server-authoritative verification stays intact). email-already-
+  // in-use is reported with a generic message that does not confirm existence.
+  Future<void> _create() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _error = 'Fyll inn e-post og passord.';
+        _info = null;
+      });
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _info = null;
+    });
+    try {
+      final cred = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+      final user = cred.user;
+      if (user == null) {
+        setState(() => _error = 'Noe gikk galt. Prøv igjen.');
+        return;
+      }
+      await user.sendEmailVerification();
+      await widget.onAuthSuccess(user, needsEmailVerification: true);
+      if (mounted) Navigator.pop(context);
+      return;
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        switch (e.code) {
+          case 'invalid-email':
+            _error = 'Ugyldig e-postadresse.';
+            break;
+          case 'weak-password':
+            _error = 'Passordet er for svakt (minst 6 tegn).';
+            break;
+          case 'network-request-failed':
+            _error = 'Nettverksfeil. Sjekk internettforbindelsen.';
+            break;
+          default:
+            // Includes email-already-in-use: never disclose account existence.
+            _error =
+                'Kunne ikke opprette konto. Sjekk opplysningene eller prøv å logge inn.';
+        }
+      });
+    } catch (_) {
+      setState(() => _error = 'Noe gikk galt. Prøv igjen.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // FORGOT PASSWORD — requires a valid email, then sends a reset email. The
+  // confirmation copy is neutral: it never reveals whether an account exists,
+  // so a user-not-found result is shown exactly like a success.
+  Future<void> _forgotPassword() async {
+    if (_busy) return;
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !_emailRe.hasMatch(email)) {
+      setState(() {
+        _error = 'Skriv inn e-postadressen din først.';
+        _info = null;
+      });
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _info = null;
+    });
+    String? hardError;
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'invalid-email') {
+        hardError = 'Ugyldig e-postadresse.';
+      } else if (e.code == 'network-request-failed') {
+        hardError = 'Nettverksfeil. Sjekk internettforbindelsen.';
+      }
+      // Any other code (e.g. user-not-found) falls through to neutral copy.
+    } catch (_) {
+      // Ignore: still show neutral copy rather than disclose anything.
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (hardError != null) {
+        _error = hardError;
+      } else {
+        _info =
+            'Hvis det finnes en konto med denne e-posten, har vi sendt en lenke for å tilbakestille passordet.';
+      }
+    });
+  }
+
+  Widget _field({
+    required Key key,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String hint,
+    required TextInputType keyboardType,
+    required TextInputAction textInputAction,
+    required bool obscure,
+    required int maxLength,
+    required ValueChanged<String> onSubmitted,
+    Widget? suffix,
+  }) {
+    return TextField(
+      key: key,
+      controller: controller,
+      focusNode: focusNode,
+      enabled: !_busy,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      obscureText: obscure,
+      maxLength: maxLength,
+      onSubmitted: onSubmitted,
+      buildCounter: (_,
+              {required currentLength, required isFocused, maxLength}) =>
+          null,
+      style: const TextStyle(color: AppTheme.textPrimary),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppTheme.textMuted),
+        filled: true,
+        fillColor: AppTheme.white,
+        suffixIcon: suffix,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.divider),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.accentRose, width: 1.5),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.divider),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLogin = _mode == _EmailAuthMode.login;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: AppTheme.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  isLogin ? 'Velkommen tilbake' : 'Opprett konto',
+                  key: const ValueKey('emailAuthHeader'),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isLogin
+                      ? 'Logg inn med e-post'
+                      : 'Bare noen få steg, så er dere i gang.',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _field(
+                  key: const ValueKey('emailField'),
+                  controller: _emailController,
+                  focusNode: _emailFocus,
+                  hint: 'E-postadresse',
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  obscure: false,
+                  maxLength: 254,
+                  onSubmitted: (_) => _passwordFocus.requestFocus(),
+                ),
+                const SizedBox(height: 12),
+                _field(
+                  key: const ValueKey('passwordField'),
+                  controller: _passwordController,
                   focusNode: _passwordFocus,
                   hint: 'Passord',
                   keyboardType: TextInputType.visiblePassword,
