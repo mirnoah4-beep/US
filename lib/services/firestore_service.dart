@@ -124,6 +124,19 @@ class FirestoreService {
     return result.data['delivered'] as bool? ?? false;
   }
 
+  /// Repairs a missing users/{uid}.coupleId from the server-authoritative
+  /// couples.members relation. This is intentionally server-side: H3 security
+  /// rules forbid clients from assigning themselves to arbitrary couples.
+  ///
+  /// Returns true only when an ACTIVE couple link was restored. Legitimately
+  /// solo users get false and remain in the solo experience.
+  static Future<bool> recoverCoupleLink() async {
+    final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+        .httpsCallable('recoverCoupleLink');
+    final result = await callable.call<Map<String, dynamic>>();
+    return result.data['recovered'] as bool? ?? false;
+  }
+
   // ── Couples ────────────────────────────────────────────────────────────────
 
   static DocumentReference<Map<String, dynamic>> coupleRef(String coupleId) =>
