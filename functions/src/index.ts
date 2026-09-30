@@ -592,6 +592,98 @@ export const joinCouple = onCall(
   }
 );
 
+// Callable: repair a missing users/{uid}.coupleId from the authoritative
+// couples.members relation. This exists specifically to recover from older
+// clients that could clear coupleId after a permission/network read error.
+//
+// Security properties:
+// - caller identity comes only from Auth;
+// - password accounts must be email-verified (same M2 guard as pairing);
+// - the client supplies NO coupleId;
+// - only ACTIVE couples whose members already contain the caller are eligible;
+// - zero matches is a harmless no-op;
+// - multiple active matches fail closed rather than guessing;
+// - only the caller's own user pointer is repaired.
+export const recoverCoupleLink = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
+    assertEmailVerified(request);
+
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+    const userRef = db.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'User not found');
+    }
+
+    const existing = userSnap.data()?.coupleId;
+    if (typeof existing === 'string' && existing.length > 0) {
+      return { recovered: false };
+    }
+
+    const membershipSnap = await db
+      .collection('couples')
+      .where('members', 'array-contains', uid)
+      .get();
+
+    const candidates = membershipSnap.docs.filter((doc) => {
+      const data = doc.data();
+      const members: unknown = data.members;
+      return data.status === 'active'
+        && Array.isArray(members)
+        && members.length === 2
+        && members.includes(uid);
+    });
+
+    if (candidates.length === 0) {
+      return { recovered: false };
+    }
+    if (candidates.length !== 1) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Ambiguous active couple membership',
+        { reason: 'ambiguous-couple-membership' },
+      );
+    }
+
+    const coupleRef = candidates[0].ref;
+    const recovered = await db.runTransaction(async (tx) => {
+      const freshUser = await tx.get(userRef);
+      if (!freshUser.exists) {
+        throw new HttpsError('not-found', 'User not found');
+      }
+
+      const freshPointer = freshUser.data()?.coupleId;
+      if (typeof freshPointer === 'string' && freshPointer.length > 0) {
+        return false;
+      }
+
+      const freshCouple = await tx.get(coupleRef);
+      if (!freshCouple.exists) return false;
+      const data = freshCouple.data() ?? {};
+      const members: unknown = data.members;
+      if (data.status !== 'active'
+          || !Array.isArray(members)
+          || members.length !== 2
+          || !members.includes(uid)) {
+        return false;
+      }
+
+      tx.update(userRef, { coupleId: coupleRef.id });
+      return true;
+    });
+
+    if (recovered) {
+      console.log('[pairing] recoverCoupleLink restored an active membership pointer');
+    }
+    return { recovered };
+  }
+);
+
 // Callable: unilateral disconnect. Either partner can dissolve the couple
 // immediately (no consent needed). Auth-gated; caller must be a member.
 export const disconnectPartner = onCall(
