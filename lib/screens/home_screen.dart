@@ -3426,7 +3426,10 @@ class _SoloPreviewGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          childAspectRatio: 1.35,
+          // Leave enough vertical room for the two-line preview copy at
+          // Android's default text metrics. 1.35 was ~3 px too short on
+          // common phones and triggered RenderFlex overflow banners.
+          childAspectRatio: 1.28,
           children: cards.map((data) => _PreviewCard(data: data)).toList(),
         ),
       ],
